@@ -49,15 +49,13 @@ navbarPage(title = HTML("<span style='float: left; display: inline-block; paddin
            windowTitle = "RARECAT", 
            id="nav", theme = "style.css", collapsible = TRUE,
            
-           scr,
-           
-           tags$head(
-             HTML("<link href='https://fonts.googleapis.com/css2?family=Roboto&display=swap' rel='stylesheet'>"),
-             HTML("<link href='https://fonts.googleapis.com/css2?family=Archivo&display=swap' rel='stylesheet'>"),
-             HTML("<meta name='viewport' content='width=device-width, initial-scale=1'>"),
-           ),
-           
            tabPanel("SINGLE SPECIES", height = "100%", 
+
+                    tags$head(
+                      HTML("<link href='https://fonts.googleapis.com/css2?family=Roboto&display=swap' rel='stylesheet'>"),
+                      HTML("<link href='https://fonts.googleapis.com/css2?family=Archivo&display=swap' rel='stylesheet'>"),
+                      HTML("<meta name='viewport' content='width=device-width, initial-scale=1'>"),
+                    ),
                     
                     div(class="outer",
                         
@@ -412,6 +410,108 @@ navbarPage(title = HTML("<span style='float: left; display: inline-block; paddin
                         )
                         
 
+),
+
+tabPanel("BATCH RUN", height = "100%", 
+         
+         tags$head(
+           HTML("<link href='https://fonts.googleapis.com/css2?family=Roboto&display=swap' rel='stylesheet'>"),
+           HTML("<link href='https://fonts.googleapis.com/css2?family=Archivo&display=swap' rel='stylesheet'>"),
+           HTML("<meta name='viewport' content='width=device-width, initial-scale=1'>"),
+         ),
+         
+         div(class="outer",
+             
+             useShinyjs(),     ## Call to use shinyJS
+             
+             scr,
+             
+             fluidRow(style = "padding: 5px 10px 0px 20px;",
+                      column(width = 4,
+                             fluidRow(
+                             column(width = 5, style = "padding-left: 0;", 
+                                    h3("Add species from CSV"),
+                                    fileInput(inputId = "batch_filedata", 
+                                              label = "",
+                                              accept = c("text/csv",
+                                                         "text/comma-separated-values,text/plain",
+                                                         ".csv"),
+                                              placeholder = "",
+                                              multiple = TRUE
+                                    )
+                             ),
+                             column(width = 7, style = "padding: 0 10px 10px 10px;",
+                                    h3("Type or paste from Excel"),
+                                    textAreaInput(inputId = "typed_list", 
+                                                  label = "",
+                                                  height = "35px",
+                                                  width = "100%",
+                                                  resize = "vertical"
+                                                  
+                                    )
+                             )
+                             ),
+                             fluidRow(
+                               column(width = 12, style = "padding-bottom: 20px; margin-left: 0; background-color: rgba(249, 249, 249, 1);",
+                                      h3("Filters", style = "padding-bottom: 12px;"),
+                                      br(),
+                                      materialSwitch(inputId = "batch_clean_occ", 
+                                                     label = "Clean up GBIF records", 
+                                                     value = TRUE, 
+                                                     right = TRUE
+                                                     
+                                      ),
+                                      br(),
+                                      materialSwitch(inputId = "batch_centroid_filter", 
+                                                     label = "Remove centroids identified", 
+                                                     value = FALSE, 
+                                                     right = TRUE
+                                                     
+                                      ),
+                                      br(),
+                                      br(),
+                                      dateRangeInput("batch_year_filter", "Set time frame of records", format = "yyyy", start = "1900-01-01", end = "2023-01-01"),
+                                      br(),
+                                      br(),
+                                      textInput( 
+                                        inputId = "batch_uncertainty_filter", 
+                                        label = "Set spatial uncertainty of records (in meters):",
+                                        value = "", 
+                                        width = "100%"
+                                      ),
+                                      br(),
+                                      fluidRow(
+                                        column(width = 6, 
+                                               selectizeInput(inputId = "batch_nation_filter",
+                                                              label = "Limit records by nation(s)",
+                                                              choices = NULL,
+                                                              multiple = TRUE, 
+                                                              width = "100%"
+                                               )
+                                        ),
+                                        column(width = 6, 
+                                               selectizeInput(inputId = "batch_states_filter",
+                                                              label = "Limit records by subnation(s)",
+                                                              choices = NULL,
+                                                              multiple = TRUE, 
+                                                              width = "100%"
+                                               )      
+                                        )
+                                      ),
+                                      br(),
+                                      fluidRow(style = "padding-left: 15px; padding-right: 15px;",
+                                               selectizeInput(inputId = "batch_sources_filter",
+                                                              label = "Select data sources to include",
+                                                              choices = NULL,
+                                                              multiple = TRUE, 
+                                                              width = "100%"
+                                               )  
+                                      )
+                               )
+                               )
+                      )
+             )
+         )
 ),
 
 tabPanel("DOCUMENTATION", height = "100%",
