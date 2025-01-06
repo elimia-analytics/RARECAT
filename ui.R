@@ -427,9 +427,9 @@ tabPanel("BATCH RUN", height = "100%",
              scr,
              
              fluidRow(style = "padding: 5px 10px 0px 20px;",
-                      column(width = 4,
+                      column(width = 4, style = "padding: 20px; background-color: rgba(249, 249, 249, 1);",
                              fluidRow(
-                             column(width = 5, style = "padding-left: 0;", 
+                             column(width = 5, 
                                     h3("Add species from CSV"),
                                     fileInput(inputId = "batch_filedata", 
                                               label = "",
@@ -508,7 +508,8 @@ tabPanel("BATCH RUN", height = "100%",
                                                )  
                                       )
                                )
-                               )
+                               ),
+                             div(style = "padding-top: 20px; position: relative; float: right;", actionButton(inputId = "batch_assessment", label = "Start assessment", icon = icon("close"), block = TRUE, class = "btn-primary btn-sm", width = "100%"))
                       )
              )
          )

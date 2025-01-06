@@ -404,7 +404,6 @@ function(input, output, session) {
     
   })
   
-  
   observeEvent(input$main_map_draw_new_feature, {
     
       if (input$main_map_draw_new_feature$geometry$type == "Polygon" & !is.null(taxon_data$sf_filtered)){
@@ -482,7 +481,6 @@ function(input, output, session) {
       taxon_data$uploaded_occurrences,
       taxon_data$drawn_occurrences
     )
-    
     
     if (!is.null(taxon_data$all_occurrences)){
       
@@ -1378,5 +1376,8 @@ function(input, output, session) {
     session$reload()
     
   })
+  
+  c("Acacia millefolia", "Juncus abortivus" "Artemisia pattersonii")
+  # selected_taxon_info <- taxon_NS_options() 
   
 }
