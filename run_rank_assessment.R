@@ -1,24 +1,31 @@
-run_rank_assessment <- function(taxon_name){
+run_rank_assessment <- function(taxon_name, 
+                                minimum_fields =  c("key", "scientificName", "prov", "longitude", "latitude", "coordinateUncertaintyInMeters", "stateProvince", "countryCode", "year", "institutionCode", "references"),
+                                max_number_observations = 10000,
+                                clean_occ = TRUE,
+                                centroid_filter = FALSE,
+                                date_start = "1900-01-01",
+                                date_end = "2025-01-01",
+                                uncertainty_filter = "",
+                                nations_filter = NULL,
+                                states_filter = NULL,
+                                sources_filter = NULL,
+                                grid_cell_size = 2,
+                                sep_distance = 1000
+                                
+){
   
   taxon_data <- list(
     info = data.frame(scientificName = "New taxon"),
-    info_extended = NULL,
+    family = NULL,
     synonyms = NULL,
     synonyms_selected = NULL,
     gbif_occurrences_raw = NULL,
     gbif_occurrences = NULL,
     uploaded_occurrences = NULL,
-    drawn_occurrences = NULL,
     all_occurrences = NULL,
     shifted = FALSE,
     sf = NULL,
     sf_filtered = NULL,
-    filtered_occurrences = NULL,
-    selected_points = data.frame("Key" = character(), "Scientific name" = character(), "Source" = character(), "Institution code" = character(), "Year" = numeric(), "Coordinate Uncertainty" = numeric(), "Place" = character(), "URL" = character())[NULL, ],
-    removed_points = NULL,
-    nations = NULL,
-    states = NULL,
-    records_over_time = NULL,
     species_range_value = NULL,
     species_range_map = NULL,
     AOO_value = NULL,
@@ -27,13 +34,13 @@ run_rank_assessment <- function(taxon_name){
     EOcount_value = NULL
   )
   
-  ns_table <- natserv::ns_search_spp(text_adv = list(searchToken = taxon_name, matchAgainst = "allScientificNames", operator="contains"))$results
+  ns_table_full <- natserv::ns_search_spp(text_adv = list(searchToken = taxon_name, matchAgainst = "allScientificNames", operator="contains"))$results
   gbif_table <- rgbif::name_suggest(q = taxon_name, rank = c("species", "subspecies"), limit = 10)$data
   
   taxon_info <- NULL
-  if (nrow(ns_table) > 0){
-    ns_table <- ns_table %>% 
-      dplyr::mutate(Source = "NatureServe", synonyms = ns_table$speciesGlobal$synonyms) %>% 
+  if (nrow(ns_table_full) > 0){
+    ns_table <- ns_table_full %>% 
+      dplyr::mutate(Source = "NatureServe", synonyms = ns_table_full$speciesGlobal$synonyms) %>% 
       dplyr::select(scientificName, Source, elementGlobalId, primaryCommonName, roundedGRank, elcode, uniqueId, synonyms)
     taxon_info <- rbind(taxon_info, ns_table)
   } 
@@ -44,12 +51,15 @@ run_rank_assessment <- function(taxon_name){
       dplyr::select(scientificName, Source, elementGlobalId, primaryCommonName, roundedGRank, elcode, uniqueId, synonyms)
     taxon_info <- rbind(taxon_info, gbif_table)
   }
-
+  taxon_data$info <- taxon_info
+  taxon_data$family <- ns_table_full$speciesGlobal$family
+  selected_taxon <- c(taxon_info$scientificName, unlist(taxon_info$synonyms)) %>% na.omit() %>% unique()
+  selected_taxon <- gsub("ssp. |var. ", "", selected_taxon)
   
-  if (length(selected_taxon$name) == 1){
-    taxon_data$synonyms <- rgbif::name_usage(name = selected_taxon$name)$data
+  if (length(selected_taxon) == 1){
+    taxon_data$synonyms <- rgbif::name_usage(name = selected_taxon)$data
   } else {
-    taxon_data$synonyms <- purrr::map(selected_taxon$name, function(sp) rgbif::name_usage(name = sp)) %>%
+    taxon_data$synonyms <- purrr::map(selected_taxon, function(sp) rgbif::name_usage(name = sp)) %>%
       purrr::map("data") %>%
       bind_rows()
   }
@@ -57,16 +67,16 @@ run_rank_assessment <- function(taxon_name){
   taxon_data$synonyms <- taxon_data$synonyms %>% 
     dplyr::distinct(., .keep_all = TRUE) 
   
-  gbif_download <- get_gbif_data(sp_data = taxon_data$synonyms_selected, number_observations = input$number_gbif_occurrences)
+  taxon_data$gbif_occurrences_raw <- get_gbif_data(sp_data = taxon_data$synonyms, number_observations = max_number_observations)$sp_occurrences
   
   taxon_data$gbif_occurrences <- taxon_data$gbif_occurrences_raw %>% 
-    clean_gbif_data(clean = input$clean_occ, remove_centroids = input$centroid_filter, minimum_fields = minimum_fields)
+    clean_gbif_data(clean = clean_occ, remove_centroids = centroid_filter, minimum_fields = minimum_fields)
   
-  out <- purrr::map(input$filedata$datapath, process_user_data, minimum_fields = minimum_fields) %>% 
-    dplyr::bind_rows() 
-  
-  taxon_data$uploaded_occurrences <- uploaded_data()
-  
+  # out <- purrr::map(input$filedata$datapath, process_user_data, minimum_fields = minimum_fields) %>% 
+  #   dplyr::bind_rows() 
+  # 
+  # taxon_data$uploaded_occurrences <- uploaded_data()
+  # 
   taxon_data$all_occurrences <- rbind(
     taxon_data$gbif_occurrences,
     taxon_data$uploaded_occurrences
@@ -85,44 +95,49 @@ run_rank_assessment <- function(taxon_name){
   taxon_data$sf_filtered <- taxon_data$sf
 
   taxon_data$sf_filtered <- taxon_data$sf_filtered %>%
-    dplyr::filter(year >= substr(input$year_filter[1], 1, 4) & year <= substr(input$year_filter[2], 1, 4) | is.na(year),
-                  key %in% setdiff(key, taxon_data$removed_points$key)
-    )
+    dplyr::filter(year >= substr(date_start, 1, 4) & year <= substr(date_end, 1, 4) | is.na(year))
   
-  if (input$uncertainty_filter != ""){
+  if (uncertainty_filter != ""){
     
     taxon_data$sf_filtered <- taxon_data$sf_filtered %>%
-      dplyr::filter(coordinateUncertaintyInMeters <= as.numeric(input$uncertainty_filter) | is.na(coordinateUncertaintyInMeters))
+      dplyr::filter(coordinateUncertaintyInMeters <= as.numeric(uncertainty_filter) | is.na(coordinateUncertaintyInMeters))
   }
   
-  if (!is.null(input$nation_filter)){
+  if (!is.null(nations_filter)){
     taxon_data$sf_filtered <- taxon_data$sf_filtered %>%
-      dplyr::filter(purrr::map_int(st_intersects(taxon_data$sf_filtered, network_polys %>% dplyr::filter(FIPS_CNTRY %in% input$nation_filter)), length) > 0)
+      dplyr::filter(purrr::map_int(st_intersects(taxon_data$sf_filtered, network_polys %>% dplyr::filter(FIPS_CNTRY %in% nations_filter)), length) > 0)
   }
   
-  if (!is.null(input$states_filter)){
+  if (!is.null(states_filter)){
     taxon_data$sf_filtered <- taxon_data$sf_filtered %>%
-      dplyr::filter(purrr::map_int(st_intersects(taxon_data$sf_filtered, network_polys %>% dplyr::filter(Admin_abbr %in% input$states_filter)), length) > 0)
+      dplyr::filter(purrr::map_int(st_intersects(taxon_data$sf_filtered, network_polys %>% dplyr::filter(Admin_abbr %in% states_filter)), length) > 0)
   }
   
-  name_exclusions <- setdiff(taxon_data$sf_filtered$scientificName, input$synonyms_filter)
-  if (length(name_exclusions) > 0){
-    taxon_data$sf_filtered <- taxon_data$sf_filtered %>%
-      dplyr::filter(!(scientificName %in% name_exclusions))
+  if (!is.null(sources_filter)){
+    source_exclusions <- setdiff(taxon_data$sf_filtered$prov, sources_filter)
+    
+    if (length(source_exclusions) > 0){
+      taxon_data$sf_filtered <- taxon_data$sf_filtered %>%
+        dplyr::filter(!(prov %in% source_exclusions))
+    }
   }
-  
-  source_exclusions <- setdiff(taxon_data$sf_filtered$prov, input$sources_filter)
-  
-  if (length(source_exclusions) > 0){
-    taxon_data$sf_filtered <- taxon_data$sf_filtered %>%
-      dplyr::filter(!(prov %in% source_exclusions))
-  }
-  
+
   eoo_output <- taxon_data$sf_filtered %>% calculate_eoo(shifted = TRUE)
+  taxon_data$species_range_value <- eoo_output$EOO
+  taxon_data$species_range_map <- eoo_output$hull
+  taxon_data$AOO_value <- (aoo2(taxon_data$sf_filtered, as.numeric(grid_cell_size)*1000))/4
+  taxon_data$AOO_map <- get_aoo_polys(taxon_data$sf_filtered, as.numeric(grid_cell_size))
+  number_EOs <- calculate_number_occurrences(taxon_data$sf_filtered, separation_distance = sep_distance %>% as.numeric(), added_distance = 0)
+  taxon_data$EOcount_value <- number_EOs$eo_count
+  taxon_data$EOcount_map <- number_EOs$buffered_occurrences
   
-  taxon_data$AOO_value <- (aoo2(taxon_data$filtered_occurrences, as.numeric(input$grid_cell_size)*1000))/4
-  
-  number_EOs <- calculate_number_occurrences(taxon_data$sf_filtered, separation_distance = input$separation_distance %>% as.numeric(), added_distance = 0)
-  
+  return(taxon_data)
   
 }
+
+taxon_names <- c("Acacia millefolia", "Juncus abortivus", "Artemisia pattersonii")
+Acacia millefolia
+Juncus abortivus
+Artemisia pattersonii
+x <- purrr::map(taxon_names, run_rank_assessment) %>% 
+  set_names(taxon_names)

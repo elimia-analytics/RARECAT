@@ -133,6 +133,14 @@ table.dataTable {
 
 }
 
+.shiny-notification {
+              height: 100px;
+              width: 800px;
+              position:fixed;
+              top: calc(50% - 50px);;
+              left: calc(50% - 400px);;
+            }
+            
 /*********************************************************************
                             Small screens, phones
 **********************************************************************/
@@ -296,5 +304,13 @@ table.dataTable {
 .g-ytitle {
   font-size: 0.8em !important;
 }
+
+.shiny-notification {
+              height: 100px;
+              width: 800px;
+              position:fixed;
+              top: calc(50% - 50px);;
+              left: calc(50% - 400px);;
+            }
 
 }

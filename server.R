@@ -1377,7 +1377,76 @@ function(input, output, session) {
     
   })
   
-  c("Acacia millefolia", "Juncus abortivus" "Artemisia pattersonii")
-  # selected_taxon_info <- taxon_NS_options() 
+  batch_run_taxon_list <- reactiveValues(names = NULL)
+  
+  batch_run_output <- reactiveValues(
+    results = NULL,
+    table = NULL
+  )
+  
+  observeEvent(input$batch_assessment, {
+    
+    batch_run_taxon_list$names <- strsplit(input$typed_list, "\n|,|;|, |; ")[[1]] %>% as.data.frame() %>% set_names("user_supplied_name")
+    
+    batch_run_output$results <- vector("list", length(batch_run_taxon_list$names$user_supplied_name))
+    
+    print(batch_run_taxon_list$names)
+    
+    # Create a Progress object
+    progress <- shiny::Progress$new()
+    # Make sure it closes when we exit this reactive, even if there's an error
+    on.exit(progress$close())
+    
+    progress$set(message = "Running Batch Assessment", value = 0)
+    
+    n <- length(batch_run_taxon_list$names$user_supplied_name)
+    
+    for (i in 1:n) {
+      
+      taxon_name <- batch_run_taxon_list$names$user_supplied_name[i]
+      
+      batch_run_output$results[[i]] <- run_rank_assessment(taxon_name = taxon_name)
+      
+      # Increment the progress bar, and update the detail text.
+      progress$inc(1/n, detail = paste("Taxon", i))
+      
+      # Pause for 0.1 seconds to simulate a long computation.
+      Sys.sleep(0.1)
+    }
+    
+    batch_run_output$results <- batch_run_output$results %>% 
+      set_names(batch_run_taxon_list$names$user_supplied_name)
+    
+    batch_run_output$table <- data.frame(
+      taxon = batch_run_taxon_list$names$user_supplied_name,
+      total_observations_used = purrr::map(batch_run_output$results, function(out) nrow(out$sf_filtered)) %>% unlist(),
+      range_value = purrr::map(batch_run_output$results, function(out) out$species_range_value) %>% unlist(),
+      AOO_value = purrr::map(batch_run_output$results, function(out) out$AOO_value) %>% unlist(),
+      EOcount_value = purrr::map(batch_run_output$results, function(out) out$EOcount_value) %>% unlist()
+    )
+    
+  })
+  
+  output$batch_run_results_table <- DT::renderDataTable({
+    
+    batch_run_output$table %>%
+      # dplyr::rename("Scientific name" = taxon,
+      #               "Total Observations Used" = total_observations_used,
+      #               "Range Extent" = range_value,
+      #               "AOO" = AOO_value,
+      #               "Occurrence Count" = EOcount_value
+      # ) %>%
+      DT::datatable(options = list(dom = 'tp',
+                                   pageLength = 10,
+                                   columnDefs = list(list(width = "10%", className = 'dt-left', targets = c(1,2))),
+                                   width = "100%"
+      ),
+      # filter = list(position = 'top'),
+      selection = list(mode = 'multiple', target = 'row'),
+      escape = FALSE,
+      rownames = FALSE
+      )
+    
+  })
   
 }

@@ -510,7 +510,10 @@ tabPanel("BATCH RUN", height = "100%",
                                )
                                ),
                              div(style = "padding-top: 20px; position: relative; float: right;", actionButton(inputId = "batch_assessment", label = "Start assessment", icon = icon("close"), block = TRUE, class = "btn-primary btn-sm", width = "100%"))
-                      )
+                      ),
+                      column(width = 8,
+                             DT::dataTableOutput("batch_run_results_table", height="40vh")
+                             )
              )
          )
 ),
