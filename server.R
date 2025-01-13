@@ -1427,25 +1427,73 @@ function(input, output, session) {
     
   })
   
+  batch_taxon_focus <- reactiveValues(taxon = NULL)
+  
   output$batch_run_results_table <- DT::renderDataTable({
     
     batch_run_output$table %>%
-      # dplyr::rename("Scientific name" = taxon,
-      #               "Total Observations Used" = total_observations_used,
-      #               "Range Extent" = range_value,
-      #               "AOO" = AOO_value,
-      #               "Occurrence Count" = EOcount_value
-      # ) %>%
+      dplyr::rename("Scientific name" = taxon,
+                    "Total Observations Used" = total_observations_used,
+                    "Range Extent" = range_value,
+                    "AOO" = AOO_value,
+                    "Occurrence Count" = EOcount_value
+      ) %>% 
+      dplyr::mutate(Review = shinyInput(actionButton, nrow(batch_run_output$table), 'button_', label = "Review Assessment", onclick = 'Shiny.onInputChange(\"select_button\",  this.id)' )) %>% 
       DT::datatable(options = list(dom = 'tp',
                                    pageLength = 10,
-                                   columnDefs = list(list(width = "10%", className = 'dt-left', targets = c(1,2))),
+                                   # columnDefs = list(list(width = "10%", className = 'dt-left', targets = c(1,2))),
                                    width = "100%"
       ),
       # filter = list(position = 'top'),
-      selection = list(mode = 'multiple', target = 'row'),
-      escape = FALSE,
-      rownames = FALSE
+      selection = "none", 
+      escape = FALSE
       )
+    
+  })
+  
+  observeEvent(input$send_to_batch_mode, {
+    
+    updateTabsetPanel(inputId = "nav", selected = "BATCH RUN")
+    
+    if (taxon_data$info$scientificName %in% batch_run_output$table$taxon){
+      batch_run_output$table <- batch_run_output$table %>% 
+        dplyr::filter(taxon != taxon_data$info$scientificName) %>% 
+        rbind(
+          data.frame(
+            taxon = taxon_data$info$scientificName,
+            total_observations_used = nrow(taxon_data$sf_filtered),
+            range_value = taxon_data$species_range_value,
+            AOO_value = taxon_data$AOO_value,
+            EOcount_value = taxon_data$EOcount_value
+          )
+        )
+    } else {
+      batch_run_output$table <- batch_run_output$table %>% 
+        rbind(
+          data.frame(
+          taxon = taxon_data$info$scientificName,
+          total_observations_used = nrow(taxon_data$sf_filtered),
+          range_value = taxon_data$species_range_value,
+          AOO_value = taxon_data$AOO_value,
+          EOcount_value = taxon_data$EOcount_value
+          )
+        )
+    }
+    
+  })
+  
+  observeEvent(input$select_button, {
+    
+    updateTabsetPanel(inputId = "nav", selected = "SINGLE SPECIES")
+    
+    selectedRow <- as.numeric(strsplit(input$select_button, "_")[[1]][2])
+    batch_taxon_focus$taxon <<- batch_run_output$table[selectedRow, ]$taxon
+    
+    print(batch_taxon_focus$taxon)
+    
+    updateTabsetPanel(inputId = "nav", selected = "SINGLE SPECIES")
+    
+    updateTextInput(inputId = "search_taxon", value = batch_taxon_focus$taxon)
     
   })
   

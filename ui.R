@@ -265,11 +265,14 @@ navbarPage(title = HTML("<span style='float: left; display: inline-block; paddin
                                                     )
                                                   ),
                                                   fluidRow(style = "padding-top: 2px;",
-                                                           column(width = 6,
-                                                                  downloadButton(outputId = "download_occurrence_data", label = "Download analysis records", class = "btn-primary btn-sm", style = "width: 100%;")
+                                                           column(width = 4,
+                                                                  downloadButton(outputId = "download_occurrence_data", label = "Download records", class = "btn-primary btn-sm", style = "width: 100%;")
                                                            ),
-                                                           column(width = 6, 
+                                                           column(width = 4, 
                                                                   downloadButton(outputId = "download_rank_data", label = "Download rank data", class = "btn-primary btn-sm", style = "width: 100%;")
+                                                           ),
+                                                           column(width = 4, 
+                                                                  actionButton(inputId = "send_to_batch_mode", label = "Send to batch mode", icon = icon("close"), block = TRUE, class = "btn-primary btn-sm", width = "100%")
                                                            )
                                                   )
                                               )
