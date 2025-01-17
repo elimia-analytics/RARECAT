@@ -49,7 +49,7 @@ navbarPage(title = HTML("<span style='float: left; display: inline-block; paddin
            windowTitle = "RARECAT", 
            id="nav", theme = "style.css", collapsible = TRUE,
            
-           tabPanel("SINGLE SPECIES", height = "100%", 
+           tabPanel("SINGLE SPECIES MODE", height = "100%", 
 
                     tags$head(
                       HTML("<link href='https://fonts.googleapis.com/css2?family=Roboto&display=swap' rel='stylesheet'>"),
@@ -68,7 +68,7 @@ navbarPage(title = HTML("<span style='float: left; display: inline-block; paddin
                                       top = 57, left = 50, right = "auto", bottom = "auto",
                                       width = "25em",
                                       height = "3em",
-                                      style = "margin-top: 0; padding: 0em 1.8em 1em 3em; border: none; border-bottom: none; border-color: transparent; background-color: rgba(169, 169, 169, 0); z-index: 1 !important; overflow-y: hidden !important; overflow-x: hidden;",
+                                      style = "margin-top: 0; padding: 0em 1.8em 1em 3em; border: none; border-bottom: none; border-color: transparent; background-color: rgba(169, 169, 169, 0); z-index: 1 !important; overflow-y: hidden !important; overflow-x: hidden; box-shadow: none !important;",
                                       textInput(inputId = "search_taxon", label = "", placeholder = "Select target taxon", width = "100%")
                         ),
                         
@@ -78,8 +78,8 @@ navbarPage(title = HTML("<span style='float: left; display: inline-block; paddin
                                         top = 100, left = 90, right = "auto", bottom = "auto",
                                         width = "33vw",
                                         height = "25vh",
-                                        style = "padding: 0.5em; border-bottom: none; border-color: transparent; background-color: rgba(255, 255, 255, 0.8); z-index: 1 !important; overflow-y: scroll; overflow-x: hidden;",
-                                        shinycssloaders::withSpinner(DT::dataTableOutput("taxon_NS_table", width = "100%"), type = 7, proxy.height = "50px")
+                                        style = "padding: 0.5em; border-bottom: none; border-color: transparent; background-color: rgba(255, 255, 255, 0.8); z-index: 1 !important; overflow-y: scroll; overflow-x: hidden; scrollbar-color: #007 #fff !important;",
+                                        shinycssloaders::withSpinner(DT::dataTableOutput("taxon_NS_table", width = "100%"), type = 7, proxy.height = "150px")
                           )
                         ),
                         
@@ -89,19 +89,19 @@ navbarPage(title = HTML("<span style='float: left; display: inline-block; paddin
                                         top = 100, left = 90, right = "auto", bottom = "auto",
                                         width = "33vw",
                                         height = "25vh",
-                                        style = "padding: 0.5em; border-bottom: none; border-color: transparent; background-color: rgba(255, 255, 255, 0.8); z-index: 1 !important; overflow-y: scroll; overflow-x: hidden;",
+                                        style = "padding: 0.5em; border-bottom: none; border-color: transparent; background-color: rgba(255, 255, 255, 0.8); z-index: 1 !important; overflow-y: scroll; overflow-x: hidden; scrollbar-color: #007 rgba(255, 255, 255, 0.8) !important;",
                                         div(style = "padding-left: 10px;", p(em("Click on all taxonomic concepts to include in assessment: "))),
                                         shinycssloaders::withSpinner(DT::dataTableOutput("taxon_options_table", width = "100%"), type = 7, proxy.height = "50px"),
-                                        div(style = "padding-top: 20px; position: relative; float: right;", actionButton(inputId = "begin_assessment", label = "Start assessment", icon = icon("close"), block = TRUE, class = "btn-primary btn-sm", width = "100%"))
+                                        div(style = "padding-top: 20px; position: relative; text-align: center;", actionButton(inputId = "begin_assessment", label = "Start assessment", block = TRUE, class = "btn-primary btn-lg", width = "60%"))
                           )
                         ),
 
                         absolutePanel(id = "cond_inputs_panel", 
                                       class = "panel panel-default", 
-                                      top = 63, left = 380, right = "auto", bottom = "auto",
+                                      top = 63, left = 360, right = "auto", bottom = "auto",
                                       width = "13em",
                                       height = "2.5em",
-                                      style = "margin-top: 0; padding: 0em 1.8em 1em 3em; border-bottom: none; border-color: transparent; background-color: rgba(169, 169, 169, 0); z-index: 10 !important; overflow-y: hidden !important; overflow-x: hidden;", 
+                                      style = "margin-top: 0; padding: 0em 1.8em 1em 3em; border-bottom: none; border-color: transparent; background-color: rgba(169, 169, 169, 0); z-index: 10 !important; overflow-y: hidden !important; overflow-x: hidden; box-shadow: none !important;", 
                                       div(style = "float: left;",
                                       actionButton(inputId = "clear_map", label = "Start fresh", icon = icon("close"), block = TRUE, class = "btn-primary btn-sm", width = "100%")
                                       )
@@ -115,7 +115,7 @@ navbarPage(title = HTML("<span style='float: left; display: inline-block; paddin
                                             top = 58, left = "auto", right = 14, bottom = "auto",
                                             width = "33vw",
                                             height = "58vh",
-                                            style = "margin-top: 0; padding: 0.3em 1.2em 1em 1.2em; background-color: white; box-shadow: -5px 5px 5px rgba(169, 169, 169, .8); z-index: 1000 !important; overflow-y: scroll; scrollbar-color: white;", 
+                                            style = "margin-top: 0; padding: 0.3em 1.2em 1em 1.2em; background-color: white; box-shadow: -5px 5px 5px rgba(169, 169, 169, .8); z-index: 1000 !important; overflow-y: scroll; scrollbar-color: #007 #fff !important;", 
                                             fluidRow(style = "padding-left: 20px",
                                                             htmlOutput("species_name")
                                             ),
@@ -272,7 +272,7 @@ navbarPage(title = HTML("<span style='float: left; display: inline-block; paddin
                                                                   downloadButton(outputId = "download_rank_data", label = "Download rank data", class = "btn-primary btn-sm", style = "width: 100%;")
                                                            ),
                                                            column(width = 4, 
-                                                                  actionButton(inputId = "send_to_batch_mode", label = "Send to batch mode", icon = icon("close"), block = TRUE, class = "btn-primary btn-sm", width = "100%")
+                                                                  actionButton(inputId = "send_to_batch_mode", label = "Send to batch mode", block = TRUE, class = "btn-primary btn-sm", width = "100%")
                                                            )
                                                   )
                                               )
@@ -373,40 +373,66 @@ navbarPage(title = HTML("<span style='float: left; display: inline-block; paddin
                                                        h4("Remove selected records from dataset", style = "display: inline-block;")
                                                 ),
                                                 column(width = 4, style = "padding-right: 0; padding-left: 0;",
-                                                       div(style = "float: right !important;", actionButton(inputId = "clear_selected_records", label = "Unselect records", icon = icon("close"), block = TRUE, class = "btn-primary btn-sm", width = "12em"))
+                                                       div(style = "float: right !important;", actionButton(inputId = "clear_selected_records", label = "Unselect records", block = TRUE, class = "btn-primary btn-sm", width = "12em"))
                                                 )
                                        ),
-                                       fluidRow(style = "padding-left: 15px; padding-right: 15px; overflow-x: scroll; overflow-y: hidden; scrollbar-color: white;",
+                                       fluidRow(style = "padding-left: 15px; padding-right: 15px; overflow-x: scroll; overflow-y: hidden; scrollbar-color: #007 #fff !important;",
                                          DT::dataTableOutput("occurrences_table", height="40vh")
                                        )
                                 ),
-                                column(width = 4, 
-                                       fluidRow(style = "padding-left: 20px;",
-                                         h3("Temporal trend"),
+                                column(width = 4, style = "padding-top: 5px;",
+                                       tabsetPanel(type = "tabs",
+                                         tabPanel("Records over time",
+                                                  fluidRow(style = "padding: 25px 20px 2px 20px;",
+                                                           dygraphs::dygraphOutput("occurrences_barchart_full", height = "16vh", width = "100%")
+                                                  ),
+                                                  br(),
+                                                  fluidRow(style = "padding-left: 20px; padding-top: 5px; padding-bottom: 5px; background-color: rgba(249, 249, 249, 1);",
+                                                           column(width = 4,
+                                                                  fluidRow(style = "padding-bottom: 20px;",
+                                                                           h3("Group by time period", style = "padding-top: 0; padding-left: 5px;"),
+                                                                  ),
+                                                                  fluidRow(style = "padding-bottom: 20px;",
+                                                                           dateRangeInput("period1", "Time period 1", format = "yyyy", start = "1980-01-01", end = "1994-01-01")
+                                                                  ),
+                                                                  fluidRow(style = "padding-bottom: 20px;",
+                                                                           dateRangeInput("period2", "Time period 2", format = "yyyy", start = "1995-01-01", end = "2009-01-01")
+                                                                  ),
+                                                                  fluidRow(style = "padding-bottom: 20px;",
+                                                                           dateRangeInput("period3", "Time period 3", format = "yyyy", start = "2010-01-01", end = Sys.Date())
+                                                                  )
+                                                           ),
+                                                           column(width = 8,
+                                                                  plotly::plotlyOutput("occurrences_barchart_period", height = "30vh")
+                                                           )
+                                                  ) 
+                                                  ),
+                                         tabPanel("Temporal trend analysis",
+                                                  fluidRow(style = "padding-left: 5px;",
+                                                           column(width = 4,
+                                                                  p("Select reference taxon ", style = "padding-top: 19px; float: right;")
+                                                                  ),
+                                                           column(width = 4, style = "padding-top: 5px; padding-left: 0;",
+                                                                  selectizeInput(inputId = "select_reference_taxon",
+                                                                                 label = "",
+                                                                                 choices = c("family", "order", "class", "phylum", "kingdom"),
+                                                                                 selected = "class",
+                                                                                 multiple = FALSE, 
+                                                                                 width = "90%"
+                                                                  )
+                                                           ),
+                                                           column(width = 4, style = "padding: 12px 20px 5px 10px; float: right;",
+                                                                  actionButton(inputId = "temporal_trend", label = "Calculate temporal trend", block = TRUE, class = "btn-primary btn-sm", width = "100%")
+                                                           ),
+                                                           hidden(
+                                                           fluidRow(id = "temporal_trend_plots",
+                                                             shinycssloaders::withSpinner(plotlyOutput("temporal_trends_output"), type = 7, proxy.height = "50px")
+                                                           )
+                                                           )
+                                                  )
+                                                  )
                                        ),
-                                       fluidRow(style = "padding: 25px 20px 2px 20px;",
-                                                dygraphs::dygraphOutput("occurrences_barchart_full", height = "16vh", width = "100%")
-                                       ),
-                                       br(),
-                                       fluidRow(style = "padding-left: 20px; padding-top: 5px; padding-bottom: 5px; background-color: rgba(249, 249, 249, 1);",
-                                                column(width = 4,
-                                                       fluidRow(style = "padding-bottom: 20px;",
-                                                         h3("Summarize by time period", style = "padding-top: 0;"),
-                                                       ),
-                                                       fluidRow(style = "padding-bottom: 20px;",
-                                                                dateRangeInput("period1", "Time period 1", format = "yyyy", start = "1980-01-01", end = "1994-01-01")
-                                                       ),
-                                                       fluidRow(style = "padding-bottom: 20px;",
-                                                                dateRangeInput("period2", "Time period 2", format = "yyyy", start = "1995-01-01", end = "2009-01-01")
-                                                       ),
-                                                       fluidRow(style = "padding-bottom: 20px;",
-                                                                dateRangeInput("period3", "Time period 3", format = "yyyy", start = "2010-01-01", end = Sys.Date())
-                                                       )
-                                                ),
-                                                column(width = 8,
-                                                       plotly::plotlyOutput("occurrences_barchart_period", height = "30vh")
-                                                       )
-                                       ) 
+                                       
                                 )
                               )
                           )
@@ -415,7 +441,7 @@ navbarPage(title = HTML("<span style='float: left; display: inline-block; paddin
 
 ),
 
-tabPanel("BATCH RUN", height = "100%", 
+tabPanel("MULTISPECIES MODE", height = "100%", 
          
          tags$head(
            HTML("<link href='https://fonts.googleapis.com/css2?family=Roboto&display=swap' rel='stylesheet'>"),
@@ -512,7 +538,7 @@ tabPanel("BATCH RUN", height = "100%",
                                       )
                                )
                                ),
-                             div(style = "padding-top: 20px; position: relative; float: right;", actionButton(inputId = "batch_assessment", label = "Start assessment", icon = icon("close"), block = TRUE, class = "btn-primary btn-sm", width = "100%"))
+                             div(style = "padding-top: 20px; position: relative; text-align:center; display:block;", actionButton(inputId = "batch_assessment", label = "Start assessment", block = TRUE, class = "btn-primary btn-lg", width = "60%"))
                       ),
                       column(width = 8,
                              DT::dataTableOutput("batch_run_results_table", height="40vh")
@@ -523,7 +549,7 @@ tabPanel("BATCH RUN", height = "100%",
 
 tabPanel("DOCUMENTATION", height = "100%",
          fluidRow(style = "padding: 20px 50px 20px 50px; background-color: rgba(249, 249, 249, 1);",
-           h2(paste0("You are using RARECAT version 1.1.1 (", Sys.Date(), "). For more information: "),
+           h2(paste0("You are using RARECAT version 1.1.1 (2024-10-01). For more information: "),
            strong(a(
              "NatureServe RARECAT Documentation.",
              target = "_blank",

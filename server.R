@@ -782,6 +782,22 @@ function(input, output, session) {
     
   })
   
+  observeEvent(input$temporal_trend, {
+    
+    shinyjs::show("temporal_trend_plots")
+    
+    temporal_trends_output <- get_temporal_trends(
+      taxon_data = taxon_data,
+      referenceTaxon = input$select_reference_taxon,
+      start_year = 1980
+    )
+    
+    output$temporal_trends_output <- plotly::renderPlotly(
+      temporal_trends_output
+    )
+    
+  })
+  
   output$occurrences_table <- DT::renderDataTable({
     
     dat <- taxon_data$selected_points
@@ -1453,7 +1469,7 @@ function(input, output, session) {
   
   observeEvent(input$send_to_batch_mode, {
     
-    updateTabsetPanel(inputId = "nav", selected = "BATCH RUN")
+    updateTabsetPanel(inputId = "nav", selected = "MULTISPECIES MODE")
     
     if (taxon_data$info$scientificName %in% batch_run_output$table$taxon){
       batch_run_output$table <- batch_run_output$table %>% 
@@ -1484,14 +1500,12 @@ function(input, output, session) {
   
   observeEvent(input$select_button, {
     
-    updateTabsetPanel(inputId = "nav", selected = "SINGLE SPECIES")
+    updateTabsetPanel(inputId = "nav", selected = "SINGLE SPECIES MODE")
     
     selectedRow <- as.numeric(strsplit(input$select_button, "_")[[1]][2])
     batch_taxon_focus$taxon <<- batch_run_output$table[selectedRow, ]$taxon
     
     print(batch_taxon_focus$taxon)
-    
-    updateTabsetPanel(inputId = "nav", selected = "SINGLE SPECIES")
     
     updateTextInput(inputId = "search_taxon", value = batch_taxon_focus$taxon)
     

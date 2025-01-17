@@ -140,7 +140,13 @@ table.dataTable {
               top: calc(50% - 50px);;
               left: calc(50% - 400px);;
             }
-            
+
+.nav-pills>li.active>a {
+    padding: 5px 10px;
+    font-size: 12px;
+    line-height: 1.5;
+    border-radius: 3px;
+}
 /*********************************************************************
                             Small screens, phones
 **********************************************************************/
@@ -312,5 +318,12 @@ table.dataTable {
               top: calc(50% - 50px);;
               left: calc(50% - 400px);;
             }
+            
+.nav-pills>li.active>a {
+    padding: 5px 10px;
+    font-size: 12px;
+    line-height: 1.5;
+    border-radius: 3px;
+}
 
 }
