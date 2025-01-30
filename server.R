@@ -30,6 +30,7 @@ library(red)
 library(dygraphs)
 library(RWmisc)
 library(units)
+library(lme4)
 #'
 #' ## Load NatureServe Network subnation polygons for subnation overlay
 network_polys <- readRDS("data/subnation_polys.rds")
@@ -115,7 +116,7 @@ function(input, output, session) {
   taxon_NS_options <- reactive({
     
     ns_table <- natserv::ns_search_spp(text_adv = list(searchToken = input$search_taxon, matchAgainst = "allScientificNames", operator="contains"))$results
-    gbif_table <- rgbif::name_suggest(q = input$search_taxon, rank = c("species", "subspecies"), limit = 10)$data
+    gbif_table <- rgbif::name_suggest(q = input$search_taxon, rank = c("species", "subspecies", "variety", "infraspecific_name"), limit = 10)$data
     
     out <- NULL
     
@@ -254,7 +255,7 @@ function(input, output, session) {
     shinyInput <- function(FUN, len, id, ...) {
       inputs <- character(len)
       for (i in seq_len(len)) {
-        inputs[i] <- as.character(FUN(paste0(id, i), label = NULL, ...))
+        inputs[i] <- as.character(FUN(paste0(id, i), ...))# label = NULL, ...))
       }
       inputs
     }
@@ -264,9 +265,11 @@ function(input, output, session) {
       taxon_data$synonyms %>% 
         dplyr::mutate(key = paste0("<a href='", paste0("https://www.gbif.org/species/", key), "' target='_blank'>", key, "</a>")) %>%         
         dplyr::select(scientificName, key, occurrence_count) %>% 
+        dplyr::mutate(Add = shinyInput(actionButton, nrow(taxon_data$synonyms), 'button_', label = "Add", class = "btn-default btn-sm")) %>% 
         dplyr::rename("Scientific name" = scientificName, 
                       "Key" = key,
-                      "Number of occurrences" = occurrence_count
+                      "Number of occurrences" = occurrence_count,
+                      "Add to assessment" = Add
         ) %>% 
         DT::datatable(options = list(dom = 't', pageLength = 100, autoWidth = TRUE,
                                      columnDefs = list(list(width = '400px', targets = c(0)))
@@ -786,6 +789,8 @@ function(input, output, session) {
     
     shinyjs::show("temporal_trend_plots")
     
+    shinybusy::show_modal_spinner("circle", color = "#024b6c") # show the modal window
+    
     temporal_trends_output <- get_temporal_trends(
       taxon_data = taxon_data,
       referenceTaxon = input$select_reference_taxon,
@@ -796,6 +801,7 @@ function(input, output, session) {
       temporal_trends_output
     )
     
+    shinybusy::remove_modal_spinner()
   })
   
   output$occurrences_table <- DT::renderDataTable({
@@ -894,8 +900,6 @@ function(input, output, session) {
         
         no_year_keys <- taxon_data$sf_filtered %>% dplyr::filter(is.na(year)) %>% dplyr::pull(key)
         
-        print(no_year_keys)
-        
         if (length(no_year_keys) > 0){
           taxon_data$selected_points <- taxon_data$sf_filtered %>% 
             dplyr::filter(key %in% no_year_keys)
@@ -934,8 +938,6 @@ function(input, output, session) {
         } else {
           eoo_output <- taxon_data$sf_filtered %>% calculate_eoo(shifted = FALSE)
         }
-        
-        print("Range calculation went through")
         
         taxon_data$species_range_value <- eoo_output$EOO
         taxon_data$species_range_map <- eoo_output$hull
@@ -1400,13 +1402,50 @@ function(input, output, session) {
     table = NULL
   )
   
+  #' ### Load user-uploaded data
+  uploaded_obs_data_batch <- reactive({
+    
+    
+    out <- purrr::map(input$batch_filedata_obs$datapath, process_user_data, minimum_fields = minimum_fields) %>% 
+      dplyr::bind_rows() 
+    
+    out 
+  })
+  
   observeEvent(input$batch_assessment, {
     
-    batch_run_taxon_list$names <- strsplit(input$typed_list, "\n|,|;|, |; ")[[1]] %>% as.data.frame() %>% set_names("user_supplied_name")
+
+    
+    if (!is.null(input$batch_filedata_obs$datapath)){
+      batch_uploaded_occurrences <- uploaded_obs_data_batch()
+      batch_uploaded_occurrences <- batch_uploaded_occurrences %>% 
+        dplyr::mutate(key = paste(prov, 1:nrow(batch_uploaded_occurrences), sep = "_"))
+      uploaded_names <- purrr::map(batch_uploaded_occurrences$scientificName %>% unique(), function(sp){
+        out <- rgbif::name_suggest(q = sp, rank = c("species", "subspecies", "variety", "infraspecific_name"), limit = 10)$data
+        out$uploaded_name <- sp
+        out
+      }) %>% bind_rows()
+    } else {
+      uploaded_names <- NULL
+    }
+    
+    if (!is.null(input$batch_filedata_rank$datapath)){
+      batch_rank_factor_file <- read.csv(input$batch_filedata_rank$datapath, header = TRUE) 
+      rank_names <- batch_rank_factor_file[, 3] %>% as.character()
+    } else {
+      rank_names <- NULL
+    }
+    
+    typed_names <- strsplit(input$typed_list, "\n|,|;|, |; ")[[1]] 
+    
+    print(typed_names)
+    
+    batch_run_taxon_list$names <- c(rank_names, uploaded_names$canonicalName, typed_names) %>% 
+      unique() %>% 
+      as.data.frame() %>% 
+      set_names("user_supplied_name")
     
     batch_run_output$results <- vector("list", length(batch_run_taxon_list$names$user_supplied_name))
-    
-    print(batch_run_taxon_list$names)
     
     # Create a Progress object
     progress <- shiny::Progress$new()
@@ -1421,10 +1460,32 @@ function(input, output, session) {
       
       taxon_name <- batch_run_taxon_list$names$user_supplied_name[i]
       
-      batch_run_output$results[[i]] <- run_rank_assessment(taxon_name = taxon_name)
+      if (!is.null(input$batch_filedata_obs$datapath)){
+      taxon_uploaded_observations <- batch_uploaded_occurrences %>% 
+        dplyr::filter(scientificName == (uploaded_names %>% dplyr::filter(canonicalName == taxon_name) %>% dplyr::pull(uploaded_name)))
+      } else {
+        taxon_uploaded_observations <- NULL
+      }
+      
+      batch_run_output$results[[i]] <- run_rank_assessment(
+        taxon_name = taxon_name,
+        minimum_fields =  c("key", "scientificName", "prov", "longitude", "latitude", "coordinateUncertaintyInMeters", "stateProvince", "countryCode", "year", "institutionCode", "references"),
+        max_number_observations = 10000, 
+        uploaded_data = taxon_uploaded_observations,
+        clean_occ = input$batch_clean_occ,
+        centroid_filter = input$batch_centroid_filter,
+        date_start = input$batch_year_filter[1],
+        date_end = input$batch_year_filter[2],
+        uncertainty_filter = input$batch_uncertainty_filter,
+        nations_filter = input$batch_nation_filter,
+        states_filter = input$batch_states_filter,
+        sources_filter = input$batch_sources_filter,
+        grid_cell_size = input$batch_grid_cell_size,
+        sep_distance = input$batch_separation_distance
+        )
       
       # Increment the progress bar, and update the detail text.
-      progress$inc(1/n, detail = paste("Taxon", i))
+      progress$inc(1/n, detail = taxon_name)
       
       # Pause for 0.1 seconds to simulate a long computation.
       Sys.sleep(0.1)
@@ -1440,6 +1501,8 @@ function(input, output, session) {
       AOO_value = purrr::map(batch_run_output$results, function(out) out$AOO_value) %>% unlist(),
       EOcount_value = purrr::map(batch_run_output$results, function(out) out$EOcount_value) %>% unlist()
     )
+    
+    shinyjs::show("batch_output")
     
   })
   
@@ -1505,10 +1568,97 @@ function(input, output, session) {
     selectedRow <- as.numeric(strsplit(input$select_button, "_")[[1]][2])
     batch_taxon_focus$taxon <<- batch_run_output$table[selectedRow, ]$taxon
     
-    print(batch_taxon_focus$taxon)
-    
     updateTextInput(inputId = "search_taxon", value = batch_taxon_focus$taxon)
     
   })
+  
+  output$download_rank_data_batch <- downloadHandler(
+    filename = function() {
+      paste("RARECAT-multispecies_run-rank_factor_values-", Sys.Date(), ".csv", sep="")
+    },
+    content = function(file) {
+      batch_out <- purrr::map(1:length(batch_run_output$results), function(i){
+        taxon_data <- batch_run_output$results[[i]]
+      out <- matrix(nrow = 1, ncol = 42, data = "") %>%
+        as.data.frame()
+      names(out)[c(1:3, 6:9, 11, 13, 15, 16:17, 19:20, 22:28, 30, 32:42)] <- c("Calc Rank", "Assigned Rank", "Species or Community Scientific Name*", "Element ID",
+                                                                               "Elcode*", "Common Name*", "Classification*", "Range Extent", "Area of Occup 4-km2 grid cells",
+                                                                               "# Occur", "Pop Size", "# Occur Good Viab", "Environm Specif (opt.)", "Overall Threat Impact",
+                                                                               "Intrinsic Vulner (opt.)", "Short-term Trend", "Long-term Trend", "Rank Adjustment Reasons", "Assigned Rank Reasons", "Rank Factors Author", 
+                                                                               "Rank Factors Date", "Rank Review Date", "Range Extent Comments", "Area of Occupancy Comments",
+                                                                               "# of Occurrences Comments", "Population Size Comments", "Good Viability/Integrity Comments", "Environmental Specificity Comments",
+                                                                               "Threat Impact Comments", "Threat Impact Adjustment Reasons", "Intrinsic Vulnerability Comments", "Short-term Trend Comments", "Long-term Trend Comments"
+      )
+      out[, 2] <-  ifelse(!is.null(taxon_data$info), taxon_data$info$roundedGRank, "")
+      out[, 3] <-  ifelse(!is.null(taxon_data$info), taxon_data$info$scientificName, "")
+      out[, 6] <-  ifelse(!is.null(taxon_data$info), taxon_data$info$elementGlobalId, "")
+      out[, 7] <-  ifelse(!is.null(taxon_data$info), taxon_data$info$elcode, "")
+      out[, 8] <-  ifelse(!is.null(taxon_data$info), taxon_data$info$primaryCommonName, "")
+      out[, 9] <-  ifelse(!is.null(taxon_data$info_extended), taxon_data$info_extended$classificationStatus$classificationStatusDescEn, "")
+      if (!is.null(taxon_data$species_range_value)){
+        out[, 11] <- cut(as.numeric(taxon_data$species_range_value), breaks = c(0, 0.999, 99.999, 249.999, 999.999, 4999.999, 19999.999, 199999.999, 2499999.999, 1000000000), labels = c("Z", LETTERS[1:8]))
+      }
+      if (!is.null(taxon_data$AOO_value)){
+        if (input$grid_cell_size == 2){
+          out[, 13] <- base::cut(as.numeric(taxon_data$AOO_value), breaks = c(0, 0.999, 1.999, 2.999, 5.999, 24.999, 124.999, 499.999, 2499.999, 12499.999, 1000000000), labels = c("Z", LETTERS[1:9]))
+        } else if (input$grid_cell_size == 1){
+          out[, 13] <- base::cut(as.numeric(taxon_data$AOO_value), breaks = c(0, 0.999, 4.999, 10.999, 20.999, 100.999, 500.999, 2000.999, 10000.999, 50000.999, 1000000000), labels = c("Z", LETTERS[1:9]))
+        } 
+      }
+      if (!is.null(taxon_data$EOcount_value)){
+        out[, 15] <- cut(as.numeric(taxon_data$EOcount_value), breaks = c(0, 0.999, 5.999, 19.999, 79.999, 299.999, 1000000000), labels = c("Z", LETTERS[1:5]))
+      }
+      if (!is.null(taxon_data$info_extended$rankInfo$popSize)){
+        rank_def <- rank_factor_definitions$population_size_description[grep(taxon_data$info_extended$rankInfo$popSize$popSizeDescEn, rank_factor_definitions$population_size_description, fixed = TRUE)]
+        out[, 16] <- rank_factor_definitions$population_size_value[rank_factor_definitions$population_size_description == rank_def]
+      }
+      if (!is.null(taxon_data$info_extended$rankInfo$numberGoodEos$numberGoodEosDescEn)){
+        rank_def <- rank_factor_definitions$good_viability_description[grep(taxon_data$info_extended$rankInfo$numberGoodEos$numberGoodEosDescEn, rank_factor_definitions$good_viability_description, fixed = TRUE)]
+        out[, 17] <- rank_factor_definitions$good_viability_value[rank_factor_definitions$good_viability_description == rank_def]
+      }
+      if (!is.null(taxon_data$info_extended$rankInfo$enviromentalSpecificity)){
+        rank_def <- rank_factor_definitions$environmental_specificity_description[grep(gsub(" |\\.", "", taxon_data$info_extended$rankInfo$enviromentalSpecificity$enviromentalSpecificityDescEn), gsub(" |\\.", "", rank_factor_definitions$environmental_specificity_description), fixed = TRUE)]
+        out[, 19] <- rank_factor_definitions$environmental_specificity_value[rank_factor_definitions$environmental_specificity_description == rank_def]
+      }
+      if (!is.null(taxon_data$info_extended$rankInfo$threatImpactAssigned)){
+        rank_def <- rank_factor_definitions$threat_impact_description[grep(taxon_data$info_extended$rankInfo$threatImpactAssigned$threatImpactAssignedDescEn, rank_factor_definitions$threat_impact_description, fixed = TRUE)]
+        out[, 20] <- rank_factor_definitions$threat_impact_value[rank_factor_definitions$threat_impact_description == rank_def]
+      }
+      if (!is.null(taxon_data$info_extended$rankInfo$intrinsicVulnerability)){
+        rank_def <- rank_factor_definitions$intrinsic_vulnerability_description[grep(taxon_data$info_extended$rankInfo$intrinsicVulnerability$intrinsicVulnerabilityDescEn, rank_factor_definitions$intrinsic_vulnerability_description, fixed = TRUE)]
+        out[, 22] <- rank_factor_definitions$intrinsic_vulnerability_value[rank_factor_definitions$intrinsic_vulnerability_description == rank_def]
+        
+      }
+      if (!is.null(taxon_data$info_extended$rankInfo$shortTermTrend)){
+        rank_def<- rank_factor_definitions$temporal_trend_description[grep(gsub(" ", "", taxon_data$info_extended$rankInfo$shortTermTrend$shortTermTrendDescEn), gsub(" ", "", rank_factor_definitions$temporal_trend_description), fixed = TRUE)]
+        out[, 23] <- rank_factor_definitions$temporal_trend_value[rank_factor_definitions$temporal_trend_description == rank_def]
+        
+      }
+      if (!is.null(taxon_data$info_extended$rankInfo$longTermTrend)){
+        rank_def <- rank_factor_definitions$temporal_trend_description[grep(gsub(" ", "", taxon_data$info_extended$rankInfo$longTermTrend$longTermTrendDescEn), gsub(" ", "", rank_factor_definitions$temporal_trend_description), fixed = TRUE)]
+        out[, 24] <- rank_factor_definitions$temporal_trend_value[rank_factor_definitions$temporal_trend_description == rank_def]
+        
+      }
+      out[, 25] <- ifelse(!is.null(taxon_data$info_extended$grankAdjustmentReasons), taxon_data$info_extended$grankAdjustmentReasons, "")
+      out[, 26] <- ifelse(!is.null(taxon_data$info_extended$grankReasons), taxon_data$info_extended$grankReasons, "")
+      out[, 27] <- ifelse(!is.null(taxon_data$info_extended$conservationStatusFactorsEditionAuthors), taxon_data$info_extended$conservationStatusFactorsEditionAuthors, "")
+      out[, 28] <- ifelse(!is.null(taxon_data$info_extended$conservationStatusFactorsEditionDate), taxon_data$info_extended$conservationStatusFactorsEditionDate, "")
+      out[, 30] <- ifelse(!is.null(taxon_data$info_extended$grankReviewDate), taxon_data$info_extended$grankReviewDate, "")
+      out[, 32] <- ifelse(!is.null(taxon_data$info_extended$rankInfo$rangeExtentComments), taxon_data$info_extended$rankInfo$rangeExtentComments, "")
+      out[, 33] <- ifelse(!is.null(taxon_data$info_extended$rankInfo$areaOfOccupancyComments), taxon_data$info_extended$rankInfo$areaOfOccupancyComments, "")
+      out[, 34] <- ifelse(!is.null(taxon_data$info_extended$rankInfo$numberEosComments), taxon_data$info_extended$rankInfo$numberEosComments, "")
+      out[, 35] <- ifelse(!is.null(taxon_data$info_extended$rankInfo$popSizeComments), taxon_data$info_extended$rankInfo$popSizeComments, "")
+      out[, 36] <- ifelse(!is.null(taxon_data$info_extended$rankInfo$viabilityComments), taxon_data$info_extended$rankInfo$viabilityComments, "")
+      out[, 37] <- ifelse(!is.null(taxon_data$info_extended$rankInfo$enviromentalSpecificityComments), taxon_data$info_extended$rankInfo$enviromentalSpecificityComments, "")
+      out[, 38] <- ifelse(!is.null(taxon_data$info_extended$rankInfo$threatImpactComments), taxon_data$info_extended$rankInfo$threatImpactComments, "")
+      out[, 39] <- ifelse(!is.null(taxon_data$info_extended$rankInfo$grankAdjustmentReasons), taxon_data$info_extended$rankInfo$grankAdjustmentReasons, "")
+      out[, 40] <- ifelse(!is.null(taxon_data$info_extended$rankInfo$intrinsicVulnerabilityComments), taxon_data$info_extended$rankInfo$intrinsicVulnerabilityComments, "")
+      out[, 41] <- ifelse(!is.null(taxon_data$info_extended$rankInfo$shortTermTrendComments), taxon_data$info_extended$rankInfo$shortTermTrendComments, "")
+      out[, 42] <- ifelse(!is.null(taxon_data$info_extended$rankInfo$longTermTrendComments), taxon_data$info_extended$rankInfo$longTermTrendComments, "")
+      
+      out
+    }) %>% bind_rows()
+      write.csv(batch_out, file, row.names = FALSE, na = "")
+})
   
 }

@@ -323,6 +323,7 @@ calculate_number_occurrences <- function(occ, separation_distance = 1000, added_
 # Run full rank assessment
 run_rank_assessment <- function(taxon_name, 
                                 minimum_fields =  c("key", "scientificName", "prov", "longitude", "latitude", "coordinateUncertaintyInMeters", "stateProvince", "countryCode", "year", "institutionCode", "references"),
+                                uploaded_data = NULL,
                                 max_number_observations = 10000,
                                 clean_occ = TRUE,
                                 centroid_filter = FALSE,
@@ -339,6 +340,7 @@ run_rank_assessment <- function(taxon_name,
   
   taxon_data <- list(
     info = data.frame(scientificName = "New taxon"),
+    info_extended = NULL,
     family = NULL,
     synonyms = NULL,
     synonyms_selected = NULL,
@@ -360,6 +362,10 @@ run_rank_assessment <- function(taxon_name,
   ns_table_full <- natserv::ns_search_spp(text_adv = list(searchToken = taxon_name, matchAgainst = "allScientificNames", operator="contains"))$results
   gbif_table <- rgbif::name_suggest(q = taxon_name, rank = c("species", "subspecies"), limit = 10)$data
   
+  if (nrow(ns_table_full) == 0){
+    ns_table_full <- natserv::ns_search_spp(text_adv = list(searchToken = gbif_table$canonicalName[1], matchAgainst = "allScientificNames", operator="contains"))$results
+  }
+  
   taxon_info <- NULL
   if (nrow(ns_table_full) > 0){
     ns_table <- ns_table_full %>% 
@@ -375,6 +381,7 @@ run_rank_assessment <- function(taxon_name,
     taxon_info <- rbind(taxon_info, gbif_table)
   }
   taxon_data$info <- taxon_info
+  taxon_data$info_extended <- natserv::ns_id(uid = taxon_data$info$uniqueId %>% unique() %>% na.omit() %>% as.character() %>% head(1)) 
   taxon_data$family <- ns_table_full$speciesGlobal$family
   selected_taxon <- c(taxon_info$scientificName, unlist(taxon_info$synonyms)) %>% na.omit() %>% unique()
   selected_taxon <- gsub("ssp. |var. ", "", selected_taxon)
@@ -394,12 +401,9 @@ run_rank_assessment <- function(taxon_name,
   
   taxon_data$gbif_occurrences <- taxon_data$gbif_occurrences_raw %>% 
     clean_gbif_data(clean = clean_occ, remove_centroids = centroid_filter, minimum_fields = minimum_fields)
+
+  taxon_data$uploaded_occurrences <- uploaded_data
   
-  # out <- purrr::map(input$filedata$datapath, process_user_data, minimum_fields = minimum_fields) %>% 
-  #   dplyr::bind_rows() 
-  # 
-  # taxon_data$uploaded_occurrences <- uploaded_data()
-  # 
   taxon_data$all_occurrences <- rbind(
     taxon_data$gbif_occurrences,
     taxon_data$uploaded_occurrences
@@ -470,10 +474,16 @@ shinyInput <- function(FUN, len, id, ...) {
 # Get temporal trends
 get_temporal_trends <- function(taxon_data = taxon_data, referenceTaxon = "kingdom", start_year = 1980){
   
+  min_fields <- c("key", "scientificName", "prov", "longitude", "latitude", "coordinateUncertaintyInMeters", "stateProvince", "countryCode", "year", "institutionCode", "references")
+
   key_value <- taxon_data$synonyms %>% 
     dplyr::filter(datasetKey == "d7dddbf4-2cf0-4f39-9b2a-bb099caae36c") %>% 
     dplyr::select(paste0(referenceTaxon, "Key")) %>% 
     as.character()
+  
+  if (is.null(taxon_data$AOO_map)){
+    taxon_data$AOO_map <- get_aoo_polys(taxon_data$sf_filtered, 2)
+  }
   
   gbif_data <- spocc::occ(from = "gbif", gbifopts = list(
     taxonKey = key_value,
@@ -489,7 +499,7 @@ get_temporal_trends <- function(taxon_data = taxon_data, referenceTaxon = "kingd
       complete.cases(longitude, latitude),
       !(scientificName %in% unique(taxon_data$sf_filtered$scientificName))
     ) %>% 
-    dplyr::select(intersect(names(gbif_data), minimum_fields)) %>% 
+    dplyr::select(intersect(names(gbif_data), min_fields)) %>% 
     dplyr::mutate(lon = longitude,
                   lat = latitude) %>% 
     sf::st_as_sf(
@@ -553,97 +563,104 @@ get_temporal_trends <- function(taxon_data = taxon_data, referenceTaxon = "kingd
   # Number of focal observations
   p1 <- ggplot(data = temporal_trend_data, aes(x = year, y = focal_species_count)) + 
     geom_col(col = "#2c7bb680", alpha = 0.5) + 
-    ylab("Observations of Target Taxon") +
-    xlab("Year") +
+    ylab("") +
+    xlab("") +
+    ylim(c(0, max(temporal_trend_data$focal_species_count)+(0.2 *max(temporal_trend_data$focal_species_count)))) +
+    annotate("text", x = median(temporal_trend_data$year), y = max(temporal_trend_data$focal_species_count)+(0.08 *max(temporal_trend_data$focal_species_count)), label = "Observations of Target Taxon") +
     theme_linedraw() +
     theme(legend.position = "none",
           panel.grid.major = element_blank(), 
           panel.grid.minor = element_blank(),
           axis.title = element_text(size = 9),
           axis.text.x = element_blank(),
-          axis.text = element_text(size = 8),
+          axis.text = element_text(size = 8)
     )
   # Total number of observations of reference taxon
   p2 <- ggplot(data = temporal_trend_data, aes(x = year, y = total_number_observations)) + 
     geom_col(col = "#2c7bb680", alpha = 0.5) + 
-    ylab("Observations of Reference Taxon") +
-    xlab("Year") +
+    ylim(c(0, max(temporal_trend_data$total_number_observations)+(0.2 *max(temporal_trend_data$total_number_observations)))) +
+    ylab("") +
+    xlab("") +
+    annotate("text", x = median(temporal_trend_data$year), y = max(temporal_trend_data$total_number_observations)+(0.08 *max(temporal_trend_data$total_number_observations)), label = "Observations of Reference Taxon") +
     theme_linedraw() +
     theme(legend.position = "none",
           panel.grid.major = element_blank(), 
           panel.grid.minor = element_blank(),
           axis.title = element_text(size = 9),
           axis.text.x = element_blank(),
-          axis.text = element_text(size = 8),
+          axis.text = element_text(size = 8)        
     )
   # Mean Observation Rate
   p3 <- ggplot(data = temporal_trend_data, aes(x = year, y = proportion_observations)) +
     geom_col(col = "#2c7bb680", alpha = 0.5) +
     geom_smooth(size = 1.5, se = FALSE, col = "black") +
-    ylab("Proportion of Observations") +
-    xlab("Year") +
-    ylim(c(0, max(temporal_trend_data$proportion_observations)+0.05)) +
+    ylab("") +
+    xlab("") +
+    annotate("text", x = median(temporal_trend_data$year), y = max(temporal_trend_data$proportion_observations)+(0.08 *max(temporal_trend_data$proportion_observations)), label = "Proportion of Observations") +
+    ylim(c(0, max(temporal_trend_data$proportion_observations)+(0.2 *max(temporal_trend_data$proportion_observations)))) +
     theme_linedraw() +
     theme(legend.position = "none",
           panel.grid.major = element_blank(),
           panel.grid.minor = element_blank(),
           axis.title = element_text(size = 9),
           axis.text.x = element_blank(),
-          axis.text = element_text(size = 8),
-    )
+          axis.text = element_text(size = 8)
+          )
   # Mean proportion of species
   p4 <- ggplot(data = temporal_trend_data, aes(x = year, y = proportion_species)) +
     geom_col(col = "#2c7bb680", alpha = 0.5) +
     geom_smooth(size = 1.5, se = FALSE, col = "black") +
-    ylab("Proportion of Species") +
-    xlab("Year") +
-    ylim(c(0, max(temporal_trend_data$proportion_species)+0.05)) +
+    ylab("") +
+    xlab("") +
+    annotate("text", x = median(temporal_trend_data$year), y = max(temporal_trend_data$proportion_species)+(0.08 *max(temporal_trend_data$proportion_species)), label = "Proportion of Species") +
+    ylim(c(0, max(temporal_trend_data$proportion_species)+(0.2 *max(temporal_trend_data$proportion_species)))) +
     theme_linedraw() +
     theme(legend.position = "none",
           panel.grid.major = element_blank(),
           panel.grid.minor = element_blank(),
           axis.title = element_text(size = 9),
           axis.text.x = element_blank(),
-          axis.text = element_text(size = 8),
+          axis.text = element_text(size = 8)
     )
   
   # Yearly reporting rate
   p5 <- ggplot(data = temporal_trend_data, aes(x = year, y = reporting_rate)) + 
     geom_col(col = "#2c7bb680", alpha = 0.5) + 
     geom_smooth(size = 1, se = FALSE, col = "black") + 
-    ylim(c(0, max(temporal_trend_data$reporting_rate)+0.05)) +
-    ylab("Observation Rate") +
-    xlab("Year") +
+    ylim(c(0, max(temporal_trend_data$reporting_rate)+(0.2 *max(temporal_trend_data$reporting_rate)))) +
+    ylab("") +
+    annotate("text", x = median(temporal_trend_data$year), y = max(temporal_trend_data$reporting_rate)+(0.08 *max(temporal_trend_data$reporting_rate)), label = "Observation Rate") +
     theme_linedraw() +
     theme(legend.position = "none",
           panel.grid.major = element_blank(), 
           panel.grid.minor = element_blank(),
           axis.title = element_text(size = 9),
           axis.text.x = element_blank(),
-          axis.text = element_text(size = 8),
+          axis.text = element_text(size = 8)
     )
   ## GLMER (with spatial random effect)
   options(na.action = "na.fail")
   glmer_result <- lme4::glmer(focal_species_detection ~ splines::bs(year, df = 3) + total_number_observations + species_list_length + (1 | cellID), 
-                              data = focal_species_detection_data, family = binomial, control = glmerControl(tol = 1e-5, optimizer = "bobyqa", optCtrl=list(maxfun=2e5))
+                              data = focal_species_detection_data, family = binomial, control = lme4::glmerControl(tol = 1e-5, optimizer = "bobyqa", optCtrl=list(maxfun=2e5))
   )
   # Modeled probability of detection
   p6 <- data.frame(fitted = fitted(glmer_result), year = focal_species_detection_data$year) %>% 
     ggplot(aes(x = year, y = fitted)) + 
     geom_point(col = "#2c7bb680", alpha = 0.5) + 
     geom_smooth(size = 1, se = FALSE, col = "black") + 
-    ylim(c(0, max(fitted(glmer_result))+0.05)) +
-    ylab("Modeled probability of detection") +
+    ylim(c(0, 1.2)) +
     xlab("Year") +
+    ylab("") +
+    annotate("text", x = median(focal_species_detection_data$year), y = 1.08, label = "Modeled probability of detection") +
     theme_linedraw() +
     theme(legend.position = "none",
           panel.grid.major = element_blank(), 
           panel.grid.minor = element_blank(),
           axis.title = element_text(size = 9),
-          axis.text = element_text(size = 8),
+          axis.text = element_text(size = 8)
     )
   
-  p <- subplot(p1, p2, p3, p5, p6, nrows = 5, shareX = TRUE, titleX = TRUE, titleY = TRUE)
+  p <- subplot(p1, p2, p3, p5, p6, nrows = 5, shareX = TRUE, titleX = FALSE, margin = 0, which_layout = 1)
   
   gg <- plotly_build(p) %>%
     config(displayModeBar = FALSE) %>%

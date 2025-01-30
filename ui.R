@@ -90,7 +90,6 @@ navbarPage(title = HTML("<span style='float: left; display: inline-block; paddin
                                         width = "33vw",
                                         height = "25vh",
                                         style = "padding: 0.5em; border-bottom: none; border-color: transparent; background-color: rgba(255, 255, 255, 0.8); z-index: 1 !important; overflow-y: scroll; overflow-x: hidden; scrollbar-color: #007 rgba(255, 255, 255, 0.8) !important;",
-                                        div(style = "padding-left: 10px;", p(em("Click on all taxonomic concepts to include in assessment: "))),
                                         shinycssloaders::withSpinner(DT::dataTableOutput("taxon_options_table", width = "100%"), type = 7, proxy.height = "50px"),
                                         div(style = "padding-top: 20px; position: relative; text-align: center;", actionButton(inputId = "begin_assessment", label = "Start assessment", block = TRUE, class = "btn-primary btn-lg", width = "60%"))
                           )
@@ -425,8 +424,8 @@ navbarPage(title = HTML("<span style='float: left; display: inline-block; paddin
                                                                   actionButton(inputId = "temporal_trend", label = "Calculate temporal trend", block = TRUE, class = "btn-primary btn-sm", width = "100%")
                                                            ),
                                                            hidden(
-                                                           fluidRow(id = "temporal_trend_plots",
-                                                             shinycssloaders::withSpinner(plotlyOutput("temporal_trends_output"), type = 7, proxy.height = "50px")
+                                                           fluidRow(id = "temporal_trend_plots", style = "padding: 25px;",
+                                                             plotlyOutput("temporal_trends_output", height = "800px")
                                                            )
                                                            )
                                                   )
@@ -455,34 +454,51 @@ tabPanel("MULTISPECIES MODE", height = "100%",
              
              scr,
              
-             fluidRow(style = "padding: 5px 10px 0px 20px;",
-                      column(width = 4, style = "padding: 20px; background-color: rgba(249, 249, 249, 1);",
-                             fluidRow(
-                             column(width = 5, 
-                                    h3("Add species from CSV"),
-                                    fileInput(inputId = "batch_filedata", 
-                                              label = "",
-                                              accept = c("text/csv",
-                                                         "text/comma-separated-values,text/plain",
-                                                         ".csv"),
-                                              placeholder = "",
-                                              multiple = TRUE
-                                    )
-                             ),
-                             column(width = 7, style = "padding: 0 10px 10px 10px;",
-                                    h3("Type or paste from Excel"),
-                                    textAreaInput(inputId = "typed_list", 
-                                                  label = "",
-                                                  height = "35px",
-                                                  width = "100%",
-                                                  resize = "vertical"
-                                                  
-                                    )
+             fluidRow(style = "padding: 0px 20px 0px 20px;",
+                      column(width = 3,
+                             h3("Add species from Rank Calculator file"),
+                             fileInput(inputId = "batch_filedata_rank", 
+                                       label = "",
+                                       accept = c("text/csv",
+                                                  "text/comma-separated-values,text/plain",
+                                                  ".csv",
+                                                  ".xslx"),
+                                       placeholder = "",
+                                       multiple = TRUE, 
+                                       width = "100%"
                              )
-                             ),
+                      ),
+                      column(width = 3, 
+                             h3("Add species from observations CSV file"),
+                             fileInput(inputId = "batch_filedata_obs", 
+                                       label = "",
+                                       accept = c("text/csv",
+                                                  "text/comma-separated-values,text/plain",
+                                                  ".csv"),
+                                       placeholder = "",
+                                       multiple = TRUE,
+                                       width = "100%"
+                             )
+                      ),
+                      column(width = 3, style = "padding: 0 10px 10px 10px;",
+                             h3("Type or paste species list"),
+                             textAreaInput(inputId = "typed_list", 
+                                           label = "",
+                                           height = "35px",
+                                           width = "100%",
+                                           resize = "vertical"
+                                           
+                             )
+                      ),
+                      column(width = 3,
+                             div(style = "padding-top: 45px; position: relative; text-align:center; display:block;", actionButton(inputId = "batch_assessment", label = "Start assessment", block = TRUE, class = "btn-primary btn-lg", width = "60%"))
+                             )
+             ),
+             fluidRow(style = "padding-left: 20px; padding-top: 0;",
+                      column(width = 4, style = "padding: 10px; background-color: rgba(249, 249, 249, 1);",
                              fluidRow(
                                column(width = 12, style = "padding-bottom: 20px; margin-left: 0; background-color: rgba(249, 249, 249, 1);",
-                                      h3("Filters", style = "padding-bottom: 12px;"),
+                                      h3("Filters", style = "margin-top: 5px; padding-bottom: 12px;"),
                                       br(),
                                       materialSwitch(inputId = "batch_clean_occ", 
                                                      label = "Clean up GBIF records", 
@@ -513,7 +529,7 @@ tabPanel("MULTISPECIES MODE", height = "100%",
                                         column(width = 6, 
                                                selectizeInput(inputId = "batch_nation_filter",
                                                               label = "Limit records by nation(s)",
-                                                              choices = NULL,
+                                                              choices = c(list("Canada" = "CA", "United States" = "US")),
                                                               multiple = TRUE, 
                                                               width = "100%"
                                                )
@@ -521,7 +537,7 @@ tabPanel("MULTISPECIES MODE", height = "100%",
                                         column(width = 6, 
                                                selectizeInput(inputId = "batch_states_filter",
                                                               label = "Limit records by subnation(s)",
-                                                              choices = NULL,
+                                                              choices = sort(network_polys$Admin_abbr %>% na.omit() %>% as.character()) %>% set_names(network_polys$ADMIN_NAME%>% na.omit() %>% as.character()),
                                                               multiple = TRUE, 
                                                               width = "100%"
                                                )      
@@ -531,18 +547,34 @@ tabPanel("MULTISPECIES MODE", height = "100%",
                                       fluidRow(style = "padding-left: 15px; padding-right: 15px;",
                                                selectizeInput(inputId = "batch_sources_filter",
                                                               label = "Select data sources to include",
-                                                              choices = NULL,
+                                                              choices = c("gbif", "inat", "uploaded"),
                                                               multiple = TRUE, 
                                                               width = "100%"
                                                )  
                                       )
                                )
                                ),
-                             div(style = "padding-top: 20px; position: relative; text-align:center; display:block;", actionButton(inputId = "batch_assessment", label = "Start assessment", block = TRUE, class = "btn-primary btn-lg", width = "60%"))
+                             fluidRow(
+                             h3("Output", style = "padding-bottom: 15px; padding-left: 15px;"),
+                             column(width = 6,
+                                    h3("AOO", style = "padding-bottom: 12px;"),
+                                    selectInput(inputId = "batch_grid_cell_size", label = "Select grid cell size", choices = list("2 x 2 km" = 2, "1 x 1 km" = 1))
+                             ),
+                             column(width = 6,
+                                    h3("Number of Occurrences", style = "padding-bottom: 12px;"),
+                                    textInput(inputId = "batch_separation_distance", label = "Select separation distance", value = 1000)
+                             )
+                             )
                       ),
                       column(width = 8,
-                             DT::dataTableOutput("batch_run_results_table", height="40vh")
+                             hidden(
+                             div(id = "batch_output",
+                             DT::dataTableOutput("batch_run_results_table", height="40vh"),
+                             br(),
+                             downloadButton(outputId = "download_rank_data_batch", label = "Download rank data", class = "btn-primary btn-lg", style = "width: 30%; float: left;")
                              )
+                             )
+                      )
              )
          )
 ),
