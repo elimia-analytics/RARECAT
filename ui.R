@@ -30,6 +30,9 @@ library(dygraphs)
 library(RWmisc)
 library(units)
 
+#' ## Load NatureServe Network subnation polygons for subnation overlay
+network_polys <- readRDS("data/subnation_polys.rds")
+
 scr <- tags$script(HTML(
   "
 Shiny.addCustomMessageHandler(
@@ -265,13 +268,13 @@ navbarPage(title = HTML("<span style='float: left; display: inline-block; paddin
                                                   ),
                                                   fluidRow(style = "padding-top: 2px;",
                                                            column(width = 4,
-                                                                  downloadButton(outputId = "download_occurrence_data", label = "Download records", class = "btn-primary btn-sm", style = "width: 100%;")
+                                                                  downloadButton(outputId = "download_occurrence_data", label = "Download records", class = "btn-primary btn-sm", style = "width: 110%;")
                                                            ),
                                                            column(width = 4, 
-                                                                  downloadButton(outputId = "download_rank_data", label = "Download rank data", class = "btn-primary btn-sm", style = "width: 100%;")
+                                                                  downloadButton(outputId = "download_rank_data", label = "Download rank data", class = "btn-primary btn-sm", style = "width: 110%;")
                                                            ),
                                                            column(width = 4, 
-                                                                  actionButton(inputId = "send_to_batch_mode", label = "Send to batch mode", block = TRUE, class = "btn-primary btn-sm", width = "100%")
+                                                                  actionButton(inputId = "send_to_batch_mode", label = "Send to batch mode", block = TRUE, class = "btn-primary btn-sm", width = "110%")
                                                            )
                                                   )
                                               )
@@ -381,12 +384,12 @@ navbarPage(title = HTML("<span style='float: left; display: inline-block; paddin
                                 ),
                                 column(width = 4, style = "padding-top: 5px;",
                                        tabsetPanel(type = "tabs",
-                                         tabPanel("Records over time",
-                                                  fluidRow(style = "padding: 25px 20px 2px 20px;",
+                                         tabPanel("Records over time", style = "background-color: rgba(249, 249, 249, 1); border-left: 1px solid #ddd; border-right: 1px solid #ddd; border-bottom: 1px solid #ddd;",
+                                                  fluidRow(style = "padding: 25px 35px 2px 35px;",
                                                            dygraphs::dygraphOutput("occurrences_barchart_full", height = "16vh", width = "100%")
                                                   ),
                                                   br(),
-                                                  fluidRow(style = "padding-left: 20px; padding-top: 5px; padding-bottom: 5px; background-color: rgba(249, 249, 249, 1);",
+                                                  fluidRow(style = "padding: 5px 35px 20px 35px;",
                                                            column(width = 4,
                                                                   fluidRow(style = "padding-bottom: 20px;",
                                                                            h3("Group by time period", style = "padding-top: 0; padding-left: 5px;"),
@@ -406,8 +409,8 @@ navbarPage(title = HTML("<span style='float: left; display: inline-block; paddin
                                                            )
                                                   ) 
                                                   ),
-                                         tabPanel("Temporal trend analysis",
-                                                  fluidRow(style = "padding-left: 5px;",
+                                         tabPanel("Temporal trend analysis", style = "background-color: rgba(249, 249, 249, 1); border-left: 1px solid #ddd; border-right: 1px solid #ddd; border-bottom: 1px solid #ddd;",
+                                                  fluidRow(style = "height: 455px; padding-left: 5px; padding-bottom: 20px;",
                                                            column(width = 4,
                                                                   p("Select reference taxon ", style = "padding-top: 19px; float: right;")
                                                                   ),
@@ -570,7 +573,6 @@ tabPanel("MULTISPECIES MODE", height = "100%",
                              hidden(
                              div(id = "batch_output",
                              DT::dataTableOutput("batch_run_results_table", height="40vh"),
-                             br(),
                              downloadButton(outputId = "download_rank_data_batch", label = "Download rank data", class = "btn-primary btn-lg", style = "width: 30%; float: left;")
                              )
                              )

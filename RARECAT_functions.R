@@ -409,6 +409,23 @@ run_rank_assessment <- function(taxon_name,
     taxon_data$uploaded_occurrences
   )
   
+  shifted <- FALSE
+  
+  taxon_data$all_occurrences$longitude[taxon_data$all_occurrences$longitude > 180] <- taxon_data$all_occurrences$longitude[taxon_data$gbif_occurrences$longitude > 180] - 360
+  max_long <- max(taxon_data$all_occurrences$longitude, na.rm = TRUE)/2
+  shifted_long <- taxon_data$all_occurrences$longitude
+  
+  if (length(taxon_data$all_occurrences$longitude[taxon_data$all_occurrences$longitude > max_long]) > 0){
+    shifted_long[shifted_long > max_long] <- shifted_long[shifted_long > max_long] - 360
+    shifted_long <- shifted_long + 360
+    # shifted <- TRUE
+  }
+  
+  if ((max(shifted_long)-min(shifted_long)) < (max(taxon_data$all_occurrences$longitude) - min(taxon_data$all_occurrences$longitude))){
+    taxon_data$all_occurrences$longitude <- shifted_long
+    shifted <- TRUE
+  }
+  
   ### Create simple features object for geospatial calculations
   taxon_data$sf <- taxon_data$all_occurrences %>% 
     dplyr::filter(complete.cases(longitude, latitude)) %>% 
@@ -449,7 +466,7 @@ run_rank_assessment <- function(taxon_name,
     }
   }
   
-  eoo_output <- taxon_data$sf_filtered %>% calculate_eoo(shifted = TRUE)
+  eoo_output <- taxon_data$sf_filtered %>% calculate_eoo(shifted = shifted)
   taxon_data$species_range_value <- eoo_output$EOO
   taxon_data$species_range_map <- eoo_output$hull
   taxon_data$AOO_value <- (aoo2(taxon_data$sf_filtered, as.numeric(grid_cell_size)*1000))/4

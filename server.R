@@ -1413,9 +1413,7 @@ function(input, output, session) {
   })
   
   observeEvent(input$batch_assessment, {
-    
 
-    
     if (!is.null(input$batch_filedata_obs$datapath)){
       batch_uploaded_occurrences <- uploaded_obs_data_batch()
       batch_uploaded_occurrences <- batch_uploaded_occurrences %>% 

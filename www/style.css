@@ -147,6 +147,10 @@ table.dataTable {
     line-height: 1.5;
     border-radius: 3px;
 }
+
+.nav-tabs>li.active>a, .nav-tabs>li.active>a:focus, .nav-tabs>li.active>a:hover {
+  background-color: rgba(249, 249, 249, 1) !important;
+}
 /*********************************************************************
                             Small screens, phones
 **********************************************************************/
@@ -326,4 +330,7 @@ table.dataTable {
     border-radius: 3px;
 }
 
+.nav-tabs>li.active>a, .nav-tabs>li.active>a:focus, .nav-tabs>li.active>a:hover {
+  background-color: rgba(249, 249, 249, 1) !important;
+}
 }
