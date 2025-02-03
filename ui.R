@@ -410,7 +410,7 @@ navbarPage(title = HTML("<span style='float: left; display: inline-block; paddin
                                                   ) 
                                                   ),
                                          tabPanel("Temporal trend analysis", style = "background-color: rgba(249, 249, 249, 1); border-left: 1px solid #ddd; border-right: 1px solid #ddd; border-bottom: 1px solid #ddd;",
-                                                  fluidRow(style = "height: 455px; padding-left: 5px; padding-bottom: 20px;",
+                                                  fluidRow(style = "padding-left: 5px; padding-bottom: 10px;",
                                                            column(width = 4,
                                                                   p("Select reference taxon ", style = "padding-top: 19px; float: right;")
                                                                   ),
@@ -423,11 +423,11 @@ navbarPage(title = HTML("<span style='float: left; display: inline-block; paddin
                                                                                  width = "90%"
                                                                   )
                                                            ),
-                                                           column(width = 4, style = "padding: 12px 20px 5px 10px; float: right;",
+                                                           column(width = 4, style = "padding: 12px 30px 5px 0px; float: right;",
                                                                   actionButton(inputId = "temporal_trend", label = "Calculate temporal trend", block = TRUE, class = "btn-primary btn-sm", width = "100%")
                                                            ),
                                                            hidden(
-                                                           fluidRow(id = "temporal_trend_plots", style = "padding: 25px;",
+                                                           fluidRow(id = "temporal_trend_plots", style = "padding: 25px 25px 10px 25px;",
                                                              plotlyOutput("temporal_trends_output", height = "800px")
                                                            )
                                                            )
@@ -497,7 +497,7 @@ tabPanel("MULTISPECIES MODE", height = "100%",
                              div(style = "padding-top: 45px; position: relative; text-align:center; display:block;", actionButton(inputId = "batch_assessment", label = "Start assessment", block = TRUE, class = "btn-primary btn-lg", width = "60%"))
                              )
              ),
-             fluidRow(style = "padding-left: 20px; padding-top: 0;",
+             fluidRow(style = "padding-left: 35px; padding-top: 0;",
                       column(width = 4, style = "padding: 10px; background-color: rgba(249, 249, 249, 1);",
                              fluidRow(
                                column(width = 12, style = "padding-bottom: 20px; margin-left: 0; background-color: rgba(249, 249, 249, 1);",

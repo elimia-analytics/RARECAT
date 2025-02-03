@@ -1384,7 +1384,8 @@ function(input, output, session) {
     },
     content = function(file) {
       out <- taxon_data$sf_filtered %>% 
-        st_set_geometry(NULL)
+        st_set_geometry(NULL) %>% 
+        dplyr::mutate(scientificName = taxon_data$info$scientificName)
       write.csv(out, file, row.names = FALSE)
     }
   )
@@ -1404,8 +1405,7 @@ function(input, output, session) {
   
   #' ### Load user-uploaded data
   uploaded_obs_data_batch <- reactive({
-    
-    
+
     out <- purrr::map(input$batch_filedata_obs$datapath, process_user_data, minimum_fields = minimum_fields) %>% 
       dplyr::bind_rows() 
     
@@ -1418,11 +1418,11 @@ function(input, output, session) {
       batch_uploaded_occurrences <- uploaded_obs_data_batch()
       batch_uploaded_occurrences <- batch_uploaded_occurrences %>% 
         dplyr::mutate(key = paste(prov, 1:nrow(batch_uploaded_occurrences), sep = "_"))
-      uploaded_names <- purrr::map(batch_uploaded_occurrences$scientificName %>% unique(), function(sp){
-        out <- rgbif::name_suggest(q = sp, rank = c("species", "subspecies", "variety", "infraspecific_name"), limit = 10)$data
-        out$uploaded_name <- sp
-        out
-      }) %>% bind_rows()
+      # uploaded_names <- purrr::map(batch_uploaded_occurrences$scientificName %>% unique(), function(sp){
+      #   out <- rgbif::name_suggest(q = sp, rank = c("species", "subspecies", "variety", "infraspecific_name"), limit = 10)$data
+      #   out$uploaded_name <- sp
+      #   out
+      uploaded_names <- batch_uploaded_occurrences$scientificName %>% unique()
     } else {
       uploaded_names <- NULL
     }
@@ -1436,14 +1436,14 @@ function(input, output, session) {
     
     typed_names <- strsplit(input$typed_list, "\n|,|;|, |; ")[[1]] 
     
-    print(typed_names)
-    
-    batch_run_taxon_list$names <- c(rank_names, uploaded_names$canonicalName, typed_names) %>% 
+    batch_run_taxon_list$names <- c(rank_names, uploaded_names, typed_names) %>% 
       unique() %>% 
       as.data.frame() %>% 
       set_names("user_supplied_name")
     
     batch_run_output$results <- vector("list", length(batch_run_taxon_list$names$user_supplied_name))
+    
+    print(batch_run_taxon_list$names$user_supplied_name)
     
     # Create a Progress object
     progress <- shiny::Progress$new()
@@ -1460,7 +1460,7 @@ function(input, output, session) {
       
       if (!is.null(input$batch_filedata_obs$datapath)){
       taxon_uploaded_observations <- batch_uploaded_occurrences %>% 
-        dplyr::filter(scientificName == (uploaded_names %>% dplyr::filter(canonicalName == taxon_name) %>% dplyr::pull(uploaded_name)))
+        dplyr::filter(scientificName == taxon_name)
       } else {
         taxon_uploaded_observations <- NULL
       }

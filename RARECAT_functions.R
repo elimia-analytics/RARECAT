@@ -665,7 +665,8 @@ get_temporal_trends <- function(taxon_data = taxon_data, referenceTaxon = "kingd
     ggplot(aes(x = year, y = fitted)) + 
     geom_point(col = "#2c7bb680", alpha = 0.5) + 
     geom_smooth(size = 1, se = FALSE, col = "black") + 
-    ylim(c(0, 1.2)) +
+    # ylim(c(0, 1.2)) +
+    scale_y_continuous(breaks = c(0, 0.2, 0.4, 0.6, 0.8, 1), limits = c(0, 1.2)) +
     xlab("Year") +
     ylab("") +
     annotate("text", x = median(focal_species_detection_data$year), y = 1.08, label = "Modeled probability of detection") +
@@ -677,7 +678,7 @@ get_temporal_trends <- function(taxon_data = taxon_data, referenceTaxon = "kingd
           axis.text = element_text(size = 8)
     )
   
-  p <- subplot(p1, p2, p3, p5, p6, nrows = 5, shareX = TRUE, titleX = FALSE, margin = 0, which_layout = 1)
+  p <- subplot(p1, p2, p3, p5, p6, nrows = 5, shareX = TRUE, titleX = TRUE, margin = 0.005, which_layout = 1)
   
   gg <- plotly_build(p) %>%
     config(displayModeBar = FALSE) %>%
