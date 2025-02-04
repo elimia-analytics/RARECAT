@@ -1450,7 +1450,7 @@ function(input, output, session) {
     # Make sure it closes when we exit this reactive, even if there's an error
     on.exit(progress$close())
     
-    progress$set(message = "Running Batch Assessment", value = 0)
+    progress$set(message = "Running Multispecies Assessment", value = 0)
     
     n <- length(batch_run_taxon_list$names$user_supplied_name)
     
@@ -1515,7 +1515,7 @@ function(input, output, session) {
                     "AOO" = AOO_value,
                     "Occurrence Count" = EOcount_value
       ) %>% 
-      dplyr::mutate(Review = shinyInput(actionButton, nrow(batch_run_output$table), 'button_', label = "Review Assessment", onclick = 'Shiny.onInputChange(\"select_button\",  this.id)' )) %>% 
+      dplyr::mutate(Review = shinyInput(actionButton, nrow(batch_run_output$table), 'button_', label = "Review assessment", onclick = 'Shiny.onInputChange(\"select_button\",  this.id)' )) %>% 
       DT::datatable(options = list(dom = 'tp',
                                    pageLength = 10,
                                    # columnDefs = list(list(width = "10%", className = 'dt-left', targets = c(1,2))),
@@ -1523,7 +1523,8 @@ function(input, output, session) {
       ),
       # filter = list(position = 'top'),
       selection = "none", 
-      escape = FALSE
+      escape = FALSE, 
+      rownames = FALSE
       )
     
   })
@@ -1658,5 +1659,19 @@ function(input, output, session) {
     }) %>% bind_rows()
       write.csv(batch_out, file, row.names = FALSE, na = "")
 })
+  
+  observeEvent(input$batch_clear, {
+    
+    # updateTabsetPanel(inputId = "nav", selected = "MULTISPECIES MODE")
+    reset('batch_filedata_rank')
+    reset('batch_filedata_obs')
+    updateTextInput(inputId = "typed_list", value = "")
+    shinyjs::hide("batch_output")
+    batch_run_output <- reactiveValues(
+      results = NULL,
+      table = NULL
+    )
+    
+  })
   
 }

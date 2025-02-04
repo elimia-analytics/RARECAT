@@ -105,7 +105,7 @@ navbarPage(title = HTML("<span style='float: left; display: inline-block; paddin
                                       height = "2.5em",
                                       style = "margin-top: 0; padding: 0em 1.8em 1em 3em; border-bottom: none; border-color: transparent; background-color: rgba(169, 169, 169, 0); z-index: 10 !important; overflow-y: hidden !important; overflow-x: hidden; box-shadow: none !important;", 
                                       div(style = "float: left;",
-                                      actionButton(inputId = "clear_map", label = "Start fresh", icon = icon("close"), block = TRUE, class = "btn-primary btn-sm", width = "100%")
+                                      actionButton(inputId = "clear_map", label = "Clear data", icon = icon("close"), block = TRUE, class = "btn-primary btn-sm", width = "100%")
                                       )
                                       ),
                         
@@ -274,7 +274,7 @@ navbarPage(title = HTML("<span style='float: left; display: inline-block; paddin
                                                                   downloadButton(outputId = "download_rank_data", label = "Download rank data", class = "btn-primary btn-sm", style = "width: 110%;")
                                                            ),
                                                            column(width = 4, 
-                                                                  actionButton(inputId = "send_to_batch_mode", label = "Send to batch mode", block = TRUE, class = "btn-primary btn-sm", width = "110%")
+                                                                  actionButton(inputId = "send_to_batch_mode", label = "Send to multispecies mode", block = TRUE, class = "btn-primary btn-sm", width = "110%")
                                                            )
                                                   )
                                               )
@@ -493,8 +493,11 @@ tabPanel("MULTISPECIES MODE", height = "100%",
                                            
                              )
                       ),
-                      column(width = 3,
-                             div(style = "padding-top: 45px; position: relative; text-align:center; display:block;", actionButton(inputId = "batch_assessment", label = "Start assessment", block = TRUE, class = "btn-primary btn-lg", width = "60%"))
+                      column(width = 2,
+                             div(style = "padding: 45px 0px 10px 0px; position: relative; text-align:center; display:block;", actionButton(inputId = "batch_assessment", label = "Start assessment", block = TRUE, class = "btn-primary btn-lg", width = "100%")),
+                             ),
+                      column(width = 1,
+                             div(style = "padding: 45px 10px 10px 0px; position: relative; text-align:center; display:block;", actionButton(inputId = "batch_clear", label = "Clear data", block = TRUE, class = "btn-primary btn-lg", width = "100%")),
                              )
              ),
              fluidRow(style = "padding-left: 35px; padding-top: 0;",
@@ -572,7 +575,7 @@ tabPanel("MULTISPECIES MODE", height = "100%",
                       column(width = 8,
                              hidden(
                              div(id = "batch_output",
-                             DT::dataTableOutput("batch_run_results_table", height="40vh"),
+                             DT::dataTableOutput("batch_run_results_table"),
                              downloadButton(outputId = "download_rank_data_batch", label = "Download rank data", class = "btn-primary btn-lg", style = "width: 30%; float: left;")
                              )
                              )

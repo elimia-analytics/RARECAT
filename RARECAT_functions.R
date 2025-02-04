@@ -511,6 +511,8 @@ get_temporal_trends <- function(taxon_data = taxon_data, referenceTaxon = "kingd
   has_coords = TRUE
   )$gbif$data$custom_query
   
+  reference_taxon_name <- gbif_data[[referenceTaxon]][1]
+  
   gbif_data <- gbif_data %>% 
     dplyr::filter(
       complete.cases(longitude, latitude),
@@ -567,7 +569,7 @@ get_temporal_trends <- function(taxon_data = taxon_data, referenceTaxon = "kingd
     dplyr::summarise(
       focal_species_count = sum(focal_species_count),
       total_number_observations = sum(total_number_observations),
-      proportion_observations = mean(proportion_observations),
+      proportion_observations = focal_species_count/total_number_observations, # mean(proportion_observations),
       proportion_species = mean(proportion_species),
       focal_species_detection = sum(focal_species_detection),
       n_visits = n()
@@ -583,7 +585,7 @@ get_temporal_trends <- function(taxon_data = taxon_data, referenceTaxon = "kingd
     ylab("") +
     xlab("") +
     ylim(c(0, max(temporal_trend_data$focal_species_count)+(0.2 *max(temporal_trend_data$focal_species_count)))) +
-    annotate("text", x = median(temporal_trend_data$year), y = max(temporal_trend_data$focal_species_count)+(0.08 *max(temporal_trend_data$focal_species_count)), label = "Observations of Target Taxon") +
+    annotate("text", x = median(temporal_trend_data$year), y = max(temporal_trend_data$focal_species_count)+(0.08 *max(temporal_trend_data$focal_species_count)), label = paste0("Observations of ", taxon_data$info$scientificName)) +
     theme_linedraw() +
     theme(legend.position = "none",
           panel.grid.major = element_blank(), 
@@ -598,7 +600,7 @@ get_temporal_trends <- function(taxon_data = taxon_data, referenceTaxon = "kingd
     ylim(c(0, max(temporal_trend_data$total_number_observations)+(0.2 *max(temporal_trend_data$total_number_observations)))) +
     ylab("") +
     xlab("") +
-    annotate("text", x = median(temporal_trend_data$year), y = max(temporal_trend_data$total_number_observations)+(0.08 *max(temporal_trend_data$total_number_observations)), label = "Observations of Reference Taxon") +
+    annotate("text", x = median(temporal_trend_data$year), y = max(temporal_trend_data$total_number_observations)+(0.08 *max(temporal_trend_data$total_number_observations)), label = paste0("Observations of ", referenceTaxon, " ", reference_taxon_name)) +
     theme_linedraw() +
     theme(legend.position = "none",
           panel.grid.major = element_blank(), 
