@@ -417,7 +417,7 @@ navbarPage(title = HTML("<span style='float: left; display: inline-block; paddin
                                                            column(width = 4, style = "padding-top: 5px; padding-left: 0;",
                                                                   selectizeInput(inputId = "select_reference_taxon",
                                                                                  label = "",
-                                                                                 choices = c("family", "order", "class", "phylum", "kingdom"),
+                                                                                 choices = c("genus", "family", "order", "class", "phylum", "kingdom"),
                                                                                  selected = "class",
                                                                                  multiple = FALSE, 
                                                                                  width = "90%"
