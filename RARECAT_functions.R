@@ -332,6 +332,7 @@ run_rank_assessment <- function(taxon_name,
                                 uncertainty_filter = "",
                                 nations_filter = NULL,
                                 states_filter = NULL,
+                                network_polys = network_polys,
                                 sources_filter = NULL,
                                 grid_cell_size = 2,
                                 sep_distance = 1000

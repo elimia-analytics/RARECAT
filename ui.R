@@ -456,10 +456,50 @@ tabPanel("MULTISPECIES MODE", height = "100%",
              useShinyjs(),     ## Call to use shinyJS
              
              scr,
-             
-             fluidRow(style = "padding: 0px 20px 0px 20px;",
+             shinyBS::bsCollapse(id = "batch_parameters", open = "Rank assessment parameters", 
+               shinyBS::bsCollapsePanel(title = "Rank assessment parameters", style = "primary", 
+             fluidRow(style = "padding: 20px 20px 0px 20px; margin-bottom: 0;",
+                      column(width = 2,
+                             h1("1. Set assessment scale")
+                      ),
+                      column(width = 2,
+                             h3("Select assessment type"),
+                             selectizeInput(inputId = "batch_assessment_type",
+                                            label = "",
+                                            choices = c(list("Global (G)" = "global", "National (N)" = "national", "Subnational (S)" = "subnational")),
+                                            multiple = FALSE, 
+                                            width = "100%"
+                             )
+                      ),
+                      column(width = 2, 
+                             h3("Select assessment nation(s)"),
+                             selectizeInput(inputId = "batch_nation_filter",
+                                            label = "",
+                                            choices = c(list("Canada" = "CA", "United States" = "US")),
+                                            multiple = TRUE, 
+                                            width = "100%"
+                             )
+                      ),
+                      column(width = 2, 
+                             h3("Select assessment subnation(s)"),
+                             selectizeInput(inputId = "batch_states_filter",
+                                            label = "",
+                                            choices = (network_polys$Admin_abbr %>% na.omit() %>% as.character()) %>% set_names(network_polys$ADMIN_NAME%>% na.omit() %>% as.character()) %>% sort(),
+                                            multiple = TRUE, 
+                                            width = "100%"
+                             )      
+                      ),
+                      column(width = 2,
+                             h3("Select assessment time frame"),
+                             dateRangeInput("batch_year_filter", "", format = "yyyy", start = "1900-01-01", end = Sys.Date()),
+                      )
+             ),
+             fluidRow(style = "padding: 10px 20px 0px 20px;",
+                      column(width = 2,
+                             h1("2. Specify assessment taxa")
+                      ),
                       column(width = 3,
-                             h3("Add species from Rank Calculator file"),
+                             h3("Add taxon names from Rank Calculator file"),
                              fileInput(inputId = "batch_filedata_rank", 
                                        label = "",
                                        accept = c("text/csv",
@@ -472,7 +512,7 @@ tabPanel("MULTISPECIES MODE", height = "100%",
                              )
                       ),
                       column(width = 3, 
-                             h3("Add species from observations CSV file"),
+                             h3("Add taxon names from observations CSV file"),
                              fileInput(inputId = "batch_filedata_obs", 
                                        label = "",
                                        accept = c("text/csv",
@@ -483,95 +523,79 @@ tabPanel("MULTISPECIES MODE", height = "100%",
                                        width = "100%"
                              )
                       ),
-                      column(width = 3, style = "padding: 0 10px 10px 10px;",
+                      column(width = 2, style = "padding: 0 10px 10px 10px;",
                              h3("Type or paste species list"),
                              textAreaInput(inputId = "typed_list", 
                                            label = "",
-                                           height = "35px",
+                                           height = "80px",
                                            width = "100%",
                                            resize = "vertical"
                                            
                              )
+                      )
+             ),
+             fluidRow(style = "padding: 20px 20px 0px 20px;",
+                      column(width = 2,
+                             h1("3. Select additional filters")
+                      ),
+                      column(width = 2, style = "padding: 50px 10px 10px 10px;",
+                             materialSwitch(inputId = "batch_clean_occ", 
+                                            label = "Clean up GBIF records", 
+                                            value = TRUE, 
+                                            right = TRUE
+                                            
+                             ),
+                             br(),
+                             materialSwitch(inputId = "batch_centroid_filter", 
+                                            label = "Remove centroids identified", 
+                                            value = FALSE, 
+                                            right = TRUE
+                                            
+                             )
+                      ),
+                      column(width = 2, style = "padding: 0 10px 10px 10px;",
+                             h3("Set max. spatial uncertainty (m)"),
+                             textInput( 
+                               inputId = "batch_uncertainty_filter", 
+                               label = "",
+                               value = "", 
+                               width = "100%"
+                             )
+                      ),
+                      column(width = 2, style = "padding: 0 10px 10px 10px;",
+                             h3("Select data sources to include"),
+                             selectizeInput(inputId = "batch_sources_filter",
+                                            label = "",
+                                            choices = c("gbif", "inat", "uploaded"),
+                                            multiple = TRUE, 
+                                            width = "100%"
+                             )
+                      )
+             ),
+             fluidRow(style = "padding: 10px 20px 0px 20px;",
+                      column(width = 2,
+                             h1("4. Select output parameters")
                       ),
                       column(width = 2,
-                             div(style = "padding: 45px 0px 10px 0px; position: relative; text-align:center; display:block;", actionButton(inputId = "batch_assessment", label = "Start assessment", block = TRUE, class = "btn-primary btn-lg", width = "100%")),
+                             h3("Select AOO grid cell size"),
+                             selectInput(inputId = "batch_grid_cell_size", label = "", choices = list("2 x 2 km" = 2, "1 x 1 km" = 1))
+                      ),
+                      column(width = 2,
+                             h3("Select occurrence separation distance"),
+                             textInput(inputId = "batch_separation_distance", label = "", value = 1000)
+                      )
+             )
+               )
+             ),
+             fluidRow(style = "padding: 0px 20px 0px 20px; margin-top: 0;",
+                      column(width = 2,
+                             div(style = "padding: 0px 0px 10px 0px; position: relative; text-align:center; display:block;", actionButton(inputId = "batch_assessment", label = "Start assessment", block = TRUE, class = "btn-primary btn-lg", width = "100%")),
                              ),
                       column(width = 1,
-                             div(style = "padding: 45px 10px 10px 0px; position: relative; text-align:center; display:block;", actionButton(inputId = "batch_clear", label = "Clear data", block = TRUE, class = "btn-primary btn-lg", width = "100%")),
+                             div(style = "padding: 0px 10px 10px 0px; position: relative; text-align:center; display:block;", actionButton(inputId = "batch_clear", label = "Clear data", block = TRUE, class = "btn-primary btn-lg", width = "100%")),
                              )
              ),
-             fluidRow(style = "padding-left: 35px; padding-top: 0;",
-                      column(width = 4, style = "padding: 10px; background-color: rgba(249, 249, 249, 1);",
-                             fluidRow(
-                               column(width = 12, style = "padding-bottom: 20px; margin-left: 0; background-color: rgba(249, 249, 249, 1);",
-                                      h3("Filters", style = "margin-top: 5px; padding-bottom: 12px;"),
-                                      br(),
-                                      materialSwitch(inputId = "batch_clean_occ", 
-                                                     label = "Clean up GBIF records", 
-                                                     value = TRUE, 
-                                                     right = TRUE
-                                                     
-                                      ),
-                                      br(),
-                                      materialSwitch(inputId = "batch_centroid_filter", 
-                                                     label = "Remove centroids identified", 
-                                                     value = FALSE, 
-                                                     right = TRUE
-                                                     
-                                      ),
-                                      br(),
-                                      br(),
-                                      dateRangeInput("batch_year_filter", "Set time frame of records", format = "yyyy", start = "1900-01-01", end = "2023-01-01"),
-                                      br(),
-                                      br(),
-                                      textInput( 
-                                        inputId = "batch_uncertainty_filter", 
-                                        label = "Set spatial uncertainty of records (in meters):",
-                                        value = "", 
-                                        width = "100%"
-                                      ),
-                                      br(),
-                                      fluidRow(
-                                        column(width = 6, 
-                                               selectizeInput(inputId = "batch_nation_filter",
-                                                              label = "Limit records by nation(s)",
-                                                              choices = c(list("Canada" = "CA", "United States" = "US")),
-                                                              multiple = TRUE, 
-                                                              width = "100%"
-                                               )
-                                        ),
-                                        column(width = 6, 
-                                               selectizeInput(inputId = "batch_states_filter",
-                                                              label = "Limit records by subnation(s)",
-                                                              choices = sort(network_polys$Admin_abbr %>% na.omit() %>% as.character()) %>% set_names(network_polys$ADMIN_NAME%>% na.omit() %>% as.character()),
-                                                              multiple = TRUE, 
-                                                              width = "100%"
-                                               )      
-                                        )
-                                      ),
-                                      br(),
-                                      fluidRow(style = "padding-left: 15px; padding-right: 15px;",
-                                               selectizeInput(inputId = "batch_sources_filter",
-                                                              label = "Select data sources to include",
-                                                              choices = c("gbif", "inat", "uploaded"),
-                                                              multiple = TRUE, 
-                                                              width = "100%"
-                                               )  
-                                      )
-                               )
-                               ),
-                             fluidRow(
-                             h3("Output", style = "padding-bottom: 15px; padding-left: 15px;"),
-                             column(width = 6,
-                                    h3("AOO", style = "padding-bottom: 12px;"),
-                                    selectInput(inputId = "batch_grid_cell_size", label = "Select grid cell size", choices = list("2 x 2 km" = 2, "1 x 1 km" = 1))
-                             ),
-                             column(width = 6,
-                                    h3("Number of Occurrences", style = "padding-bottom: 12px;"),
-                                    textInput(inputId = "batch_separation_distance", label = "Select separation distance", value = 1000)
-                             )
-                             )
-                      ),
+             fluidRow(style = "padding: 10px 20px 0px 20px;",
                       column(width = 8,
                              hidden(
                              div(id = "batch_output",

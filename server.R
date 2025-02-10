@@ -286,7 +286,6 @@ function(input, output, session) {
     
     shinyjs::show(id = "taxon_options_panel")
   
-    
     m <- leafletProxy("main_map") %>%
       clearShapes() %>% 
       clearMarkers() %>% 
@@ -539,6 +538,28 @@ function(input, output, session) {
       updateSelectizeInput(session = session, inputId = "synonyms_filter", choices = unique(taxon_data$sf$scientificName), selected = unique(taxon_data$sf$scientificName))
       updateSelectizeInput(session = session, inputId = "sources_filter", choices = unique(taxon_data$sf$prov), selected = unique(taxon_data$sf$prov))
       
+      if (!is.null(batch_run_output$results)){
+        #updateMaterialSwitch(session = session, inputId = "range_extent", value = TRUE)
+        #updateMaterialSwitch(session = session, inputId = "area_of_occupancy", value = TRUE)
+        #updateMaterialSwitch(session = session, inputId = "number_EOs", value = TRUE)
+        if (!is.null(input$batch_nation_filter)){
+          updateSelectizeInput(session = session, inputId = "nation_filter", selected = input$batch_nation_filter)
+        }
+        if (!is.null(input$batch_states_filter)){
+        updateSelectizeInput(session = session, inputId = "states_filter", selected = input$batch_states_filter) # , taxon_data$states)
+        }
+        if (!is.null(input$batch_sources_filter)){
+        updateSelectizeInput(session = session, inputId = "sources_filter", selected = input$batch_sources_filter)
+        }
+        if (input$batch_uncertainty_filter != ""){
+          updateTextInput(session = session, inputId = "uncertainty_filter", selected = input$batch_uncertainty_filter)
+        }
+        updateDateRangeInput(session = session, inputId = "year_filter",
+                             start = input$batch_year_filter[1],
+                             end = input$batch_year_filter[2]
+        )
+      }
+
       shinybusy::remove_modal_spinner()
       
       observeEvent({
@@ -1443,7 +1464,7 @@ function(input, output, session) {
     
     batch_run_output$results <- vector("list", length(batch_run_taxon_list$names$user_supplied_name))
     
-    print(batch_run_taxon_list$names$user_supplied_name)
+    updateCollapse(session = session, id = "batch_parameters", close = "Rank assessment parameters")
     
     # Create a Progress object
     progress <- shiny::Progress$new()
@@ -1477,6 +1498,7 @@ function(input, output, session) {
         uncertainty_filter = input$batch_uncertainty_filter,
         nations_filter = input$batch_nation_filter,
         states_filter = input$batch_states_filter,
+        network_polys = network_polys,
         sources_filter = input$batch_sources_filter,
         grid_cell_size = input$batch_grid_cell_size,
         sep_distance = input$batch_separation_distance
@@ -1562,12 +1584,40 @@ function(input, output, session) {
   
   observeEvent(input$select_button, {
     
+    shinybusy::show_modal_spinner("circle", color = "#024b6c") # show the modal window
+    
     updateTabsetPanel(inputId = "nav", selected = "SINGLE SPECIES MODE")
     
     selectedRow <- as.numeric(strsplit(input$select_button, "_")[[1]][2])
-    batch_taxon_focus$taxon <<- batch_run_output$table[selectedRow, ]$taxon
+    batch_taxon_focus$taxon <- batch_run_output$table[selectedRow, ]$taxon 
+    # updateTextInput(inputId = "search_taxon", value = batch_taxon_focus$taxon)
     
-    updateTextInput(inputId = "search_taxon", value = batch_taxon_focus$taxon)
+    taxon_data$info <- batch_run_output$results[[batch_taxon_focus$taxon]]$info[1, ]
+    taxon_data$info_extended <- batch_run_output$results[[batch_taxon_focus$taxon]]$info_extended
+    taxon_data$family <- batch_run_output$results[[batch_taxon_focus$taxon]]$family
+    taxon_data$synonyms <- batch_run_output$results[[batch_taxon_focus$taxon]]$synonyms
+    taxon_data$synonyms_selected <- batch_run_output$results[[batch_taxon_focus$taxon]]$synonyms_selected
+    taxon_data$gbif_occurrences_raw <- batch_run_output$results[[batch_taxon_focus$taxon]]$gbif_occurrences_raw
+    taxon_data$gbif_occurrences <- batch_run_output$results[[batch_taxon_focus$taxon]]$gbif_occurrences
+    taxon_data$uploaded_occurrences <- batch_run_output$results[[batch_taxon_focus$taxon]]$uploaded_occurrences
+    taxon_data$all_occurrences <- batch_run_output$results[[batch_taxon_focus$taxon]]$all_occurrences
+    taxon_data$shifted <- batch_run_output$results[[batch_taxon_focus$taxon]]$shifted
+    taxon_data$sf <- batch_run_output$results[[batch_taxon_focus$taxon]]$sf
+    taxon_data$sf_filtered <- batch_run_output$results[[batch_taxon_focus$taxon]]$sf_filtered
+    taxon_data$species_range_value <- batch_run_output$results[[batch_taxon_focus$taxon]]$species_range_value
+    taxon_data$species_range_map <- batch_run_output$results[[batch_taxon_focus$taxon]]$species_range_map
+    taxon_data$AOO_value <- batch_run_output$results[[batch_taxon_focus$taxon]]$AOO_value
+    taxon_data$AOO_map <- batch_run_output$results[[batch_taxon_focus$taxon]]$AOO_map
+    taxon_data$EOcount <- batch_run_output$results[[batch_taxon_focus$taxon]]$EOcount
+    taxon_data$EOcount_value <- batch_run_output$results[[batch_taxon_focus$taxon]]$EOcount_value
+    
+    taxon_data$info$scientificName <- batch_taxon_focus$taxon
+    selected_taxon$name <- batch_taxon_focus$taxon[1]
+    
+    updateTextInput(session = session, inputId = "number_gbif_occurrences", label = "", value = nrow(taxon_data$all_occurrences))
+    shinyjs::show(id = "data_panel")
+    
+    shinybusy::remove_modal_spinner()
     
   })
   
