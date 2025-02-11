@@ -168,7 +168,7 @@ table.dataTable {
     .panel-primary>.panel-heading .panel-title a:not([class]):after {
       transform: rotate(180deg);
     }
-    
+
 /*********************************************************************
                             Small screens, phones
 **********************************************************************/
@@ -368,4 +368,5 @@ table.dataTable {
     .panel-primary>.panel-heading .panel-title a:not([class]):after {
       transform: rotate(180deg);
     }
+    
 }

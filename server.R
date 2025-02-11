@@ -103,7 +103,7 @@ function(input, output, session) {
     species_range_map = NULL,
     AOO_value = NULL,
     AOO_map = NULL,
-    EOcount = NULL,
+    EOcount_map = NULL,
     EOcount_value = NULL
   )
   #' ### Object to store all clicked point IDs
@@ -193,7 +193,7 @@ function(input, output, session) {
               if (Source[i] == "NatureServe"){
                 paste0("<a href='", paste0("https://explorer.natureserve.org/Taxon/", uniqueId[i]), "' target='_blank'>", elementGlobalId[i], "</a>")
               } else if (Source[i] == "GBIF"){
-                paste0("<a href='", paste0("https://www.gbif.org/species", elementGlobalId[i]), "' target='_blank'>", elementGlobalId[i], "</a>")
+                paste0("<a href='", paste0("https://www.gbif.org/species/", elementGlobalId[i]), "' target='_blank'>", elementGlobalId[i], "</a>")
               } else {
                 elementGlobalId
               }
@@ -310,7 +310,7 @@ function(input, output, session) {
     taxon_data$species_range_map <- NULL
     taxon_data$AOO_value <- NULL
     taxon_data$AOO_map <- NULL
-    taxon_data$EOcount <- NULL
+    taxon_data$EOcount_map <- NULL
     taxon_data$EOcount_value <- NULL
 
     updateMaterialSwitch(session = session, inputId = "load_gbif_data", value = FALSE)
@@ -539,9 +539,6 @@ function(input, output, session) {
       updateSelectizeInput(session = session, inputId = "sources_filter", choices = unique(taxon_data$sf$prov), selected = unique(taxon_data$sf$prov))
       
       if (!is.null(batch_run_output$results)){
-        #updateMaterialSwitch(session = session, inputId = "range_extent", value = TRUE)
-        #updateMaterialSwitch(session = session, inputId = "area_of_occupancy", value = TRUE)
-        #updateMaterialSwitch(session = session, inputId = "number_EOs", value = TRUE)
         if (!is.null(input$batch_nation_filter)){
           updateSelectizeInput(session = session, inputId = "nation_filter", selected = input$batch_nation_filter)
         }
@@ -558,6 +555,9 @@ function(input, output, session) {
                              start = input$batch_year_filter[1],
                              end = input$batch_year_filter[2]
         )
+        updateMaterialSwitch(session = session, inputId = "range_extent", value = TRUE)
+        updateMaterialSwitch(session = session, inputId = "area_of_occupancy", value = TRUE)
+        updateMaterialSwitch(session = session, inputId = "number_EOs", value = TRUE)
       }
 
       shinybusy::remove_modal_spinner()
@@ -945,15 +945,14 @@ function(input, output, session) {
       shinyjs::show(id = "EOO_panel")
 
       taxon_data$filtered_occurrences <- taxon_data$sf_filtered
-
+      
       taxon_data$filtered_occurrences <- taxon_data$filtered_occurrences %>%
         st_set_geometry(NULL) %>%
         dplyr::select(longitude, latitude) %>%
         as.data.frame()
-
+      
       if (nrow(taxon_data$filtered_occurrences) >= 3){
 
-        
         if (taxon_data$shifted){
           eoo_output <- taxon_data$sf_filtered %>% calculate_eoo(shifted = TRUE)
         } else {
@@ -964,7 +963,7 @@ function(input, output, session) {
         taxon_data$species_range_map <- eoo_output$hull
 
         m <- leafletProxy("main_map") %>%
-          clearShapes() %>%
+          clearGroup("Range Extent") %>%
           leaflet::addMapPane("species_range", zIndex = 200) %>%
           addPolygons(data = taxon_data$species_range_map,
                       color = grey(.2),
@@ -974,51 +973,51 @@ function(input, output, session) {
                       group = "Range Extent"
           )
 
-        if (input$area_of_occupancy & input$number_EOs){
-          m <- leafletProxy("main_map") %>%
-            leaflet::addMapPane("aoo", zIndex = 200) %>%
-            addPolygons(data = taxon_data$AOO_map,
-                        color = "#2c7bb6",
-                        fill = "#2c7bb6",
-                        fillOpacity = .2,
-                        options = pathOptions(pane = "aoo"),
-                        group = "Occupancy"
-            ) %>%
-            leaflet::addMapPane("eos", zIndex = 200) %>%
-            addPolygons(data = taxon_data$EOcount_map,
-                        fill = TRUE,
-                        fillColor = "#8b0000",
-                        fillOpacity = .5,
-                        opacity = 0,
-                        options = pathOptions(pane = "eos"),
-                        group = "Occurrences"
-            )
-        }
+        # if (input$area_of_occupancy & input$number_EOs){
+        #   m <- leafletProxy("main_map") %>%
+        #     leaflet::addMapPane("aoo", zIndex = 200) %>%
+        #     addPolygons(data = taxon_data$AOO_map,
+        #                 color = "#2c7bb6",
+        #                 fill = "#2c7bb6",
+        #                 fillOpacity = .2,
+        #                 options = pathOptions(pane = "aoo"),
+        #                 group = "Occupancy"
+        #     ) %>%
+        #     leaflet::addMapPane("eos", zIndex = 200) %>%
+        #     addPolygons(data = taxon_data$EOcount_map,
+        #                 fill = TRUE,
+        #                 fillColor = "#8b0000",
+        #                 fillOpacity = .5,
+        #                 opacity = 0,
+        #                 options = pathOptions(pane = "eos"),
+        #                 group = "Occurrences"
+        #     )
+        # }
+# 
+#         if (input$area_of_occupancy & isFALSE(input$number_EOs)){
+#           m <- leafletProxy("main_map") %>%
+#             leaflet::addMapPane("aoo", zIndex = 200) %>%
+#             addPolygons(data = taxon_data$AOO_map,
+#                         color = "#2c7bb6",
+#                         fill = "#2c7bb6",
+#                         fillOpacity = .2,
+#                         options = pathOptions(pane = "aoo"),
+#                         group = "Occupancy"
+#             )
+#         }
 
-        if (input$area_of_occupancy & isFALSE(input$number_EOs)){
-          m <- leafletProxy("main_map") %>%
-            leaflet::addMapPane("aoo", zIndex = 200) %>%
-            addPolygons(data = taxon_data$AOO_map,
-                        color = "#2c7bb6",
-                        fill = "#2c7bb6",
-                        fillOpacity = .2,
-                        options = pathOptions(pane = "aoo"),
-                        group = "Occupancy"
-            )
-        }
-
-        if (input$number_EOs & isFALSE(input$area_of_occupancy)){
-          m <- leafletProxy("main_map") %>%
-            leaflet::addMapPane("eos", zIndex = 200) %>%
-            addPolygons(data = taxon_data$EOcount_map,
-                        fill = TRUE,
-                        fillColor = "#8b0000",
-                        fillOpacity = .5,
-                        opacity = 0,
-                        options = pathOptions(pane = "eos"),
-                        group = "Occurrences"
-            )
-        }
+        # if (input$number_EOs & isFALSE(input$area_of_occupancy)){
+        #   m <- leafletProxy("main_map") %>%
+        #     leaflet::addMapPane("eos", zIndex = 200) %>%
+        #     addPolygons(data = taxon_data$EOcount_map,
+        #                 fill = TRUE,
+        #                 fillColor = "#8b0000",
+        #                 fillOpacity = .5,
+        #                 opacity = 0,
+        #                 options = pathOptions(pane = "eos"),
+        #                 group = "Occurrences"
+        #     )
+        # }
 
         m
 
@@ -1058,12 +1057,13 @@ function(input, output, session) {
       taxon_data$AOO_value <- (aoo2(taxon_data$filtered_occurrences, as.numeric(input$grid_cell_size)*1000))/4
       
       taxon_data$AOO_map <- get_aoo_polys(taxon_data$sf_filtered, as.numeric(input$grid_cell_size))
+      
       # taxon_data$AOO_value <- taxon_data$AOO_map %>% nrow()
       
       if (!is.null(taxon_data$AOO_map)){
         
       m <- leafletProxy("main_map") %>%
-        clearShapes() %>% 
+        clearGroup("Occupancy") %>% 
         leaflet::addMapPane("aoo", zIndex = 200) %>% 
         addPolygons(data = taxon_data$AOO_map,
                     color = "#2c7bb6",
@@ -1079,51 +1079,51 @@ function(input, output, session) {
         sendSweetAlert(session, type = "warning", title = "Oops!", text = "There are too many AOO cells to be mapped efficiently", closeOnClickOutside = TRUE)
       }
       
-      if (input$range_extent & input$number_EOs){
-        m <- leafletProxy("main_map") %>%
-          leaflet::addMapPane("species_range", zIndex = 200) %>% 
-          addPolygons(data = taxon_data$species_range_map,
-                      color = grey(.2),
-                      fillOpacity = 0.1,
-                      fill = TRUE,
-                      options = pathOptions(pane = "species_range")
-                      # group = "Range Extent"
-          ) %>% 
-          leaflet::addMapPane("eos", zIndex = 200) %>% 
-          addPolygons(data = taxon_data$EOcount_map, 
-                      fill = TRUE,
-                      fillColor = "#8b0000",
-                      fillOpacity = .5,
-                      opacity = 0,
-                      options = pathOptions(pane = "eos"),
-                      group = "Occurrences"
-          )
-      } 
-      
-      if (input$range_extent & isFALSE(input$number_EOs)){
-        m <- leafletProxy("main_map") %>%
-          leaflet::addMapPane("species_range", zIndex = 200) %>% 
-          addPolygons(data = taxon_data$species_range_map,
-                      color = grey(.2),
-                      fillOpacity = 0.1,
-                      fill = TRUE,
-                      options = pathOptions(pane = "species_range"),
-                      group = "Range Extent"
-          )
-      } 
-      
-      if (input$number_EOs & isFALSE(input$range_extent)){
-        m <- leafletProxy("main_map") %>%
-          leaflet::addMapPane("eos", zIndex = 200) %>% 
-          addPolygons(data = taxon_data$EOcount_map, 
-                      fill = TRUE,
-                      fillColor = "#8b0000",
-                      fillOpacity = .5,
-                      opacity = 0,
-                      options = pathOptions(pane = "eos"),
-                      group = "Occurrences"
-          )
-      } 
+      # if (input$range_extent & input$number_EOs){
+      #   m <- leafletProxy("main_map") %>%
+      #     leaflet::addMapPane("species_range", zIndex = 200) %>% 
+      #     addPolygons(data = taxon_data$species_range_map,
+      #                 color = grey(.2),
+      #                 fillOpacity = 0.1,
+      #                 fill = TRUE,
+      #                 options = pathOptions(pane = "species_range")
+      #                 # group = "Range Extent"
+      #     ) %>% 
+      #     leaflet::addMapPane("eos", zIndex = 200) %>% 
+      #     addPolygons(data = taxon_data$EOcount_map, 
+      #                 fill = TRUE,
+      #                 fillColor = "#8b0000",
+      #                 fillOpacity = .5,
+      #                 opacity = 0,
+      #                 options = pathOptions(pane = "eos"),
+      #                 group = "Occurrences"
+      #     )
+      # } 
+      # 
+      # if (input$range_extent & isFALSE(input$number_EOs)){
+      #   m <- leafletProxy("main_map") %>%
+      #     leaflet::addMapPane("species_range", zIndex = 200) %>% 
+      #     addPolygons(data = taxon_data$species_range_map,
+      #                 color = grey(.2),
+      #                 fillOpacity = 0.1,
+      #                 fill = TRUE,
+      #                 options = pathOptions(pane = "species_range"),
+      #                 group = "Range Extent"
+      #     )
+      # } 
+      # 
+      # if (input$number_EOs & isFALSE(input$range_extent)){
+      #   m <- leafletProxy("main_map") %>%
+      #     leaflet::addMapPane("eos", zIndex = 200) %>% 
+      #     addPolygons(data = taxon_data$EOcount_map, 
+      #                 fill = TRUE,
+      #                 fillColor = "#8b0000",
+      #                 fillOpacity = .5,
+      #                 opacity = 0,
+      #                 options = pathOptions(pane = "eos"),
+      #                 group = "Occurrences"
+      #     )
+      # } 
       
       m
       
@@ -1151,11 +1151,12 @@ function(input, output, session) {
       
       ##### Calculate numbers of EOs
       number_EOs <- calculate_number_occurrences(taxon_data$sf_filtered, separation_distance = input$separation_distance %>% as.numeric(), added_distance = 0)
+      
       taxon_data$EOcount_value <- number_EOs$eo_count
       taxon_data$EOcount_map <- number_EOs$buffered_occurrences
       
       m <- leafletProxy("main_map") %>%
-        clearShapes() %>%
+        clearGroup("Occurrences") %>%
         leaflet::addMapPane("eos", zIndex = 200) %>% 
         addPolygons(data = taxon_data$EOcount_map, 
                     fill = TRUE,
@@ -1165,50 +1166,50 @@ function(input, output, session) {
                     options = pathOptions(pane = "eos"),
                     group = "Occurrences"
         )
-      
-      if (input$area_of_occupancy & input$range_extent){
-        m <- leafletProxy("main_map") %>%
-          leaflet::addMapPane("aoo", zIndex = 200) %>% 
-          addPolygons(data = taxon_data$AOO_map,
-                      color = "#2c7bb6",
-                      fill = "#2c7bb6",
-                      fillOpacity = .2,
-                      options = pathOptions(pane = "aoo"),
-                      group = "Occupancy"
-          ) %>% 
-          leaflet::addMapPane("species_range", zIndex = 200) %>% 
-          addPolygons(data = taxon_data$species_range_map,
-                      color = grey(.2),
-                      fillOpacity = 0.1,
-                      fill = TRUE,
-                      options = pathOptions(pane = "species_range"),
-                      group = "Range Extent"
-          )
-      } 
-      
-      if (input$area_of_occupancy & isFALSE(input$range_extent)){
-        m <- leafletProxy("main_map") %>%
-          leaflet::addMapPane("aoo", zIndex = 200) %>% 
-          addPolygons(data = taxon_data$AOO_map,
-                      color = "#2c7bb6",
-                      fill = "#2c7bb6",
-                      fillOpacity = .2,
-                      options = pathOptions(pane = "aoo"),
-                      group = "Occupancy"
-          )
-      } 
-      
-      if (input$range_extent & isFALSE(input$area_of_occupancy)){
-        m <- leafletProxy("main_map") %>%
-          leaflet::addMapPane("species_range", zIndex = 200) %>% 
-          addPolygons(data = taxon_data$species_range_map,
-                      color = grey(.2),
-                      fillOpacity = 0.1,
-                      fill = TRUE,
-                      options = pathOptions(pane = "species_range"),
-                      group = "Range Extent"
-          )
-      } 
+      # 
+      # if (input$area_of_occupancy & input$range_extent){
+      #   m <- leafletProxy("main_map") %>%
+      #     leaflet::addMapPane("aoo", zIndex = 200) %>% 
+      #     addPolygons(data = taxon_data$AOO_map,
+      #                 color = "#2c7bb6",
+      #                 fill = "#2c7bb6",
+      #                 fillOpacity = .2,
+      #                 options = pathOptions(pane = "aoo"),
+      #                 group = "Occupancy"
+      #     ) %>% 
+      #     leaflet::addMapPane("species_range", zIndex = 200) %>% 
+      #     addPolygons(data = taxon_data$species_range_map,
+      #                 color = grey(.2),
+      #                 fillOpacity = 0.1,
+      #                 fill = TRUE,
+      #                 options = pathOptions(pane = "species_range"),
+      #                 group = "Range Extent"
+      #     )
+      # } 
+      # 
+      # if (input$area_of_occupancy & isFALSE(input$range_extent)){
+      #   m <- leafletProxy("main_map") %>%
+      #     leaflet::addMapPane("aoo", zIndex = 200) %>% 
+      #     addPolygons(data = taxon_data$AOO_map,
+      #                 color = "#2c7bb6",
+      #                 fill = "#2c7bb6",
+      #                 fillOpacity = .2,
+      #                 options = pathOptions(pane = "aoo"),
+      #                 group = "Occupancy"
+      #     )
+      # } 
+      # 
+      # if (input$range_extent & isFALSE(input$area_of_occupancy)){
+      #   m <- leafletProxy("main_map") %>%
+      #     leaflet::addMapPane("species_range", zIndex = 200) %>% 
+      #     addPolygons(data = taxon_data$species_range_map,
+      #                 color = grey(.2),
+      #                 fillOpacity = 0.1,
+      #                 fill = TRUE,
+      #                 options = pathOptions(pane = "species_range"),
+      #                 group = "Range Extent"
+      #     )
+      # } 
       
       m
       
@@ -1519,7 +1520,8 @@ function(input, output, session) {
       total_observations_used = purrr::map(batch_run_output$results, function(out) nrow(out$sf_filtered)) %>% unlist(),
       range_value = purrr::map(batch_run_output$results, function(out) out$species_range_value) %>% unlist(),
       AOO_value = purrr::map(batch_run_output$results, function(out) out$AOO_value) %>% unlist(),
-      EOcount_value = purrr::map(batch_run_output$results, function(out) out$EOcount_value) %>% unlist()
+      EOcount_value = purrr::map(batch_run_output$results, function(out) out$EOcount_value) %>% unlist(),
+      Reviewed = FALSE
     )
     
     shinyjs::show("batch_output")
@@ -1537,7 +1539,10 @@ function(input, output, session) {
                     "AOO" = AOO_value,
                     "Occurrence Count" = EOcount_value
       ) %>% 
-      dplyr::mutate(Review = shinyInput(actionButton, nrow(batch_run_output$table), 'button_', label = "Review assessment", onclick = 'Shiny.onInputChange(\"select_button\",  this.id)' )) %>% 
+      dplyr::mutate(" " = shinyInput(actionButton, nrow(batch_run_output$table), 'button_', label = "Review assessment", onclick = 'Shiny.onInputChange(\"select_button\",  this.id)' ),
+                    Reviewed = ifelse(isFALSE(Reviewed), as.character(icon("xmark", "fa-3x", style = "color: #ef8a62;")), as.character(icon("check", "fa-3x", style = "color: #67a9cf;")))
+                    ) %>% 
+      dplyr::select("Scientific name", "Total Observations Used", "Range Extent", "AOO", "Occurrence Count", "Reviewed", " ") %>% 
       DT::datatable(options = list(dom = 'tp',
                                    pageLength = 10,
                                    # columnDefs = list(list(width = "10%", className = 'dt-left', targets = c(1,2))),
@@ -1564,7 +1569,8 @@ function(input, output, session) {
             total_observations_used = nrow(taxon_data$sf_filtered),
             range_value = taxon_data$species_range_value,
             AOO_value = taxon_data$AOO_value,
-            EOcount_value = taxon_data$EOcount_value
+            EOcount_value = taxon_data$EOcount_value,
+            Reviewed = TRUE
           )
         )
     } else {
@@ -1604,12 +1610,12 @@ function(input, output, session) {
     taxon_data$shifted <- batch_run_output$results[[batch_taxon_focus$taxon]]$shifted
     taxon_data$sf <- batch_run_output$results[[batch_taxon_focus$taxon]]$sf
     taxon_data$sf_filtered <- batch_run_output$results[[batch_taxon_focus$taxon]]$sf_filtered
-    taxon_data$species_range_value <- batch_run_output$results[[batch_taxon_focus$taxon]]$species_range_value
-    taxon_data$species_range_map <- batch_run_output$results[[batch_taxon_focus$taxon]]$species_range_map
-    taxon_data$AOO_value <- batch_run_output$results[[batch_taxon_focus$taxon]]$AOO_value
-    taxon_data$AOO_map <- batch_run_output$results[[batch_taxon_focus$taxon]]$AOO_map
-    taxon_data$EOcount <- batch_run_output$results[[batch_taxon_focus$taxon]]$EOcount
-    taxon_data$EOcount_value <- batch_run_output$results[[batch_taxon_focus$taxon]]$EOcount_value
+    # taxon_data$species_range_value <- batch_run_output$results[[batch_taxon_focus$taxon]]$species_range_value
+    # taxon_data$species_range_map <- batch_run_output$results[[batch_taxon_focus$taxon]]$species_range_map
+    # taxon_data$AOO_value <- batch_run_output$results[[batch_taxon_focus$taxon]]$AOO_value
+    # taxon_data$AOO_map <- batch_run_output$results[[batch_taxon_focus$taxon]]$AOO_map
+    # taxon_data$EOcount_map <- batch_run_output$results[[batch_taxon_focus$taxon]]$EOcount_map
+    # taxon_data$EOcount_value <- batch_run_output$results[[batch_taxon_focus$taxon]]$EOcount_value
     
     taxon_data$info$scientificName <- batch_taxon_focus$taxon
     selected_taxon$name <- batch_taxon_focus$taxon[1]

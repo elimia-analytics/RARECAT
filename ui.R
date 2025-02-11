@@ -460,7 +460,7 @@ tabPanel("MULTISPECIES MODE", height = "100%",
                shinyBS::bsCollapsePanel(title = "Rank assessment parameters", style = "primary", 
              fluidRow(style = "padding: 20px 20px 0px 20px; margin-bottom: 0;",
                       column(width = 2,
-                             h1("1. Set assessment scale")
+                             h1("1. Set assessment geography")
                       ),
                       column(width = 2,
                              h3("Select assessment type"),
@@ -488,15 +488,11 @@ tabPanel("MULTISPECIES MODE", height = "100%",
                                             multiple = TRUE, 
                                             width = "100%"
                              )      
-                      ),
-                      column(width = 2,
-                             h3("Select assessment time frame"),
-                             dateRangeInput("batch_year_filter", "", format = "yyyy", start = "1900-01-01", end = Sys.Date()),
                       )
              ),
-             fluidRow(style = "padding: 10px 20px 0px 20px;",
+             fluidRow(style = "padding: 20px 20px 0px 20px;",
                       column(width = 2,
-                             h1("2. Specify assessment taxa")
+                             h1("2. Set assessment taxa")
                       ),
                       column(width = 3,
                              h3("Add taxon names from Rank Calculator file"),
@@ -536,7 +532,7 @@ tabPanel("MULTISPECIES MODE", height = "100%",
              ),
              fluidRow(style = "padding: 20px 20px 0px 20px;",
                       column(width = 2,
-                             h1("3. Select additional filters")
+                             h1("3. Set additional filters")
                       ),
                       column(width = 2, style = "padding: 50px 10px 10px 10px;",
                              materialSwitch(inputId = "batch_clean_occ", 
@@ -559,22 +555,48 @@ tabPanel("MULTISPECIES MODE", height = "100%",
                                inputId = "batch_uncertainty_filter", 
                                label = "",
                                value = "", 
-                               width = "100%"
+                               width = "90%"
                              )
                       ),
-                      column(width = 2, style = "padding: 0 10px 10px 10px;",
+                      column(width = 2, style = "padding: 0 0 10px 10px;",
                              h3("Select data sources to include"),
                              selectizeInput(inputId = "batch_sources_filter",
                                             label = "",
                                             choices = c("gbif", "inat", "uploaded"),
                                             multiple = TRUE, 
-                                            width = "100%"
+                                            width = "90%"
+                             )
+                      ),
+                      column(width = 2,
+                             h3("Select time frame"),
+                             fluidRow(style = "padding-left: 10px;",
+                             dateRangeInput("batch_year_filter", "", format = "yyyy", start = "1900-01-01", end = Sys.Date(), width = "90%"),
+                             ),
+                             fluidRow(style = "padding: 35px 0 0 20px;",
+                             materialSwitch(inputId = "batch_no_year", 
+                                     label = "Remove records with no year", 
+                                     value = FALSE, 
+                                     right = TRUE
+                                     )
+                             )
+                      ),
+                      column(width = 2,
+                             fluidRow(h3("Select time of year")),
+                             fluidRow(
+                               column(width = 4, h5("Start date", style = "float: right; padding-top: 5px;")),
+                               column(width = 5, style = "padding-right: 0;", selectInput(inputId = "seasonality_month1", label = "", choices = month.name)),
+                               column(width = 3, style = "padding-left: 0;", selectInput(inputId = "seasonality_day1", label = "", choices = 1:31))
+                             ),
+                             fluidRow(
+                               column(width = 4, h5("End date", style = "float: right; padding-top: 5px;")),
+                               column(width = 5, style = "padding-right: 0;", selectInput(inputId = "seasonality_month2", label = "", choices = month.name)),
+                               column(width = 3, style = "padding-left: 0;", selectInput(inputId = "seasonality_day2", label = "", choices = 1:31))
                              )
                       )
              ),
              fluidRow(style = "padding: 10px 20px 0px 20px;",
                       column(width = 2,
-                             h1("4. Select output parameters")
+                             h1("4. Set calculation parameters")
                       ),
                       column(width = 2,
                              h3("Select AOO grid cell size"),

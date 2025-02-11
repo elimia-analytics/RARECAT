@@ -342,21 +342,27 @@ run_rank_assessment <- function(taxon_name,
   taxon_data <- list(
     info = data.frame(scientificName = "New taxon"),
     info_extended = NULL,
-    family = NULL,
     synonyms = NULL,
     synonyms_selected = NULL,
     gbif_occurrences_raw = NULL,
     gbif_occurrences = NULL,
     uploaded_occurrences = NULL,
+    drawn_occurrences = NULL,
     all_occurrences = NULL,
     shifted = FALSE,
     sf = NULL,
     sf_filtered = NULL,
+    filtered_occurrences = NULL,
+    selected_points = data.frame("Key" = character(), "Scientific name" = character(), "Source" = character(), "Institution code" = character(), "Year" = numeric(), "Coordinate Uncertainty" = numeric(), "Place" = character(), "URL" = character())[NULL, ],
+    removed_points = NULL,
+    nations = NULL,
+    states = NULL,
+    records_over_time = NULL,
     species_range_value = NULL,
     species_range_map = NULL,
     AOO_value = NULL,
     AOO_map = NULL,
-    EOcount = NULL,
+    EOcount_map = NULL,
     EOcount_value = NULL
   )
   
@@ -475,6 +481,7 @@ run_rank_assessment <- function(taxon_name,
   number_EOs <- calculate_number_occurrences(taxon_data$sf_filtered, separation_distance = sep_distance %>% as.numeric(), added_distance = 0)
   taxon_data$EOcount_value <- number_EOs$eo_count
   taxon_data$EOcount_map <- number_EOs$buffered_occurrences
+  taxon_data$shifted <- shifted 
   
   return(taxon_data)
   
