@@ -81,7 +81,7 @@ navbarPage(title = HTML("<span style='float: left; display: inline-block; paddin
                                         top = 100, left = 90, right = "auto", bottom = "auto",
                                         width = "33vw",
                                         height = "25vh",
-                                        style = "padding: 0.5em; border-bottom: none; border-color: transparent; background-color: rgba(255, 255, 255, 0.8); z-index: 1 !important; overflow-y: scroll; overflow-x: hidden; scrollbar-color: #007 #fff !important;",
+                                        style = "padding: 0.5em; border-bottom: none; border-color: transparent; background-color: rgba(255, 255, 255, 0.8); z-index: 1 !important; overflow-y: scroll; overflow-x: hidden; scrollbar-color: #fff !important;",
                                         shinycssloaders::withSpinner(DT::dataTableOutput("taxon_NS_table", width = "100%"), type = 7, proxy.height = "150px")
                           )
                         ),
@@ -92,22 +92,11 @@ navbarPage(title = HTML("<span style='float: left; display: inline-block; paddin
                                         top = 100, left = 90, right = "auto", bottom = "auto",
                                         width = "33vw",
                                         height = "25vh",
-                                        style = "padding: 0.5em; border-bottom: none; border-color: transparent; background-color: rgba(255, 255, 255, 0.8); z-index: 1 !important; overflow-y: scroll; overflow-x: hidden; scrollbar-color: #007 rgba(255, 255, 255, 0.8) !important;",
+                                        style = "padding: 0.5em; border-bottom: none; border-color: transparent; background-color: rgba(255, 255, 255, 0.8); z-index: 1 !important; overflow-y: scroll; overflow-x: hidden; scrollbar-color:  rgba(255, 255, 255, 0.8) !important;",
                                         shinycssloaders::withSpinner(DT::dataTableOutput("taxon_options_table", width = "100%"), type = 7, proxy.height = "50px"),
                                         div(style = "padding-top: 20px; position: relative; text-align: center;", actionButton(inputId = "begin_assessment", label = "Start assessment", block = TRUE, class = "btn-primary btn-lg", width = "60%"))
                           )
                         ),
-
-                        absolutePanel(id = "cond_inputs_panel", 
-                                      class = "panel panel-default", 
-                                      top = 63, left = 360, right = "auto", bottom = "auto",
-                                      width = "13em",
-                                      height = "2.5em",
-                                      style = "margin-top: 0; padding: 0em 1.8em 1em 3em; border-bottom: none; border-color: transparent; background-color: rgba(169, 169, 169, 0); z-index: 10 !important; overflow-y: hidden !important; overflow-x: hidden; box-shadow: none !important;", 
-                                      div(style = "float: left;",
-                                      actionButton(inputId = "clear_map", label = "Clear data", icon = icon("close"), block = TRUE, class = "btn-primary btn-sm", width = "100%")
-                                      )
-                                      ),
                         
                         shinycssloaders::withSpinner(leafletOutput("main_map", height="60vh", width = "106vw"), type = 7),
                         
@@ -117,21 +106,27 @@ navbarPage(title = HTML("<span style='float: left; display: inline-block; paddin
                                             top = 58, left = "auto", right = 14, bottom = "auto",
                                             width = "33vw",
                                             height = "58vh",
-                                            style = "margin-top: 0; padding: 0.3em 1.2em 1em 1.2em; background-color: white; box-shadow: -5px 5px 5px rgba(169, 169, 169, .8); z-index: 1000 !important; overflow-y: scroll; scrollbar-color: #007 #fff !important;", 
-                                            fluidRow(style = "padding-left: 20px",
+                                            style = "margin: 0; padding: 0.3em 0.3em 0.3em 0.3em; background-color: white; box-shadow: -5px 5px 5px rgba(169, 169, 169, .8); z-index: 1000 !important; overflow-y: scroll; scrollbar-color: #fff !important;", 
+                                            fluidRow(style = "padding: 0px 10px 10px 10px",
+                                                     column(width = 9,
                                                             htmlOutput("species_name")
+                                                            ),
+                                                     column(width = 3, style = "padding-top: 15px;",
+                                                            actionButton(inputId = "clear_map", label = "Clear data", icon = icon("close"), block = TRUE, class = "btn-primary btn-sm", width = "100%")
+                                                            )
                                             ),
-
-                                            fluidRow(
+                                            shinyBS::bsCollapse(id = "inputs_single", open = "Add assessment data",
+                                                                shinyBS::bsCollapsePanel(title = "Add assessment data", style = "primary", 
+                                            fluidRow(style = "padding-top: 10px;",
                                               column(width = 6, style = "margin-bottom: -15px; padding-bottom: 0px;",
                                                      fluidRow(
-                                                       column(width = 4, style = "padding-top: 25px; padding-right: 0; margin-right: 0;",
+                                                       column(width = 4, style = "width: 21%; padding: 10px 10px 10px 20px; margin-right: 0;",
                                                               materialSwitch(inputId = "map_uploads", 
                                                                              label = "", 
                                                                              value = FALSE, 
                                                               )
                                                        ),
-                                                       column(width = 8, style = "text-align: left;",
+                                                       column(width = 8, style = "text-align: left; padding-top: 5px;",
                                                               h4("Add records from CSV")                                                                     
                                                        )
                                                      ),
@@ -145,34 +140,38 @@ navbarPage(title = HTML("<span style='float: left; display: inline-block; paddin
                                                      )
                                               ),
                                               hidden(
-                                                div(id = "load_data_panel", style = "padding-left: 10px;",
+                                                div(id = "load_data_panel",
                                                     column(width = 6, style = "padding-left: 10px;",
                                                            fluidRow(
-                                                             column(width = 4, style = "padding-top: 25px; padding-right: 0; margin-right: 0;",
+                                                             column(width = 4, style = "width: 21%; padding: 10px 10px 10px 20px; margin-right: 0;",
                                                                     materialSwitch(inputId = "load_gbif_data", 
                                                                                    label = "", 
                                                                                    value = FALSE
                                                                     )
                                                              ),
-                                                             column(width = 8, style = "text-align: left;",
-                                                                    h4("Add GBIF records")
+                                                             column(width = 8, style = "text-align: left; padding-top: 5px;",
+                                                                    h4("Add records from")
                                                              )
+                                                             # column(width = 3, style = "position: relative; float: left; padding-right: 0; padding-top: 0; padding-left: 0.3em;", 
+                                                             #        textInput(inputId = "number_gbif_occurrences", label = "", value = 1000)
+                                                             # ),
                                                            ),
-                                                           fluidRow(style = "padding-left: 20px;",
-                                                                    column(width = 4, style = "position: relative; float: left; padding-right: 0; padding-top: 0; padding-left: 0.3em;", 
-                                                                           textInput(inputId = "number_gbif_occurrences", label = "", value = 1000)
-                                                                    ),
-                                                                    column(width = 5, style = "padding-top: 1em; padding-left: 0.5em;",
-                                                                           p("records max.")
-                                                                    )
+                                                           fluidRow(style = "padding: 0px 5px 0px 5px;",
+                                                                    column(width = 12,
+                                                                           selectizeInput("input_sources", label = "", choices = c("gbif", "inat", "ebird"), selected = c("gbif", "inat", "ebird"), multiple = TRUE)
+                                                                           )
                                                            )
                                                     )
                                                 )
                                               )
+                                            )
+                                                                )
                                                      ),
 
                                             hidden(
-                                              div(id = "data_panel", style = "padding-left: 10px;",
+                                              div(id = "data_panel", style = "padding-top: 0; margin-top: 0;",
+                                                  shinyBS::bsCollapse(id = "outputs_single", open = "Rank factor calculations",
+                                                                      shinyBS::bsCollapsePanel(title = "Rank factor calculations", style = "primary", 
                                                   fluidRow(style = "padding-left: 5px;",
                                                            column(width = 12, style = "padding-top: 0.4em;",
                                                                   shinycssloaders::withSpinner(htmlOutput("number_occurrences"), type = 7, proxy.height = "0px")
@@ -265,16 +264,18 @@ navbarPage(title = HTML("<span style='float: left; display: inline-block; paddin
                                                     column(width = 9, style = "position: relative; float: left; padding: 1em 0 1.5em 0em;",
                                                            p("Separation distance (m)")
                                                     )
+                                                  )
+                                                                      )
                                                   ),
                                                   fluidRow(style = "padding-top: 2px;",
-                                                           column(width = 4,
-                                                                  downloadButton(outputId = "download_occurrence_data", label = "Download records", class = "btn-primary btn-sm", style = "width: 110%;")
+                                                           column(width = 4, style = "padding-right: 4px;",
+                                                                  downloadButton(outputId = "download_occurrence_data", label = "Download records", class = "btn-primary btn-sm", style = "width: 100%;")
                                                            ),
-                                                           column(width = 4, 
-                                                                  downloadButton(outputId = "download_rank_data", label = "Download rank data", class = "btn-primary btn-sm", style = "width: 110%;")
+                                                           column(width = 4, style = "padding-right: 2px; padding-left: 2px;", 
+                                                                  downloadButton(outputId = "download_rank_data", label = "Download rank data", class = "btn-primary btn-sm", style = "width: 100%;")
                                                            ),
-                                                           column(width = 4, 
-                                                                  actionButton(inputId = "send_to_batch_mode", label = "Send to multispecies mode", block = TRUE, class = "btn-primary btn-sm", width = "110%")
+                                                           column(width = 4, style = "padding-left: 4px;",
+                                                                  actionButton(inputId = "send_to_batch_mode", label = "Send to multispecies mode", block = TRUE, class = "btn-primary btn-sm", style = "width: 100%;")
                                                            )
                                                   )
                                               )
@@ -378,7 +379,7 @@ navbarPage(title = HTML("<span style='float: left; display: inline-block; paddin
                                                        div(style = "float: right !important;", actionButton(inputId = "clear_selected_records", label = "Unselect records", block = TRUE, class = "btn-primary btn-sm", width = "12em"))
                                                 )
                                        ),
-                                       fluidRow(style = "padding-left: 15px; padding-right: 15px; overflow-x: scroll; overflow-y: hidden; scrollbar-color: #007 #fff !important;",
+                                       fluidRow(style = "padding-left: 15px; padding-right: 15px; overflow-x: scroll; overflow-y: hidden; scrollbar-color: #fff !important;",
                                          DT::dataTableOutput("occurrences_table", height="40vh")
                                        )
                                 ),
@@ -407,7 +408,10 @@ navbarPage(title = HTML("<span style='float: left; display: inline-block; paddin
                                                            column(width = 8,
                                                                   plotly::plotlyOutput("occurrences_barchart_period", height = "30vh")
                                                            )
-                                                  ) 
+                                                  ),
+                                                  fluidRow(
+                                                    DT::dataTableOutput("rarity_over_time_table")
+                                                  )
                                                   ),
                                          tabPanel("Temporal trend analysis", style = "background-color: rgba(249, 249, 249, 1); border-left: 1px solid #ddd; border-right: 1px solid #ddd; border-bottom: 1px solid #ddd;",
                                                   fluidRow(style = "padding-left: 5px; padding-bottom: 10px;",
@@ -418,7 +422,7 @@ navbarPage(title = HTML("<span style='float: left; display: inline-block; paddin
                                                                   selectizeInput(inputId = "select_reference_taxon",
                                                                                  label = "",
                                                                                  choices = c("genus", "family", "order", "class", "phylum", "kingdom"),
-                                                                                 selected = "class",
+                                                                                 selected = "genus",
                                                                                  multiple = FALSE, 
                                                                                  width = "90%"
                                                                   )
@@ -562,7 +566,7 @@ tabPanel("MULTISPECIES MODE", height = "100%",
                              h3("Select data sources to include"),
                              selectizeInput(inputId = "batch_sources_filter",
                                             label = "",
-                                            choices = c("gbif", "inat", "uploaded"),
+                                            choices = c("gbif", "inat", "ebird", "uploaded"),
                                             multiple = TRUE, 
                                             width = "90%"
                              )
@@ -584,13 +588,13 @@ tabPanel("MULTISPECIES MODE", height = "100%",
                              fluidRow(h3("Select time of year")),
                              fluidRow(
                                column(width = 4, h5("Start date", style = "float: right; padding-top: 5px;")),
-                               column(width = 5, style = "padding-right: 0;", selectInput(inputId = "seasonality_month1", label = "", choices = month.name)),
-                               column(width = 3, style = "padding-left: 0;", selectInput(inputId = "seasonality_day1", label = "", choices = 1:31))
+                               column(width = 5, style = "padding-right: 0;", selectInput(inputId = "batch_seasonality_month1", label = "", choices = month.name)),
+                               column(width = 3, style = "padding-left: 0;", selectInput(inputId = "batch_seasonality_day1", label = "", choices = 1:31))
                              ),
                              fluidRow(
                                column(width = 4, h5("End date", style = "float: right; padding-top: 5px;")),
-                               column(width = 5, style = "padding-right: 0;", selectInput(inputId = "seasonality_month2", label = "", choices = month.name)),
-                               column(width = 3, style = "padding-left: 0;", selectInput(inputId = "seasonality_day2", label = "", choices = 1:31))
+                               column(width = 5, style = "padding-right: 0;", selectInput(inputId = "batch_seasonality_month2", label = "", choices = month.name)),
+                               column(width = 3, style = "padding-left: 0;", selectInput(inputId = "batch_seasonality_day2", label = "", choices = 1:31))
                              )
                       )
              ),

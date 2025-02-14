@@ -1,17 +1,110 @@
 # Function to extract observations from GBIF for target taxon
-get_gbif_data <- function(sp_data, number_observations){
+get_gbif_data <- function(sp_data, number_observations, gbif = TRUE, inat = TRUE, ebird = TRUE){
   
+  gbif_occurrences <- NULL
+  
+  if (gbif){
+  # Get all non-human observations
   ## Extract species occurrences across all relevant scientific names from GBIF using the SPOCC package
-  gbif_data <- spocc::occ(from = "gbif", gbifopts = list(taxonKey = sp_data$key),
-                          limit = as.integer(number_observations), 
-                          has_coords = TRUE
-  )
-  
+  gbif_occurrences_nh <- purrr::map(sp_data$key, function(sp){
+    gbif_data <- spocc::occ(from = "gbif", 
+               gbifopts = list(
+                 taxonKey = sp, 
+                 basisOfRecord = c("OCCURRENCE", "PRESERVED_SPECIMEN", "OBSERVATION", "MACHINE_OBSERVATION")
+               ),
+               limit = 10000, # as.integer(number_observations), 
+               has_coords = TRUE
+    )
+    gbif_data$gbif$data %>% dplyr::bind_rows() 
+  }) %>% bind_rows()
+
+  if (nrow(gbif_occurrences_nh) > 0){
   ### Bind results across all relevant scientific names
-  gbif_occurrences <- gbif_data$gbif$data %>%
-    dplyr::bind_rows() %>% 
+    gbif_occurrences_nh <- gbif_occurrences_nh %>%
     dplyr::filter(complete.cases(latitude, longitude, basisOfRecord)) %>% # Only keep records that have at a minimum a value for longitude, latitude, and basisOfRecord
     dplyr::filter(latitude != 0 | longitude != 0) # Exclude records that have latitude and longitude values of 0
+
+  if (!is.null(gbif_occurrences)){
+    shared_names <- intersect(names(gbif_occurrences), names(gbif_occurrences_nh))
+    gbif_occurrences <- gbif_occurrences %>% 
+      dplyr::select(all_of(shared_names)) %>% 
+      rbind(gbif_occurrences_nh %>% dplyr::select(all_of(shared_names)))
+  } else {
+    gbif_occurrences <- gbif_occurrences %>% 
+      rbind(gbif_occurrences_nh)
+  }
+  
+  }
+  }
+  
+  if (inat){
+    ## Extract species occurrences across all relevant scientific names from GBIF using the SPOCC package
+    inat_data <- spocc::occ(from = "gbif", 
+                             gbifopts = list(
+                               taxonKey = sp_data$key, 
+                               institutionCode = "iNaturalist"
+                             ),
+                             limit = 10000, # as.integer(number_observations), 
+                             has_coords = TRUE
+    )
+    
+    inat_occurrences <- inat_data$gbif$data %>%
+      dplyr::bind_rows()
+    
+    if (nrow(inat_occurrences) > 0){
+    ### Bind results across all relevant scientific names
+    inat_occurrences <- inat_occurrences %>% 
+      dplyr::filter(complete.cases(latitude, longitude, basisOfRecord)) %>% # Only keep records that have at a minimum a value for longitude, latitude, and basisOfRecord
+      dplyr::filter(latitude != 0 | longitude != 0) %>% # Exclude records that have latitude and longitude values of 0
+      dplyr::mutate(prov = "inat")
+    
+    if (!is.null(gbif_occurrences)){
+      shared_names <- intersect(names(gbif_occurrences), names(inat_occurrences))
+      print(shared_names)
+      gbif_occurrences <- gbif_occurrences %>% 
+        dplyr::select(all_of(shared_names)) %>% 
+        rbind(inat_occurrences %>% dplyr::select(all_of(shared_names)))
+    } else {
+      gbif_occurrences <- gbif_occurrences %>% 
+        rbind(inat_occurrences)
+    }
+    }
+  }
+  
+  if (ebird){
+    ## Extract species occurrences across all relevant scientific names from GBIF using the SPOCC package
+    ebird_data <- spocc::occ(from = "gbif", 
+                            gbifopts = list(
+                              taxonKey = sp_data$key, 
+                              datasetKey = "4fa7b334-ce0d-4e88-aaae-2e0c138d049e"
+                            ),
+                            limit = 10000, # as.integer(number_observations), 
+                            has_coords = TRUE
+    )
+    
+    ebird_occurrences <- ebird_data$gbif$data %>%
+      dplyr::bind_rows()
+    
+    if (nrow(ebird_occurrences) > 0){
+    ### Bind results across all relevant scientific names
+      ebird_occurrences <- ebird_occurrences %>% 
+      dplyr::filter(complete.cases(latitude, longitude, basisOfRecord)) %>% # Only keep records that have at a minimum a value for longitude, latitude, and basisOfRecord
+      dplyr::filter(latitude != 0 | longitude != 0) %>% # Exclude records that have latitude and longitude values of 0
+      dplyr::mutate(prov = "ebird")
+
+      if (!is.null(gbif_occurrences)){
+        shared_names <- intersect(names(gbif_occurrences), names(ebird_occurrences))
+        gbif_occurrences <- gbif_occurrences %>% 
+          dplyr::select(all_of(shared_names)) %>% 
+          rbind(ebird_occurrences %>% dplyr::select(all_of(shared_names)))
+      } else {
+        gbif_occurrences <- gbif_occurrences %>% 
+          rbind(ebird_occurrences)
+      }
+      
+    }
+
+  }
   
   # Clean up references field
   gbif_occurrences <- gbif_occurrences %>% 
@@ -35,10 +128,7 @@ get_gbif_data <- function(sp_data, number_observations){
     sp_occurrences$longitude <- shifted_long
     shifted <- TRUE
   }
-  
-  # Update prov for iNaturalist records to "iNaturalist"
-  sp_occurrences$prov[sp_occurrences$institutionCode == "iNaturalist"] <- "inat"
-  
+
   out <- list(sp_occurrences = sp_occurrences, shifted = shifted)
   
   return(out)
@@ -404,7 +494,13 @@ run_rank_assessment <- function(taxon_name,
   taxon_data$synonyms <- taxon_data$synonyms %>% 
     dplyr::distinct(., .keep_all = TRUE) 
   
-  taxon_data$gbif_occurrences_raw <- get_gbif_data(sp_data = taxon_data$synonyms, number_observations = max_number_observations)$sp_occurrences
+  taxon_data$gbif_occurrences_raw <- get_gbif_data(
+    sp_data = taxon_data$synonyms, 
+    number_observations = max_number_observations, 
+    gbif = TRUE,
+    inat = TRUE,
+    ebird = TRUE
+    )$sp_occurrences
   
   taxon_data$gbif_occurrences <- taxon_data$gbif_occurrences_raw %>% 
     clean_gbif_data(clean = clean_occ, remove_centroids = centroid_filter, minimum_fields = minimum_fields)
