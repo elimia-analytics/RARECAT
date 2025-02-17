@@ -412,7 +412,7 @@ calculate_number_occurrences <- function(occ, separation_distance = 1000, added_
 
 # Run full rank assessment
 run_rank_assessment <- function(taxon_name, 
-                                minimum_fields =  c("key", "scientificName", "prov", "longitude", "latitude", "coordinateUncertaintyInMeters", "stateProvince", "countryCode", "year", "institutionCode", "references"),
+                                minimum_fields =  c("key", "scientificName", "prov", "longitude", "latitude", "coordinateUncertaintyInMeters", "stateProvince", "countryCode", "year", "month", "day", "institutionCode", "references"),
                                 uploaded_data = NULL,
                                 max_number_observations = 10000,
                                 clean_occ = TRUE,
@@ -542,7 +542,10 @@ run_rank_assessment <- function(taxon_name,
   taxon_data$sf_filtered <- taxon_data$sf
   
   taxon_data$sf_filtered <- taxon_data$sf_filtered %>%
-    dplyr::filter(year >= substr(date_start, 1, 4) & year <= substr(date_end, 1, 4) | is.na(year))
+    dplyr::filter(
+      year >= substr(date_start, 1, 4) & year <= substr(date_end, 1, 4) | is.na(year),
+      (month == substr(date_start, 6, 7) & day >= substr(date_start, 9, 10)) | (month > substr(date_start, 6, 7) & month < substr(date_end, 6, 7)) | (month == substr(date_end, 6, 7) & day <= substr(date_end, 9, 10)) | is.na(month) | is.na(day),
+      )
   
   if (uncertainty_filter != ""){
     

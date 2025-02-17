@@ -74,7 +74,7 @@ function(input, output, session) {
   #'
   #' ## Create static objects
   #' ### Specify minimumcommon fields that  all (up)loaded data should share
-  minimum_fields <- c("key", "scientificName", "prov", "longitude", "latitude", "coordinateUncertaintyInMeters", "stateProvince", "countryCode", "year", "institutionCode", "references")
+  minimum_fields <- c("key", "scientificName", "prov", "longitude", "latitude", "coordinateUncertaintyInMeters", "stateProvince", "countryCode", "year", "month", "day", "institutionCode", "references")
   #'
   #' ## Create reactive objects to store output
   #' ### Object to store NatureServe element selected
@@ -289,7 +289,9 @@ function(input, output, session) {
                       "Add to assessment" = Add
         ) %>% 
         DT::datatable(options = list(dom = 't', pageLength = 100, autoWidth = TRUE,
-                                     columnDefs = list(list(width = '400px', targets = c(0)))
+                                     columnDefs = list(list(className = "text-left", width = '400px', targets = c(0)),
+                                                       list(className = "text-left", targets = c(1, 2, 3))
+                                     )
         ), 
         selection = list(mode = 'multiple', target = 'row'), 
         escape = FALSE, 
@@ -578,16 +580,24 @@ function(input, output, session) {
                              start = input$batch_year_filter[1],
                              end = input$batch_year_filter[2]
         )
+        updateSelectInput(session = session, inputId = "seasonality_month1", selected = input$seasonality_month1)
+        updateSelectInput(session = session, inputId = "seasonality_day1", selected = input$seasonality_day1)
+        updateSelectInput(session = session, inputId = "seasonality_month2", selected = input$seasonality_month2)
+        updateSelectInput(session = session, inputId = "seasonality_day2", selected = input$seasonality_day2)
         updateMaterialSwitch(session = session, inputId = "range_extent", value = TRUE)
         updateMaterialSwitch(session = session, inputId = "area_of_occupancy", value = TRUE)
         updateMaterialSwitch(session = session, inputId = "number_EOs", value = TRUE)
       }
-
+      
       shinybusy::remove_modal_spinner()
       
       observeEvent({
         input$year_filter
         input$no_year
+        input$seasonality_month1
+        input$seasonality_day1
+        input$seasonality_month2
+        input$seasonality_day1
         input$uncertainty_filter
         input$nation_filter
         input$states_filter
@@ -602,9 +612,9 @@ function(input, output, session) {
           
           taxon_data$sf_filtered <- taxon_data$sf
           
-
           taxon_data$sf_filtered <- taxon_data$sf_filtered %>%
             dplyr::filter(year >= substr(input$year_filter[1], 1, 4) & year <= substr(input$year_filter[2], 1, 4) | is.na(year),
+                          (month == input$seasonality_month1 & day >= input$seasonality_day1) | (month > input$seasonality_month1) | (month < input$seasonality_month2) | (month == input$seasonality_month2 & day <= input$seasonality_day2) | is.na(month) | is.na(day),
                           key %in% setdiff(key, taxon_data$removed_points$key)
             )
           
@@ -776,8 +786,8 @@ function(input, output, session) {
     
     taxon_data$records_over_time <- xts::xts(x = dat$number_records, order.by = dat$year)
     
-    start_window <- "1980-01-01"
-    end_window <- Sys.Date()
+    start_window <- input$year_filter[1]
+    end_window <- input$year_filter[2]
     
     dygraph(taxon_data$records_over_time, ylab = "") %>%
       dyBarChart() %>%
@@ -791,28 +801,73 @@ function(input, output, session) {
   })
   
   
-  output$occurrences_barchart_period <- plotly::renderPlotly({
+  output$metric_barchart_period <- plotly::renderPlotly({
     
-    dat <- taxon_data$sf_filtered %>%
-      dplyr::filter(complete.cases(year)) %>% 
-      dplyr::mutate(period = case_when(
-        year >= substr(input$period1[1], 1, 4) & year < substr(input$period1[2], 1, 4) ~ "1",
-        year >= substr(input$period2[1], 1, 4) & year < substr(input$period2[2], 1, 4) ~ "2",
-        year >= substr(input$period3[1], 1, 4) & year < substr(input$period3[2], 1, 4) ~ "3"
-        # year >= substr(input$period4[1], 1, 4) & year < substr(input$period4[2], 1, 4) ~ 4
-      )
-      ) %>%
-      dplyr::filter(complete.cases(period)) %>% 
-      dplyr::group_by(period) %>%
-      dplyr::summarise(number_records = n()) %>%
-      dplyr::mutate(year = paste0(period, "-01-01") %>% as.Date())
+    dat <- data.frame(period = c(1, 2, 3), 
+                      rec_count = NA, rec_count_change = NA,
+                      eoo = NA, eoo_change = NA,
+                      aoo = NA, aoo_change = NA,
+                      eo_count = NA, eo_count_change = NA
+                      )
+    # Calculate period 1 rarity
+    period1_dat <- taxon_data$sf_filtered %>% 
+      dplyr::filter(year >= substr(input$period1[1], 1, 4) & year < substr(input$period1[2], 1, 4))
+    if (nrow(period1_dat) > 0){
+      dat$rec_count[1] <- nrow(period1_dat)
+      dat$rec_count_change[1] <- 0
+      dat$eoo[1] <- (period1_dat %>% calculate_eoo(shifted = taxon_data$shifted))$EOO
+      dat$eoo_change[1] <- 0
+      dat$aoo[1] <- (aoo2(period1_dat, as.numeric(input$grid_cell_size)*1000))/4
+      dat$aoo_change[1] <- 0
+      dat$eo_count[1] <- (calculate_number_occurrences(period1_dat, separation_distance = input$separation_distance %>% as.numeric(), added_distance = 0))$eo_count
+      dat$eo_count_change[1] <- 0
+    }
+    
+    period2_dat <- taxon_data$sf_filtered %>% 
+      dplyr::filter(year >= substr(input$period2[1], 1, 4) & year < substr(input$period2[2], 1, 4))
+    if (nrow(period2_dat) > 0){
+    dat$rec_count[2] <- nrow(period2_dat)
+    dat$rec_count_change[2] <- round(((dat$rec_count[2]-dat$rec_count[1])/dat$rec_count[1])*100, 1)
+    dat$eoo[2] <- (period2_dat %>% calculate_eoo(shifted = taxon_data$shifted))$EOO
+    dat$eoo_change[2] <- round(((dat$eoo[2]-dat$eoo[1])/dat$eoo[1])*100, 1)
+    dat$aoo[2] <- (aoo2(period2_dat, as.numeric(input$grid_cell_size)*1000))/4
+    dat$aoo_change[2] <- round(((dat$aoo[2]-dat$aoo[1])/dat$aoo[1])*100, 1)
+    dat$eo_count[2] <- (calculate_number_occurrences(period2_dat, separation_distance = input$separation_distance %>% as.numeric(), added_distance = 0))$eo_count
+    dat$eo_count_change[2] <- round(((dat$eo_count[2]-dat$eo_count[1])/dat$eo_count[1])*100, 1)
+    }
+    
+    period3_dat <- taxon_data$sf_filtered %>% 
+      dplyr::filter(year >= substr(input$period3[1], 1, 4) & year < substr(input$period3[2], 1, 4))
+    if (nrow(period3_dat) > 0){
+    dat$rec_count[3] <- nrow(period3_dat)
+    dat$rec_count_change[3] <- round(((dat$rec_count[3]-dat$rec_count[2])/dat$rec_count[2])*100, 1)
+    dat$eoo[3] <- (period3_dat %>% calculate_eoo(shifted = taxon_data$shifted))$EOO
+    dat$eoo_change[3] <- round(((dat$eoo[3]-dat$eoo[2])/dat$eoo[2])*100, 1)
+    dat$aoo[3] <- (aoo2(period3_dat, as.numeric(input$grid_cell_size)*1000))/4
+    dat$aoo_change[3] <- round(((dat$aoo[3]-dat$aoo[2])/dat$aoo[2])*100, 1)
+    dat$eo_count[3] <- (calculate_number_occurrences(period3_dat, separation_distance = input$separation_distance %>% as.numeric(), added_distance = 0))$eo_count
+    dat$eo_count_change[3] <- round(((dat$eo_count[3]-dat$eo_count[2])/dat$eo_count[2])*100, 1)
+    }
+    
+    dat <- dat %>% 
+      dplyr::filter(complete.cases(.))
     
     p <- ggplot(data = dat) + 
-      geom_bar(mapping = aes(x = period, y = number_records), stat = "identity", fill = "#1f417d") +
+      geom_bar(mapping = aes(x = .data[["period"]], y = .data[[input$barchart_metric]]), stat = "identity", fill = "#B2BBCB") +
       theme_bw() +
       theme(panel.background = element_rect(fill = "#F9F9F9")) +
       xlab("Time period") +
-      ylab("Number of records")
+      ylab(
+        which(c("Number of Records" = "rec_count", "Range Extent" = "eoo", "Area of Occupancy" = "aoo", "Number of Occurrences" = "eo_count") == input$barchart_metric) %>% names()
+      ) +
+      xlim(1-0.5, nrow(dat)+0.5)
+      
+    if (nrow(period2_dat) > 0){ 
+      p <- p + annotate("text", x = dat$period[2], y = max(dat[[input$barchart_metric]], na.rm = TRUE)/2, label = paste0(dat[[paste0(input$barchart_metric, "_change")]][2], "%"), parse = TRUE, colour = grey(.1)) 
+    }
+    if (nrow(period3_dat) > 0){
+      p <- p + annotate("text", x = dat$period[3], y = max(dat[[input$barchart_metric]], na.rm = TRUE)/2, label = paste0(dat[[paste0(input$barchart_metric, "_change")]][3], "%"), parse = TRUE, colour = grey(.1))
+    } 
     
     gg <- plotly_build(p) %>%
       config(displayModeBar = FALSE) %>%
@@ -828,39 +883,7 @@ function(input, output, session) {
     gg 
     
   })
-  
-  output$rarity_over_time_table <- DT::renderDT({
-    
-    dat <- data.frame(period = c(1, 2, 3), eoo = NA, aoo = NA, eo_count = NA)
-    # Calculate period 1 rarity
-    period1_dat <- taxon_data$sf_filtered %>% 
-      dplyr::filter(year >= substr(input$period1[1], 1, 4) & year < substr(input$period1[2], 1, 4))
-    period2_dat <- taxon_data$sf_filtered %>% 
-      dplyr::filter(year >= substr(input$period2[1], 1, 4) & year < substr(input$period2[2], 1, 4))
-    period3_dat <- taxon_data$sf_filtered %>% 
-      dplyr::filter(year >= substr(input$period3[1], 1, 4) & year < substr(input$period3[2], 1, 4))
-    dat$eoo[1] <- (period1_dat %>% calculate_eoo(shifted = taxon_data$shifted))$EOO
-    dat$eoo[2] <- (period2_dat %>% calculate_eoo(shifted = taxon_data$shifted))$EOO
-    dat$eoo[3] <- (period3_dat %>% calculate_eoo(shifted = taxon_data$shifted))$EOO
-    dat$aoo[1] <- (aoo2(period1_dat, as.numeric(input$grid_cell_size)*1000))/4
-    dat$aoo[2] <- (aoo2(period2_dat, as.numeric(input$grid_cell_size)*1000))/4
-    dat$aoo[3] <- (aoo2(period3_dat, as.numeric(input$grid_cell_size)*1000))/4
-    dat$eo_count[1] <- (calculate_number_occurrences(period1_dat, separation_distance = input$separation_distance %>% as.numeric(), added_distance = 0))$eo_count
-    dat$eo_count[2] <- (calculate_number_occurrences(period2_dat, separation_distance = input$separation_distance %>% as.numeric(), added_distance = 0))$eo_count
-    dat$eo_count[3] <- (calculate_number_occurrences(period3_dat, separation_distance = input$separation_distance %>% as.numeric(), added_distance = 0))$eo_count
-    
-    dat %>%
-      dplyr::rename("Range Extent" = eoo,
-                    "Area of Occupancy" = aoo,
-                    "Number of Occurrences" = eo_count
-      ) %>%
-      DT::datatable(options = list(dom = 't'),
-      escape = FALSE,
-      rownames = FALSE
-      )
-    
-  })
-  
+ 
   observeEvent(input$temporal_trend, {
     
     shinyjs::show("temporal_trend_plots")
@@ -1449,13 +1472,13 @@ function(input, output, session) {
       
       batch_run_output$results[[i]] <- run_rank_assessment(
         taxon_name = taxon_name,
-        minimum_fields =  c("key", "scientificName", "prov", "longitude", "latitude", "coordinateUncertaintyInMeters", "stateProvince", "countryCode", "year", "institutionCode", "references"),
+        minimum_fields =  c("key", "scientificName", "prov", "longitude", "latitude", "coordinateUncertaintyInMeters", "stateProvince", "countryCode", "year", "month", "day", "institutionCode", "references"),
         max_number_observations = 10000, 
         uploaded_data = taxon_uploaded_observations,
         clean_occ = input$batch_clean_occ,
         centroid_filter = input$batch_centroid_filter,
-        date_start = input$batch_year_filter[1],
-        date_end = input$batch_year_filter[2],
+        date_start = paste(input$batch_year_filter[1], input$batch_seasonality_month1, input$batch_seasonality_day1, sep = "-"),
+        date_end = paste(input$batch_year_filter[2], input$batch_seasonality_month2, input$batch_seasonality_day2, sep = "-"),
         uncertainty_filter = input$batch_uncertainty_filter,
         nations_filter = input$batch_nation_filter,
         states_filter = input$batch_states_filter,

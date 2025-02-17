@@ -106,7 +106,7 @@ navbarPage(title = HTML("<span style='float: left; display: inline-block; paddin
                                             top = 58, left = "auto", right = 14, bottom = "auto",
                                             width = "33vw",
                                             height = "58vh",
-                                            style = "margin: 0; padding: 0.3em 0.3em 0.3em 0.3em; background-color: white; box-shadow: -5px 5px 5px rgba(169, 169, 169, .8); z-index: 1000 !important; overflow-y: scroll; scrollbar-color: #fff !important;", 
+                                            style = "margin: 0; padding: 0.3em 0.2em 0.3em 0.3em; background-color: white; box-shadow: -5px 5px 5px rgba(169, 169, 169, .8); z-index: 1000 !important; overflow-y: scroll; scrollbar-color: #fff !important;", 
                                             fluidRow(style = "padding: 0px 10px 10px 10px",
                                                      column(width = 9,
                                                             htmlOutput("species_name")
@@ -288,7 +288,7 @@ navbarPage(title = HTML("<span style='float: left; display: inline-block; paddin
                           div(id = "species_occurrences_table", style = "padding-right: 20px; padding-left: 20px",
                               
                               fluidRow(
-                                column(width = 2, style = "padding-bottom: 20px; margin-left: 0; background-color: rgba(249, 249, 249, 1);",
+                                column(width = 2, style = "margin-top: 5px; padding-bottom: 20px; margin-left: 0; background-color: white; border: 1px solid #347AB7;",
                                        h3("Filters", style = "padding-bottom: 12px;"),
                                        br(),
                                        materialSwitch(inputId = "clean_occ", 
@@ -313,6 +313,17 @@ navbarPage(title = HTML("<span style='float: left; display: inline-block; paddin
                                                       label = "Select only records with no year", 
                                                       value = FALSE, 
                                                       right = TRUE
+                                       ),
+                                       fluidRow(h5("Select time of year", style = "padding-left: 15px;")),
+                                       fluidRow(
+                                         column(width = 4, h5("Start date", style = "float: right; padding-top: 5px;")),
+                                         column(width = 5, style = "padding-right: 0;", selectInput(inputId = "seasonality_month1", label = "", choices = (purrr::map(1:12, function(x) x) %>% purrr::set_names(month.name)))),
+                                         column(width = 3, style = "padding-left: 0;", selectInput(inputId = "seasonality_day1", label = "", choices = 1:31, selected = 1))
+                                       ),
+                                       fluidRow(
+                                         column(width = 4, h5("End date", style = "float: right; padding-top: 5px;")),
+                                         column(width = 5, style = "padding-right: 0;", selectInput(inputId = "seasonality_month2", label = "", choices = (purrr::map(1:12, function(x) x) %>% purrr::set_names(month.name)), selected = 12)),
+                                         column(width = 3, style = "padding-left: 0;", selectInput(inputId = "seasonality_day2", label = "", choices = 1:31, selected = 31))
                                        ),
                                        br(),
                                        br(),
@@ -364,7 +375,7 @@ navbarPage(title = HTML("<span style='float: left; display: inline-block; paddin
                                 
                                 
                                 
-                                column(width = 6, style = "background-color: transparent;", 
+                                column(width = 6, style = "background-color: transparent; width: 48vw;", 
                                        fluidRow(style = "padding: 10px 10px 10px 20px; margin-right: 0px;",
                                                 column(width = 8,
                                                        materialSwitch(inputId = "remove_selections",
@@ -383,37 +394,35 @@ navbarPage(title = HTML("<span style='float: left; display: inline-block; paddin
                                          DT::dataTableOutput("occurrences_table", height="40vh")
                                        )
                                 ),
-                                column(width = 4, style = "padding-top: 5px;",
+                                column(width = 4, style = "padding-top: 5px; width: 34vw;",
                                        tabsetPanel(type = "tabs",
-                                         tabPanel("Records over time", style = "background-color: rgba(249, 249, 249, 1); border-left: 1px solid #ddd; border-right: 1px solid #ddd; border-bottom: 1px solid #ddd;",
-                                                  fluidRow(style = "padding: 25px 35px 2px 35px;",
+                                         tabPanel("Change over time", style = "background-color: white; border-bottom: 1px solid #347AB7; border-left: 1px solid #347AB7; border-right: 1px solid #347AB7;",
+                                                  fluidRow(style = "padding: 5px 35px 2px 35px;",
+                                                           h3("Records per year"),
                                                            dygraphs::dygraphOutput("occurrences_barchart_full", height = "16vh", width = "100%")
                                                   ),
                                                   br(),
-                                                  fluidRow(style = "padding: 5px 35px 20px 35px;",
+                                                  fluidRow(style = "padding: 0px 35px 20px 35px;",
+                                                           h3("Rarity change by time period"),
+                                                           br(),
                                                            column(width = 4,
                                                                   fluidRow(style = "padding-bottom: 20px;",
-                                                                           h3("Group by time period", style = "padding-top: 0; padding-left: 5px;"),
+                                                                           dateRangeInput("period1", "Set time period 1", format = "yyyy", start = "1980-01-01", end = "1994-01-01")
                                                                   ),
                                                                   fluidRow(style = "padding-bottom: 20px;",
-                                                                           dateRangeInput("period1", "Time period 1", format = "yyyy", start = "1980-01-01", end = "1994-01-01")
+                                                                           dateRangeInput("period2", "Set time period 2", format = "yyyy", start = "1995-01-01", end = "2009-01-01")
                                                                   ),
                                                                   fluidRow(style = "padding-bottom: 20px;",
-                                                                           dateRangeInput("period2", "Time period 2", format = "yyyy", start = "1995-01-01", end = "2009-01-01")
-                                                                  ),
-                                                                  fluidRow(style = "padding-bottom: 20px;",
-                                                                           dateRangeInput("period3", "Time period 3", format = "yyyy", start = "2010-01-01", end = Sys.Date())
+                                                                           dateRangeInput("period3", "Set time period 3", format = "yyyy", start = "2010-01-01", end = Sys.Date())
                                                                   )
                                                            ),
                                                            column(width = 8,
-                                                                  plotly::plotlyOutput("occurrences_barchart_period", height = "30vh")
+                                                                  selectInput("barchart_metric", label = "Select metric:", choices = c(list("Number of Records" = "rec_count", "Range Extent" = "eoo", "Area of Occupancy" = "aoo", "Number of Occurrences" = "eo_count")), multiple = FALSE, width = "70%"),
+                                                                  plotly::plotlyOutput("metric_barchart_period", height = "30vh", width = "105%")
                                                            )
-                                                  ),
-                                                  fluidRow(
-                                                    DT::dataTableOutput("rarity_over_time_table")
                                                   )
                                                   ),
-                                         tabPanel("Temporal trend analysis", style = "background-color: rgba(249, 249, 249, 1); border-left: 1px solid #ddd; border-right: 1px solid #ddd; border-bottom: 1px solid #ddd;",
+                                         tabPanel("Temporal trend analysis", style = "background-color: white; border-bottom: 1px solid #347AB7; border-left: 1px solid #347AB7; border-right: 1px solid #347AB7;",
                                                   fluidRow(style = "padding-left: 5px; padding-bottom: 10px;",
                                                            column(width = 4,
                                                                   p("Select reference taxon ", style = "padding-top: 19px; float: right;")
@@ -588,13 +597,13 @@ tabPanel("MULTISPECIES MODE", height = "100%",
                              fluidRow(h3("Select time of year")),
                              fluidRow(
                                column(width = 4, h5("Start date", style = "float: right; padding-top: 5px;")),
-                               column(width = 5, style = "padding-right: 0;", selectInput(inputId = "batch_seasonality_month1", label = "", choices = month.name)),
-                               column(width = 3, style = "padding-left: 0;", selectInput(inputId = "batch_seasonality_day1", label = "", choices = 1:31))
+                               column(width = 5, style = "padding-right: 0;", selectInput(inputId = "batch_seasonality_month1", label = "", choices = (purrr::map(1:12, function(x) x) %>% purrr::set_names(month.name)), selected = 1)),
+                               column(width = 3, style = "padding-left: 0;", selectInput(inputId = "batch_seasonality_day1", label = "", choices = 1:31, selected = 1))
                              ),
                              fluidRow(
                                column(width = 4, h5("End date", style = "float: right; padding-top: 5px;")),
-                               column(width = 5, style = "padding-right: 0;", selectInput(inputId = "batch_seasonality_month2", label = "", choices = month.name)),
-                               column(width = 3, style = "padding-left: 0;", selectInput(inputId = "batch_seasonality_day2", label = "", choices = 1:31))
+                               column(width = 5, style = "padding-right: 0;", selectInput(inputId = "batch_seasonality_month2", label = "", choices = (purrr::map(1:12, function(x) x) %>% purrr::set_names(month.name)), selected = 12)),
+                               column(width = 3, style = "padding-left: 0;", selectInput(inputId = "batch_seasonality_day2", label = "", choices = 1:31, selected = 31))
                              )
                       )
              ),
