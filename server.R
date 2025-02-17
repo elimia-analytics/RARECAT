@@ -580,10 +580,10 @@ function(input, output, session) {
                              start = input$batch_year_filter[1],
                              end = input$batch_year_filter[2]
         )
-        updateSelectInput(session = session, inputId = "seasonality_month1", selected = input$seasonality_month1)
-        updateSelectInput(session = session, inputId = "seasonality_day1", selected = input$seasonality_day1)
-        updateSelectInput(session = session, inputId = "seasonality_month2", selected = input$seasonality_month2)
-        updateSelectInput(session = session, inputId = "seasonality_day2", selected = input$seasonality_day2)
+        # updateSelectInput(session = session, inputId = "seasonality_month1", selected = input$seasonality_month1)
+        # updateSelectInput(session = session, inputId = "seasonality_day1", selected = input$seasonality_day1)
+        # updateSelectInput(session = session, inputId = "seasonality_month2", selected = input$seasonality_month2)
+        # updateSelectInput(session = session, inputId = "seasonality_day2", selected = input$seasonality_day2)
         updateMaterialSwitch(session = session, inputId = "range_extent", value = TRUE)
         updateMaterialSwitch(session = session, inputId = "area_of_occupancy", value = TRUE)
         updateMaterialSwitch(session = session, inputId = "number_EOs", value = TRUE)
@@ -594,10 +594,7 @@ function(input, output, session) {
       observeEvent({
         input$year_filter
         input$no_year
-        input$seasonality_month1
-        input$seasonality_day1
-        input$seasonality_month2
-        input$seasonality_day1
+        input$seasonality
         input$uncertainty_filter
         input$nation_filter
         input$states_filter
@@ -612,9 +609,18 @@ function(input, output, session) {
           
           taxon_data$sf_filtered <- taxon_data$sf
           
+          # month1 <- gsub("^0", "", substr(input$seasonality[1], 6, 7)) %>% as.numeric()
+          # day1 <- gsub("^0", "", substr(input$day[1], 9, 10)) %>% as.numeric()
+          # month2 <- gsub("^0", "", substr(input$seasonality[2], 6, 7)) %>% as.numeric()
+          # day2 <- gsub("^0", "", substr(input$day[2], 9, 10)) %>% as.numeric()
+
+          months <- purrr::map_dbl(1:12, function(x) x) %>% purrr::set_names(substr(month.name, 1, 3))
+          month1 <- which(names(months) == input$seasonality[1])
+          month2 <- which(names(months) == input$seasonality[2])
+            
           taxon_data$sf_filtered <- taxon_data$sf_filtered %>%
             dplyr::filter(year >= substr(input$year_filter[1], 1, 4) & year <= substr(input$year_filter[2], 1, 4) | is.na(year),
-                          (month == input$seasonality_month1 & day >= input$seasonality_day1) | (month > input$seasonality_month1) | (month < input$seasonality_month2) | (month == input$seasonality_month2 & day <= input$seasonality_day2) | is.na(month) | is.na(day),
+                          (month >= month1 & month <= month2) | is.na(month) | is.na(day),
                           key %in% setdiff(key, taxon_data$removed_points$key)
             )
           
@@ -1472,13 +1478,13 @@ function(input, output, session) {
       
       batch_run_output$results[[i]] <- run_rank_assessment(
         taxon_name = taxon_name,
-        minimum_fields =  c("key", "scientificName", "prov", "longitude", "latitude", "coordinateUncertaintyInMeters", "stateProvince", "countryCode", "year", "month", "day", "institutionCode", "references"),
+        minimum_fields =  c("key", "scientificName", "prov", "longitude", "latitude", "coordinateUncertaintyInMeters", "stateProvince", "countryCode", "year", "month", "institutionCode", "references"),
         max_number_observations = 10000, 
         uploaded_data = taxon_uploaded_observations,
         clean_occ = input$batch_clean_occ,
         centroid_filter = input$batch_centroid_filter,
-        date_start = paste(input$batch_year_filter[1], input$batch_seasonality_month1, input$batch_seasonality_day1, sep = "-"),
-        date_end = paste(input$batch_year_filter[2], input$batch_seasonality_month2, input$batch_seasonality_day2, sep = "-"),
+        date_start = paste(input$batch_year_filter[1], which(names(purrr::map_dbl(1:12, function(x) x) %>% purrr::set_names(month.name)) == input$batch_seasonality[1]), "01", sep = "-"),
+        date_end = paste(input$batch_year_filter[2], which(names(purrr::map_dbl(1:12, function(x) x) %>% purrr::set_names(month.name)) == input$batch_seasonality[2]), "01", sep = "-"),
         uncertainty_filter = input$batch_uncertainty_filter,
         nations_filter = input$batch_nation_filter,
         states_filter = input$batch_states_filter,

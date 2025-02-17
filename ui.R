@@ -306,7 +306,7 @@ navbarPage(title = HTML("<span style='float: left; display: inline-block; paddin
                                        ),
                                        br(),
                                        br(),
-                                       dateRangeInput("year_filter", "Set time frame of records", format = "yyyy", start = "1900-01-01", end = "2023-01-01"),
+                                       dateRangeInput("year_filter", "Set time frame of records", format = "yyyy", start = "1900-01-01", end = Sys.Date(), startview = "decade", ),
                                        br(),
                                        br(),
                                        materialSwitch(inputId = "no_year", 
@@ -314,18 +314,26 @@ navbarPage(title = HTML("<span style='float: left; display: inline-block; paddin
                                                       value = FALSE, 
                                                       right = TRUE
                                        ),
-                                       fluidRow(h5("Select time of year", style = "padding-left: 15px;")),
-                                       fluidRow(
-                                         column(width = 4, h5("Start date", style = "float: right; padding-top: 5px;")),
-                                         column(width = 5, style = "padding-right: 0;", selectInput(inputId = "seasonality_month1", label = "", choices = (purrr::map(1:12, function(x) x) %>% purrr::set_names(month.name)))),
-                                         column(width = 3, style = "padding-left: 0;", selectInput(inputId = "seasonality_day1", label = "", choices = 1:31, selected = 1))
-                                       ),
-                                       fluidRow(
-                                         column(width = 4, h5("End date", style = "float: right; padding-top: 5px;")),
-                                         column(width = 5, style = "padding-right: 0;", selectInput(inputId = "seasonality_month2", label = "", choices = (purrr::map(1:12, function(x) x) %>% purrr::set_names(month.name)), selected = 12)),
-                                         column(width = 3, style = "padding-left: 0;", selectInput(inputId = "seasonality_day2", label = "", choices = 1:31, selected = 31))
-                                       ),
                                        br(),
+                                       h5("Select time of year", style = "color: #333333"),
+                                       div(style = "padding: 0 10px 10px 10px;",
+                                         sliderTextInput(
+                                           inputId = "seasonality",
+                                           label = "",
+                                           choices = substr(month.name, 1, 3),
+                                           selected = substr(month.name, 1, 3)[c(1, 12)], 
+                                           grid = TRUE, 
+                                           width = "100%"
+                                         # column(width = 4, h5("Start date", style = "float: right; padding-top: 5px;")),
+                                         # column(width = 5, style = "padding-right: 0;", selectInput(inputId = "seasonality_month1", label = "", choices = (purrr::map(1:12, function(x) x) %>% purrr::set_names(month.name)))),
+                                         # column(width = 3, style = "padding-left: 0;", selectInput(inputId = "seasonality_day1", label = "", choices = 1:31, selected = 1))
+                                       )
+                                       ),
+                                       # fluidRow(
+                                       #   column(width = 4, h5("End date", style = "float: right; padding-top: 5px;")),
+                                       #   column(width = 5, style = "padding-right: 0;", selectInput(inputId = "seasonality_month2", label = "", choices = (purrr::map(1:12, function(x) x) %>% purrr::set_names(month.name)), selected = 12)),
+                                       #   column(width = 3, style = "padding-left: 0;", selectInput(inputId = "seasonality_day2", label = "", choices = 1:31, selected = 31))
+                                       # ),
                                        br(),
                                        textInput( 
                                          inputId = "uncertainty_filter", 
@@ -375,7 +383,7 @@ navbarPage(title = HTML("<span style='float: left; display: inline-block; paddin
                                 
                                 
                                 
-                                column(width = 6, style = "background-color: transparent; width: 48vw;", 
+                                column(width = 6, style = "background-color: transparent; width: 48vw; padding-left: 30px;", 
                                        fluidRow(style = "padding: 10px 10px 10px 20px; margin-right: 0px;",
                                                 column(width = 8,
                                                        materialSwitch(inputId = "remove_selections",
@@ -390,7 +398,7 @@ navbarPage(title = HTML("<span style='float: left; display: inline-block; paddin
                                                        div(style = "float: right !important;", actionButton(inputId = "clear_selected_records", label = "Unselect records", block = TRUE, class = "btn-primary btn-sm", width = "12em"))
                                                 )
                                        ),
-                                       fluidRow(style = "padding-left: 15px; padding-right: 15px; overflow-x: scroll; overflow-y: hidden; scrollbar-color: #fff !important;",
+                                       fluidRow(style = "padding-right: 15px; overflow-x: scroll; overflow-y: hidden; scrollbar-color: #fff !important;",
                                          DT::dataTableOutput("occurrences_table", height="40vh")
                                        )
                                 ),
@@ -594,17 +602,17 @@ tabPanel("MULTISPECIES MODE", height = "100%",
                              )
                       ),
                       column(width = 2,
-                             fluidRow(h3("Select time of year")),
-                             fluidRow(
-                               column(width = 4, h5("Start date", style = "float: right; padding-top: 5px;")),
-                               column(width = 5, style = "padding-right: 0;", selectInput(inputId = "batch_seasonality_month1", label = "", choices = (purrr::map(1:12, function(x) x) %>% purrr::set_names(month.name)), selected = 1)),
-                               column(width = 3, style = "padding-left: 0;", selectInput(inputId = "batch_seasonality_day1", label = "", choices = 1:31, selected = 1))
-                             ),
-                             fluidRow(
-                               column(width = 4, h5("End date", style = "float: right; padding-top: 5px;")),
-                               column(width = 5, style = "padding-right: 0;", selectInput(inputId = "batch_seasonality_month2", label = "", choices = (purrr::map(1:12, function(x) x) %>% purrr::set_names(month.name)), selected = 12)),
-                               column(width = 3, style = "padding-left: 0;", selectInput(inputId = "batch_seasonality_day2", label = "", choices = 1:31, selected = 31))
+                             h3("Select time of year"),
+                             div(style = "padding-left: 10px;",
+                               sliderTextInput(
+                                 inputId = "seasonality",
+                                 label = "",
+                                 choices = substr(month.name, 1, 3),
+                                 selected = substr(month.name, 1, 3)[c(1, 12)], 
+                                 grid = TRUE, 
+                                 width = "100%"
                              )
+                      )
                       )
              ),
              fluidRow(style = "padding: 10px 20px 0px 20px;",

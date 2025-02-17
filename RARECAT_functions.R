@@ -258,7 +258,7 @@ process_user_data <- function(user_file, minimum_fields){
                     scientificName = ifelse(!is.na(scientificName), scientificName, "user-uploaded")
       )
     
-    processed_data$longitude[processed_data$longitude > 180] <- processed_data$longitude[processed_data$longitude > 180] - 360
+    # processed_data$longitude[processed_data$longitude > 180] <- processed_data$longitude[processed_data$longitude > 180] - 360
     
   }
   return(processed_data)
