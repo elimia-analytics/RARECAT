@@ -412,13 +412,15 @@ calculate_number_occurrences <- function(occ, separation_distance = 1000, added_
 
 # Run full rank assessment
 run_rank_assessment <- function(taxon_name, 
-                                minimum_fields =  c("key", "scientificName", "prov", "longitude", "latitude", "coordinateUncertaintyInMeters", "stateProvince", "countryCode", "year", "month", "day", "institutionCode", "references"),
+                                minimum_fields =  c("key", "scientificName", "prov", "longitude", "latitude", "coordinateUncertaintyInMeters", "stateProvince", "countryCode", "year", "month", "institutionCode", "references"),
                                 uploaded_data = NULL,
                                 max_number_observations = 10000,
                                 clean_occ = TRUE,
                                 centroid_filter = FALSE,
                                 date_start = "1900-01-01",
                                 date_end = "2025-01-01",
+                                month1 = "Jan",
+                                month2 = "Dec",
                                 uncertainty_filter = "",
                                 nations_filter = NULL,
                                 states_filter = NULL,
@@ -494,12 +496,16 @@ run_rank_assessment <- function(taxon_name,
   taxon_data$synonyms <- taxon_data$synonyms %>% 
     dplyr::distinct(., .keep_all = TRUE) 
   
+  gbif_lgl <- sum(grepl("gbif", sources_filter)) > 0
+  inat_lgl <- sum(grepl("inat", sources_filter)) > 0
+  ebird_lgl <- sum(grepl("ebird", sources_filter)) > 0
+  
   taxon_data$gbif_occurrences_raw <- get_gbif_data(
     sp_data = taxon_data$synonyms, 
     number_observations = max_number_observations, 
-    gbif = TRUE,
-    inat = TRUE,
-    ebird = TRUE
+    gbif = gbif_lgl,
+    inat = inat_lgl,
+    ebird = ebird_lgl
     )$sp_occurrences
   
   taxon_data$gbif_occurrences <- taxon_data$gbif_occurrences_raw %>% 
@@ -541,11 +547,15 @@ run_rank_assessment <- function(taxon_name,
   
   taxon_data$sf_filtered <- taxon_data$sf
   
+  months <- purrr::map_dbl(1:12, function(x) x) %>% purrr::set_names(substr(month.name, 1, 3))
+  month1 <- which(names(months) == month1)
+  month2 <- which(names(months) == month2)
+  
   taxon_data$sf_filtered <- taxon_data$sf_filtered %>%
     dplyr::filter(
       year >= substr(date_start, 1, 4) & year <= substr(date_end, 1, 4) | is.na(year),
-      (month == substr(date_start, 6, 7) & day >= substr(date_start, 9, 10)) | (month > substr(date_start, 6, 7) & month < substr(date_end, 6, 7)) | (month == substr(date_end, 6, 7) & day <= substr(date_end, 9, 10)) | is.na(month) | is.na(day),
-      )
+      (month >= month1 & month <= month2) | is.na(month)
+    )
   
   if (uncertainty_filter != ""){
     

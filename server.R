@@ -74,7 +74,7 @@ function(input, output, session) {
   #'
   #' ## Create static objects
   #' ### Specify minimumcommon fields that  all (up)loaded data should share
-  minimum_fields <- c("key", "scientificName", "prov", "longitude", "latitude", "coordinateUncertaintyInMeters", "stateProvince", "countryCode", "year", "month", "day", "institutionCode", "references")
+  minimum_fields <- c("key", "scientificName", "prov", "longitude", "latitude", "coordinateUncertaintyInMeters", "stateProvince", "countryCode", "year", "month", "institutionCode", "references")
   #'
   #' ## Create reactive objects to store output
   #' ### Object to store NatureServe element selected
@@ -475,7 +475,7 @@ function(input, output, session) {
         
         drawn_point <- data.frame(longitude = input$main_map_draw_new_feature$geometry$coordinates[[1]],
                                   latitude = input$main_map_draw_new_feature$geometry$coordinates[[2]],
-                                  year = 2024,
+                                  year = substr(Sys.Date(), 1, 4),
                                   scientificName = taxon_data$info$scientificName
         )
         
@@ -538,7 +538,6 @@ function(input, output, session) {
 
         species_occurrences_bbox <- sf::st_bbox(taxon_data$sf)
         
-        
         m <- m %>%
           flyToBounds(species_occurrences_bbox[[1]],
                       species_occurrences_bbox[[2]]-0.25*(species_occurrences_bbox[[4]] - species_occurrences_bbox[[2]]),
@@ -580,6 +579,10 @@ function(input, output, session) {
                              start = input$batch_year_filter[1],
                              end = input$batch_year_filter[2]
         )
+        updateSliderTextInput(session = session, 
+                        inputId = "seasonality",
+                        selected = input$batch_seasonality
+        )
         # updateSelectInput(session = session, inputId = "seasonality_month1", selected = input$seasonality_month1)
         # updateSelectInput(session = session, inputId = "seasonality_day1", selected = input$seasonality_day1)
         # updateSelectInput(session = session, inputId = "seasonality_month2", selected = input$seasonality_month2)
@@ -588,8 +591,6 @@ function(input, output, session) {
         updateMaterialSwitch(session = session, inputId = "area_of_occupancy", value = TRUE)
         updateMaterialSwitch(session = session, inputId = "number_EOs", value = TRUE)
       }
-      
-      shinybusy::remove_modal_spinner()
       
       observeEvent({
         input$year_filter
@@ -620,7 +621,7 @@ function(input, output, session) {
             
           taxon_data$sf_filtered <- taxon_data$sf_filtered %>%
             dplyr::filter(year >= substr(input$year_filter[1], 1, 4) & year <= substr(input$year_filter[2], 1, 4) | is.na(year),
-                          (month >= month1 & month <= month2) | is.na(month) | is.na(day),
+                          (month >= month1 & month <= month2) | is.na(month),
                           key %in% setdiff(key, taxon_data$removed_points$key)
             )
           
@@ -1475,6 +1476,10 @@ function(input, output, session) {
       } else {
         taxon_uploaded_observations <- NULL
       }
+      month1 <- which(names(purrr::map_dbl(1:12, function(x) x) %>% purrr::set_names(substr(month.name, 1, 3))) == input$batch_seasonality[1])
+      month1 <- ifelse(nchar(month1) == 1, paste0("0", month1), month1)
+      month2 <- which(names(purrr::map_dbl(1:12, function(x) x) %>% purrr::set_names(substr(month.name, 1, 3))) == input$batch_seasonality[2])
+      month2 <- ifelse(nchar(month2) == 1, paste0("0", month2), month2)
       
       batch_run_output$results[[i]] <- run_rank_assessment(
         taxon_name = taxon_name,
@@ -1483,8 +1488,10 @@ function(input, output, session) {
         uploaded_data = taxon_uploaded_observations,
         clean_occ = input$batch_clean_occ,
         centroid_filter = input$batch_centroid_filter,
-        date_start = paste(input$batch_year_filter[1], which(names(purrr::map_dbl(1:12, function(x) x) %>% purrr::set_names(month.name)) == input$batch_seasonality[1]), "01", sep = "-"),
-        date_end = paste(input$batch_year_filter[2], which(names(purrr::map_dbl(1:12, function(x) x) %>% purrr::set_names(month.name)) == input$batch_seasonality[2]), "01", sep = "-"),
+        date_start = input$batch_year_filter[1],
+        date_end = input$batch_year_filter[2],
+        month1 = input$batch_seasonality[1],
+        month2 = input$batch_seasonality[2],
         uncertainty_filter = input$batch_uncertainty_filter,
         nations_filter = input$batch_nation_filter,
         states_filter = input$batch_states_filter,
@@ -1529,7 +1536,7 @@ function(input, output, session) {
                     "Occurrence Count" = EOcount_value
       ) %>% 
       dplyr::mutate(" " = shinyInput(actionButton, nrow(batch_run_output$table), 'button_', label = "Review assessment", onclick = 'Shiny.onInputChange(\"select_button\",  this.id)' ),
-                    Reviewed = ifelse(isFALSE(Reviewed), as.character(icon("xmark", "fa-3x", style = "color: #ef8a62;")), as.character(icon("check", "fa-3x", style = "color: #67a9cf;")))
+                    Reviewed = ifelse(Reviewed == FALSE, as.character(icon("xmark", "fa-3x", style = "color: #ef8a62;")), as.character(icon("check", "fa-3x", style = "color: #67a9cf;")))
                     ) %>% 
       dplyr::select("Scientific name", "Total Observations Used", "Range Extent", "AOO", "Occurrence Count", "Reviewed", " ") %>% 
       DT::datatable(options = list(dom = 'tp',
