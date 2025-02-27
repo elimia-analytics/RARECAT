@@ -579,7 +579,7 @@ function(input, output, session) {
                              start = input$batch_year_filter[1],
                              end = input$batch_year_filter[2]
         )
-        updateSliderTextInput(session = session, 
+        updateSelectizeInput(session = session, 
                         inputId = "seasonality",
                         selected = input$batch_seasonality
         )
@@ -616,12 +616,12 @@ function(input, output, session) {
           # day2 <- gsub("^0", "", substr(input$day[2], 9, 10)) %>% as.numeric()
 
           months <- purrr::map_dbl(1:12, function(x) x) %>% purrr::set_names(substr(month.name, 1, 3))
-          month1 <- which(names(months) == input$seasonality[1])
-          month2 <- which(names(months) == input$seasonality[2])
+          season <- which(names(months) %in% input$seasonality)
+          # season <- ifelse(nchar(season) == 1, paste0("0", season), season)
             
           taxon_data$sf_filtered <- taxon_data$sf_filtered %>%
             dplyr::filter(year >= substr(input$year_filter[1], 1, 4) & year <= substr(input$year_filter[2], 1, 4) | is.na(year),
-                          (month >= month1 & month <= month2) | is.na(month),
+                          month %in% season | is.na(month),
                           key %in% setdiff(key, taxon_data$removed_points$key)
             )
           
@@ -1476,11 +1476,7 @@ function(input, output, session) {
       } else {
         taxon_uploaded_observations <- NULL
       }
-      month1 <- which(names(purrr::map_dbl(1:12, function(x) x) %>% purrr::set_names(substr(month.name, 1, 3))) == input$batch_seasonality[1])
-      month1 <- ifelse(nchar(month1) == 1, paste0("0", month1), month1)
-      month2 <- which(names(purrr::map_dbl(1:12, function(x) x) %>% purrr::set_names(substr(month.name, 1, 3))) == input$batch_seasonality[2])
-      month2 <- ifelse(nchar(month2) == 1, paste0("0", month2), month2)
-      
+
       batch_run_output$results[[i]] <- run_rank_assessment(
         taxon_name = taxon_name,
         minimum_fields =  c("key", "scientificName", "prov", "longitude", "latitude", "coordinateUncertaintyInMeters", "stateProvince", "countryCode", "year", "month", "institutionCode", "references"),
@@ -1490,8 +1486,7 @@ function(input, output, session) {
         centroid_filter = input$batch_centroid_filter,
         date_start = input$batch_year_filter[1],
         date_end = input$batch_year_filter[2],
-        month1 = input$batch_seasonality[1],
-        month2 = input$batch_seasonality[2],
+        months = input$batch_seasonality,
         uncertainty_filter = input$batch_uncertainty_filter,
         nations_filter = input$batch_nation_filter,
         states_filter = input$batch_states_filter,

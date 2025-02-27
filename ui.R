@@ -316,24 +316,15 @@ navbarPage(title = HTML("<span style='float: left; display: inline-block; paddin
                                        ),
                                        br(),
                                        h5("Select time of year", style = "color: #333333"),
-                                       div(style = "padding: 0 10px 10px 10px;",
-                                         sliderTextInput(
-                                           inputId = "seasonality",
-                                           label = "",
-                                           choices = substr(month.name, 1, 3),
-                                           selected = substr(month.name, 1, 3)[c(1, 12)], 
-                                           grid = TRUE, 
-                                           width = "100%"
-                                         # column(width = 4, h5("Start date", style = "float: right; padding-top: 5px;")),
-                                         # column(width = 5, style = "padding-right: 0;", selectInput(inputId = "seasonality_month1", label = "", choices = (purrr::map(1:12, function(x) x) %>% purrr::set_names(month.name)))),
-                                         # column(width = 3, style = "padding-left: 0;", selectInput(inputId = "seasonality_day1", label = "", choices = 1:31, selected = 1))
-                                       )
+                                           selectizeInput(
+                                             inputId = "seasonality",
+                                             label = "",
+                                             choices = substr(month.name, 1, 3),
+                                             selected = substr(month.name, 1, 3), 
+                                             multiple = TRUE,
+                                             width = "100%"
                                        ),
-                                       # fluidRow(
-                                       #   column(width = 4, h5("End date", style = "float: right; padding-top: 5px;")),
-                                       #   column(width = 5, style = "padding-right: 0;", selectInput(inputId = "seasonality_month2", label = "", choices = (purrr::map(1:12, function(x) x) %>% purrr::set_names(month.name)), selected = 12)),
-                                       #   column(width = 3, style = "padding-left: 0;", selectInput(inputId = "seasonality_day2", label = "", choices = 1:31, selected = 31))
-                                       # ),
+                                       br(),
                                        br(),
                                        textInput( 
                                          inputId = "uncertainty_filter", 
@@ -602,18 +593,16 @@ tabPanel("MULTISPECIES MODE", height = "100%",
                                      )
                              )
                       ),
-                      column(width = 2,
+                      column(width = 2, style = "width: 16%",
                              h3("Select time of year"),
-                             div(style = "padding-left: 10px;",
-                               sliderTextInput(
+                                 selectizeInput(
                                  inputId = "batch_seasonality",
                                  label = "",
                                  choices = substr(month.name, 1, 3),
-                                 selected = substr(month.name, 1, 3)[c(1, 12)], 
-                                 grid = TRUE, 
+                                 selected = substr(month.name, 1, 3), 
+                                 multiple = TRUE,
                                  width = "100%"
                              )
-                      )
                       )
              ),
              fluidRow(style = "padding: 10px 20px 0px 20px;",

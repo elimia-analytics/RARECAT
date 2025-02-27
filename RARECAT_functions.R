@@ -419,8 +419,7 @@ run_rank_assessment <- function(taxon_name,
                                 centroid_filter = FALSE,
                                 date_start = "1900-01-01",
                                 date_end = "2025-01-01",
-                                month1 = "Jan",
-                                month2 = "Dec",
+                                months = substr(month.name, 1, 3),
                                 uncertainty_filter = "",
                                 nations_filter = NULL,
                                 states_filter = NULL,
@@ -547,15 +546,15 @@ run_rank_assessment <- function(taxon_name,
   
   taxon_data$sf_filtered <- taxon_data$sf
   
-  months <- purrr::map_dbl(1:12, function(x) x) %>% purrr::set_names(substr(month.name, 1, 3))
-  month1 <- which(names(months) == month1)
-  month2 <- which(names(months) == month2)
+  months_numeric <- purrr::map_dbl(1:12, function(x) x) %>% purrr::set_names(substr(month.name, 1, 3))
+  season <- which(names(months_numeric) %in% months)
+  # season <- ifelse(nchar(season) == 1, paste0("0", season), season)
   
   taxon_data$sf_filtered <- taxon_data$sf_filtered %>%
     dplyr::filter(
       year >= substr(date_start, 1, 4) & year <= substr(date_end, 1, 4) | is.na(year),
-      (month >= month1 & month <= month2) | is.na(month)
-    )
+      month %in% season | is.na(month)
+      )
   
   if (uncertainty_filter != ""){
     
