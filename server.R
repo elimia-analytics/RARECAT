@@ -74,7 +74,7 @@ function(input, output, session) {
   #'
   #' ## Create static objects
   #' ### Specify minimumcommon fields that  all (up)loaded data should share
-  minimum_fields <- c("key", "scientificName", "prov", "longitude", "latitude", "coordinateUncertaintyInMeters", "stateProvince", "countryCode", "year", "month", "institutionCode", "references")
+  minimum_fields <- c("key", "scientificName", "prov", "longitude", "latitude", "coordinateUncertaintyInMeters", "stateProvince", "countryCode", "year", "month", "institutionCode", "EORANK", "references")
   #'
   #' ## Create reactive objects to store output
   #' ### Object to store NatureServe element selected
@@ -188,6 +188,7 @@ function(input, output, session) {
     if (input$search_taxon != ""){
       
       shinyjs::show(id = "taxon_search_panel")
+      shinyjs::hide(id = "taxon_options_panel")
       updateMaterialSwitch(session = session, inputId = "range_extent", value = FALSE)
       updateMaterialSwitch(session = session, inputId = "area_of_occupancy", value = FALSE)
       updateMaterialSwitch(session = session, inputId = "number_EOs", value = FALSE)
@@ -358,6 +359,7 @@ function(input, output, session) {
       
       # updateTextInput(session = session, inputId = "number_gbif_occurrences", label = "", value = sum(taxon_data$synonyms_selected$occurrence_count))
       checkbox_choices <- c(paste0("gbif (", sum(sum(taxon_data$synonyms_selected$gbif_count)), ")"), paste0("inat (", sum(sum(taxon_data$synonyms_selected$inat_count)), ")"), paste0("ebird (", sum(sum(taxon_data$synonyms_selected$ebird_count)), ")"))
+      checkbox_choices <- checkbox_choices[-grep("\\(0)$", checkbox_choices)]
       updateSelectizeInput(session = session,
                                "input_sources", 
                                choices = checkbox_choices, 
@@ -562,31 +564,34 @@ function(input, output, session) {
       updateSelectizeInput(session = session, inputId = "synonyms_filter", choices = unique(taxon_data$sf$scientificName), selected = unique(taxon_data$sf$scientificName))
       updateSelectizeInput(session = session, inputId = "sources_filter", choices = unique(taxon_data$sf$prov), selected = unique(taxon_data$sf$prov))
       
-      if (!is.null(batch_run_output$results)){
-        if (!is.null(input$batch_nation_filter)){
-          updateSelectizeInput(session = session, inputId = "nation_filter", selected = input$batch_nation_filter)
+      if (!is.null(batch_taxon_focus$taxon)){
+        batch_taxon_filters <- batch_run_output$results[[batch_taxon_focus$taxon]]$filters_selected
+        
+        updateMaterialSwitch(session = session, inputId = "clean_occ", value = batch_taxon_filters$clean_occ)
+        updateMaterialSwitch(session = session, inputId = "centroid_filter", value = batch_taxon_filters$centroid_filter)
+        
+        if (!is.null(batch_taxon_filters$nations_filter)){
+          updateSelectizeInput(session = session, inputId = "nation_filter", selected = batch_taxon_filters$nations_filter)
         }
-        if (!is.null(input$batch_states_filter)){
-        updateSelectizeInput(session = session, inputId = "states_filter", selected = input$batch_states_filter) # , taxon_data$states)
+        if (!is.null(batch_taxon_filters$states_filter)){
+          updateSelectizeInput(session = session, inputId = "states_filter", selected = batch_taxon_filters$states_filter) # , taxon_data$states)
         }
-        if (!is.null(input$batch_sources_filter)){
-        updateSelectizeInput(session = session, inputId = "sources_filter", selected = input$batch_sources_filter)
+        if (!is.null(batch_taxon_filters$sources_filter)){
+          updateSelectizeInput(session = session, inputId = "sources_filter", selected = batch_taxon_filters$sources_filter)
         }
-        if (input$batch_uncertainty_filter != ""){
-          updateTextInput(session = session, inputId = "uncertainty_filter", selected = input$batch_uncertainty_filter)
+        if (batch_taxon_filters$uncertainty_filter != ""){
+          updateTextInput(session = session, inputId = "uncertainty_filter", selected = batch_taxon_filters$uncertainty_filter)
         }
         updateDateRangeInput(session = session, inputId = "year_filter",
-                             start = input$batch_year_filter[1],
-                             end = input$batch_year_filter[2]
+                             start = batch_taxon_filters$date_start,
+                             end = batch_taxon_filters$date_end
         )
         updateSelectizeInput(session = session, 
-                        inputId = "seasonality",
-                        selected = input$batch_seasonality
+                             inputId = "seasonality",
+                             selected = batch_taxon_filters$months
         )
-        # updateSelectInput(session = session, inputId = "seasonality_month1", selected = input$seasonality_month1)
-        # updateSelectInput(session = session, inputId = "seasonality_day1", selected = input$seasonality_day1)
-        # updateSelectInput(session = session, inputId = "seasonality_month2", selected = input$seasonality_month2)
-        # updateSelectInput(session = session, inputId = "seasonality_day2", selected = input$seasonality_day2)
+        updateSelectInput(session = session, inputId = "grid_cell_size", selected = batch_taxon_filters$grid_cell_size)
+        updateTextInput(session = session, inputId = "separation_distance", value = batch_taxon_filters$separation_distance)
         updateMaterialSwitch(session = session, inputId = "range_extent", value = TRUE)
         updateMaterialSwitch(session = session, inputId = "area_of_occupancy", value = TRUE)
         updateMaterialSwitch(session = session, inputId = "number_EOs", value = TRUE)
@@ -935,6 +940,7 @@ function(input, output, session) {
                     "Coordinate Uncertainty" = coordinateUncertaintyInMeters,
                     "Subnation" = stateProvince,
                     "Nation" = countryCode,
+                    "EO Rank" = EORANK,
                     "References" = references
       ) %>%
       DT::datatable(options = list(dom = 'tp',
@@ -1424,6 +1430,19 @@ function(input, output, session) {
     out 
   })
   
+  observeEvent(input$batch_assessment_type, {
+    
+    if (input$batch_assessment_type == "national"){
+      shinyjs::show(id = "batch_nation")
+    }
+    
+    if (input$batch_assessment_type == "subnational"){
+      shinyjs::show(id = "batch_nation")
+      shinyjs::show(id = "batch_subnation")
+    }
+    
+  })
+  
   observeEvent(input$batch_assessment, {
 
     if (!is.null(input$batch_filedata_obs$datapath)){
@@ -1477,9 +1496,10 @@ function(input, output, session) {
         taxon_uploaded_observations <- NULL
       }
 
-      batch_run_output$results[[i]] <- run_rank_assessment(
+      
+      batch_run_output$results[[i]] <- safe_batch_run(
         taxon_name = taxon_name,
-        minimum_fields =  c("key", "scientificName", "prov", "longitude", "latitude", "coordinateUncertaintyInMeters", "stateProvince", "countryCode", "year", "month", "institutionCode", "references"),
+        minimum_fields = c("key", "scientificName", "prov", "longitude", "latitude", "coordinateUncertaintyInMeters", "stateProvince", "countryCode", "year", "month", "institutionCode", "EORANK", "references"),
         max_number_observations = 10000, 
         uploaded_data = taxon_uploaded_observations,
         clean_occ = input$batch_clean_occ,
@@ -1503,15 +1523,17 @@ function(input, output, session) {
       Sys.sleep(0.1)
     }
     
+    batch_run_output$results <- purrr::map(batch_run_output$results, "result")
+    
     batch_run_output$results <- batch_run_output$results %>% 
       set_names(batch_run_taxon_list$names$user_supplied_name)
     
     batch_run_output$table <- data.frame(
       taxon = batch_run_taxon_list$names$user_supplied_name,
-      total_observations_used = purrr::map(batch_run_output$results, function(out) nrow(out$sf_filtered)) %>% unlist(),
-      range_value = purrr::map(batch_run_output$results, function(out) out$species_range_value) %>% unlist(),
-      AOO_value = purrr::map(batch_run_output$results, function(out) out$AOO_value) %>% unlist(),
-      EOcount_value = purrr::map(batch_run_output$results, function(out) out$EOcount_value) %>% unlist(),
+      total_observations_used = purrr::map(batch_run_output$results, function(out) ifelse(!is.null(out$sf_filtered), nrow(out$sf_filtered), 0)) %>% unlist(),
+      range_value = purrr::map(batch_run_output$results, function(out) ifelse(!is.null(out$species_range_value), out$species_range_value, NA)) %>% unlist(),
+      AOO_value = purrr::map(batch_run_output$results, function(out) ifelse(!is.null(out$AOO_value), out$AOO_value, NA)) %>% unlist(),
+      EOcount_value = purrr::map(batch_run_output$results, function(out) ifelse(!is.null(out$EOcount_value), out$EOcount_value, NA)) %>% unlist(),
       Reviewed = FALSE
     )
     
@@ -1530,9 +1552,11 @@ function(input, output, session) {
                     "AOO" = AOO_value,
                     "Occurrence Count" = EOcount_value
       ) %>% 
-      dplyr::mutate(" " = shinyInput(actionButton, nrow(batch_run_output$table), 'button_', label = "Review assessment", onclick = 'Shiny.onInputChange(\"select_button\",  this.id)' ),
-                    Reviewed = ifelse(Reviewed == FALSE, as.character(icon("xmark", "fa-3x", style = "color: #ef8a62;")), as.character(icon("check", "fa-3x", style = "color: #67a9cf;")))
-                    ) %>% 
+      dplyr::mutate(" " = purrr::map(1:nrow(batch_run_output$table), function(i){
+        shinyInput(actionButton, 1, paste0(`Scientific name`[i], "_"), label = "Review assessment", onclick = 'Shiny.onInputChange(\"select_button\",  this.id + "_" + Date.now());')
+      }),
+      Reviewed = ifelse(Reviewed == FALSE, as.character(icon("xmark", "fa-3x", style = "color: #ef8a62;")), as.character(icon("check", "fa-3x", style = "color: #67a9cf;")))
+      ) %>% 
       dplyr::select("Scientific name", "Total Observations Used", "Range Extent", "AOO", "Occurrence Count", "Reviewed", " ") %>% 
       DT::datatable(options = list(dom = 'tp',
                                    pageLength = 10,
@@ -1551,6 +1575,33 @@ function(input, output, session) {
     
     updateTabsetPanel(inputId = "nav", selected = "MULTISPECIES MODE")
     
+    batch_run_output$results[[batch_taxon_focus$taxon]]$info[1, ] <- taxon_data$info
+    batch_run_output$results[[batch_taxon_focus$taxon]]$info_extended <- taxon_data$info_extended
+    batch_run_output$results[[batch_taxon_focus$taxon]]$family <- taxon_data$family
+    batch_run_output$results[[batch_taxon_focus$taxon]]$synonyms <- taxon_data$synonyms
+    batch_run_output$results[[batch_taxon_focus$taxon]]$synonyms_selected <- taxon_data$synonyms_selected 
+    batch_run_output$results[[batch_taxon_focus$taxon]]$gbif_occurrences_raw <- taxon_data$gbif_occurrences_raw
+    batch_run_output$results[[batch_taxon_focus$taxon]]$gbif_occurrences <- taxon_data$gbif_occurrences
+    batch_run_output$results[[batch_taxon_focus$taxon]]$uploaded_occurrences <- taxon_data$uploaded_occurrences
+    batch_run_output$results[[batch_taxon_focus$taxon]]$all_occurrences <- taxon_data$all_occurrences
+    batch_run_output$results[[batch_taxon_focus$taxon]]$shifted <- taxon_data$shifted
+    batch_run_output$results[[batch_taxon_focus$taxon]]$sf <- taxon_data$sf
+    batch_run_output$results[[batch_taxon_focus$taxon]]$sf_filtered <- taxon_data$sf_filtered
+    batch_run_output$results[[batch_taxon_focus$taxon]]$filters_selected <- 
+    list(
+      clean_occ = input$clean_occ,
+      centroid_filter = input$centroid_filter,
+      date_start = input$year_filter[1],
+      date_end = input$year_filter[2],
+      months = input$seasonality,
+      uncertainty_filter = input$uncertainty_filter,
+      nations_filter = input$nation_filter,
+      states_filter = input$states_filter,
+      sources_filter = input$sources_filter,
+      grid_cell_size = input$grid_cell_size,
+      sep_distance = input$separation_distance
+    )
+
     if (taxon_data$info$scientificName %in% batch_run_output$table$taxon){
       batch_run_output$table <- batch_run_output$table %>% 
         dplyr::filter(taxon != taxon_data$info$scientificName) %>% 
@@ -1581,12 +1632,20 @@ function(input, output, session) {
   
   observeEvent(input$select_button, {
     
+    print(input$select_button)
+    
     shinybusy::show_modal_spinner("circle", color = "#024b6c") # show the modal window
     
-    updateTabsetPanel(inputId = "nav", selected = "SINGLE SPECIES MODE")
+    updateTabsetPanel(session = session, inputId = "nav", selected = "SINGLE SPECIES MODE")
     
-    selectedRow <- as.numeric(strsplit(input$select_button, "_")[[1]][2])
-    batch_taxon_focus$taxon <- batch_run_output$table[selectedRow, ]$taxon 
+    Sys.sleep(1)
+    # selectedRow <- as.numeric(strsplit(input$select_button, "_")[[1]][2])
+    # batch_taxon_focus$taxon <- batch_run_output$table[selectedRow, ]$taxon
+    
+    batch_taxon_focus$taxon <-  str_split_1(input$select_button, "_")[1]
+    
+    print(batch_taxon_focus$taxon)
+    
     # updateTextInput(inputId = "search_taxon", value = batch_taxon_focus$taxon)
     
     taxon_data$info <- batch_run_output$results[[batch_taxon_focus$taxon]]$info[1, ]
@@ -1611,7 +1670,8 @@ function(input, output, session) {
     taxon_data$info$scientificName <- batch_taxon_focus$taxon
     selected_taxon$name <- batch_taxon_focus$taxon[1]
     
-    updateTextInput(session = session, inputId = "number_gbif_occurrences", label = "", value = nrow(taxon_data$all_occurrences))
+    # updateTextInput(session = session, inputId = "number_gbif_occurrences", label = "", value = nrow(taxon_data$all_occurrences))
+
     shinyjs::show(id = "data_panel")
     
     shinybusy::remove_modal_spinner()

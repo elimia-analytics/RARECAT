@@ -375,7 +375,7 @@ navbarPage(title = HTML("<span style='float: left; display: inline-block; paddin
                                 
                                 
                                 column(width = 6, style = "background-color: transparent; width: 48vw; padding-left: 30px;", 
-                                       fluidRow(style = "padding: 10px 10px 10px 20px; margin-right: 0px;",
+                                       fluidRow(style = "padding: 10px 10px 10px 10px; margin-right: 0px;",
                                                 column(width = 8,
                                                        materialSwitch(inputId = "remove_selections",
                                                                       label = "",
@@ -483,7 +483,8 @@ tabPanel("MULTISPECIES MODE", height = "100%",
                                             width = "100%"
                              )
                       ),
-                      column(width = 2, 
+                      hidden(
+                      column(id = "batch_nation", width = 2,  
                              h3("Select assessment nation(s)"),
                              selectizeInput(inputId = "batch_nation_filter",
                                             label = "",
@@ -491,15 +492,18 @@ tabPanel("MULTISPECIES MODE", height = "100%",
                                             multiple = TRUE, 
                                             width = "100%"
                              )
+                      )
                       ),
-                      column(width = 2, 
+                      hidden(
+                      column(id = "batch_subnation", width = 2, 
                              h3("Select assessment subnation(s)"),
                              selectizeInput(inputId = "batch_states_filter",
                                             label = "",
                                             choices = (network_polys$Admin_abbr %>% na.omit() %>% as.character()) %>% set_names(network_polys$ADMIN_NAME%>% na.omit() %>% as.character()) %>% sort(),
                                             multiple = TRUE, 
                                             width = "100%"
-                             )      
+                             )
+                      )
                       )
              ),
              fluidRow(style = "padding: 20px 20px 0px 20px;",

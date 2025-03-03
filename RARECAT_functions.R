@@ -60,7 +60,6 @@ get_gbif_data <- function(sp_data, number_observations, gbif = TRUE, inat = TRUE
     
     if (!is.null(gbif_occurrences)){
       shared_names <- intersect(names(gbif_occurrences), names(inat_occurrences))
-      print(shared_names)
       gbif_occurrences <- gbif_occurrences %>% 
         dplyr::select(all_of(shared_names)) %>% 
         rbind(inat_occurrences %>% dplyr::select(all_of(shared_names)))
@@ -200,7 +199,8 @@ process_user_data <- function(user_file, minimum_fields){
     year_names <- c("year", "Year", "YEAR", "Year Collected", "SiteDate")
     year_names <- year_names %>% set_names(rep("year", length(year_names)))
     coordinateUncertaintyInMeters_names <- c("coordinateUncertaintyInMeters", "public_positional_accuracy")
-    lookup <- c(longitude_names, latitude_names, scientificName_names, stateProvince_names, countryCode_names, year_names)
+    EORANK_names <- c("EO RANK", "EORANK", "EORANK_CD", "EO_RANK")
+    lookup <- c(longitude_names, latitude_names, scientificName_names, stateProvince_names, countryCode_names, year_names, EORANK_names)
     
     if ("latitude" %in% names(user_data)){
       user_data <- user_data %>% 
@@ -223,7 +223,8 @@ process_user_data <- function(user_file, minimum_fields){
                     matches(paste0(scientificName_names, collapse = "|")),
                     matches(paste0(stateProvince_names, collapse = "|")),
                     matches(paste0(countryCode_names, collapse = "|")),
-                    matches(paste0(year_names, collapse = "|"))
+                    matches(paste0(year_names, collapse = "|")),
+                    matches(paste0(EORANK_names, collapse = "|"))
       ) %>% 
       dplyr::rename(any_of(lookup))
     
@@ -412,7 +413,7 @@ calculate_number_occurrences <- function(occ, separation_distance = 1000, added_
 
 # Run full rank assessment
 run_rank_assessment <- function(taxon_name, 
-                                minimum_fields =  c("key", "scientificName", "prov", "longitude", "latitude", "coordinateUncertaintyInMeters", "stateProvince", "countryCode", "year", "month", "institutionCode", "references"),
+                                minimum_fields = c("key", "scientificName", "prov", "longitude", "latitude", "coordinateUncertaintyInMeters", "stateProvince", "countryCode", "year", "month", "institutionCode", "EORANK", "references"),
                                 uploaded_data = NULL,
                                 max_number_observations = 10000,
                                 clean_occ = TRUE,
@@ -444,6 +445,19 @@ run_rank_assessment <- function(taxon_name,
     sf = NULL,
     sf_filtered = NULL,
     filtered_occurrences = NULL,
+    filters_selected = list(
+      clean_occ = clean_occ,
+      centroid_filter = centroid_filter,
+      date_start = date_start,
+      date_end = date_end,
+      months = months,
+      uncertainty_filter = uncertainty_filter,
+      nations_filter = nations_filter,
+      states_filter = states_filter,
+      sources_filter = sources_filter,
+      grid_cell_size = grid_cell_size,
+      sep_distance = sep_distance
+    ),
     selected_points = data.frame("Key" = character(), "Scientific name" = character(), "Source" = character(), "Institution code" = character(), "Year" = numeric(), "Coordinate Uncertainty" = numeric(), "Place" = character(), "URL" = character())[NULL, ],
     removed_points = NULL,
     nations = NULL,
@@ -594,6 +608,9 @@ run_rank_assessment <- function(taxon_name,
   return(taxon_data)
   
 }
+
+# Run rank assessment safely without errors interrupting it
+safe_batch_run <- purrr::safely(run_rank_assessment)
 
 # Function to extract id from table button click
 shinyInput <- function(FUN, len, id, ...) {
