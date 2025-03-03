@@ -1432,6 +1432,11 @@ function(input, output, session) {
   
   observeEvent(input$batch_assessment_type, {
     
+    if (input$batch_assessment_type == "global"){
+      shinyjs::hide(id = "batch_nation")
+      shinyjs::hide(id = "batch_subnation")
+    }
+    
     if (input$batch_assessment_type == "national"){
       shinyjs::show(id = "batch_nation")
     }
@@ -1440,6 +1445,17 @@ function(input, output, session) {
       shinyjs::show(id = "batch_nation")
       shinyjs::show(id = "batch_subnation")
     }
+    
+  })
+  
+  observeEvent(input$batch_nation_filter, {
+
+      nation_subset <- network_polys %>% dplyr::filter(FIPS_CNTRY == input$batch_nation_filter)
+      
+      updateSelectizeInput(session = session,
+                           inputId = "batch_states_filter",
+                           choices = (nation_subset$Admin_abbr %>% na.omit() %>% as.character()) %>% set_names(nation_subset$ADMIN_NAME%>% na.omit() %>% as.character()) %>% sort()
+      )
     
   })
   
