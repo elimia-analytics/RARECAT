@@ -6,11 +6,10 @@
 library(shiny)
 library(leaflet)
 library(leaflet.extras)
-library(purrr)
+library(tidyverse)
 library(shinyjs)
 library(sf)
 library(terra)
-library(dplyr)
 library(plotly)
 library(htmltools)
 library(htmlwidgets)
@@ -609,7 +608,7 @@ tabPanel("MULTISPECIES MODE", height = "100%",
                              )
                       )
              ),
-             fluidRow(style = "padding: 10px 20px 0px 20px;",
+             fluidRow(style = "padding: 10px 20px 10px 20px;",
                       column(width = 2,
                              h1("4. Set calculation parameters")
                       ),
@@ -620,6 +619,16 @@ tabPanel("MULTISPECIES MODE", height = "100%",
                       column(width = 2,
                              h3("Select occurrence separation distance"),
                              textInput(inputId = "batch_separation_distance", label = "", value = 1000)
+                      ),
+                      column(width = 4,
+                        h3("Calculate temporal trends in rarity metrics"),
+                        br(),
+                        column(width = 6, style = "padding-left: 0;",
+                               dateRangeInput("batch_period1", "Set time period 1", format = "yyyy", start = "1900-01-01", end = "2025-12-31")
+                               ),
+                        column(width = 6, style = "padding-left: 0;",
+                               dateRangeInput("batch_period2", "Set time period 2", format = "yyyy", start = "1985-01-01", end = "2025-12-31")
+                        )
                       )
              )
                )
@@ -633,7 +642,7 @@ tabPanel("MULTISPECIES MODE", height = "100%",
                              )
              ),
              fluidRow(style = "padding: 10px 20px 0px 20px;",
-                      column(width = 8,
+                      column(width = 12,
                              hidden(
                              div(id = "batch_output",
                              DT::dataTableOutput("batch_run_results_table"),

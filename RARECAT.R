@@ -1,10 +1,11 @@
 #' Please do not rename this file !
 ## Identify required package names
 ### CRAN packages
-cran_packages <- c("shiny", "leaflet", "leaflet.extras", "purrr", "shinyjs", "sf", "terra", 
-                   "dplyr", "plotly", "htmltools", "htmlwidgets", "shinyWidgets", "sortable", 
+cran_packages <- c("shiny", "leaflet", "leaflet.extras", "tidyverse", "shinyjs", "sf", "terra", 
+                   "plotly", "htmltools", "htmlwidgets", "shinyWidgets", "sortable", 
                    "shinydashboard", "shinycssloaders", "shinyBS", "DT", "natserv", "rgbif", "flexdashboard", 
-                   "shinybusy", "leafpm", "red", "dygraphs", "RWmisc", "units", "shiny.exe")
+                   "shinybusy", "leafpm", "red", "dygraphs", "RWmisc", "units", "shiny.exe", 
+                   "writexl", "spocc")
 installed_cran_packages <- cran_packages %in% rownames(installed.packages())
 if (any(installed_cran_packages == FALSE)) {
   install.packages(cran_packages[!installed_cran_packages])
