@@ -1,19 +1,59 @@
 # Function to extract observations from GBIF for target taxon
-get_gbif_data <- function(sp_data, number_observations, gbif = TRUE, inat = TRUE, ebird = TRUE){
+get_gbif_data <- function(sp_data, 
+                          number_observations, 
+                          gbif = TRUE, 
+                          inat = TRUE, 
+                          ebird = TRUE,
+                          nations = NULL,
+                          subnations = NULL
+                          ){
+  
+  query_poly_bbox_wkt <- NULL
+  
+  if (!is.null(nations) | !is.null(subnations)){
+  
+    query_poly <- network_polys %>% 
+      dplyr::filter(
+        FIPS_CNTRY %in% nations,
+        Admin_abbr %in% subnations
+        )
+    query_poly_bbox <- sf::st_bbox(query_poly) %>% sf::st_as_sfc()
+    p <- terra::vect(query_poly_bbox)
+    pcc <- terra::forceCCW(p)
+    query_poly_bbox_wkt <- query_poly_bbox %>%
+      terra::vect() %>% 
+      terra::forceCCW() %>%
+      geom(wkt = TRUE)
+    
+  }
   
   gbif_occurrences <- NULL
   
   if (gbif){
+  
   # Get all non-human observations
   ## Extract species occurrences across all relevant scientific names from GBIF using the SPOCC package
+  
+  if (is.null(query_poly_bbox_wkt)){
   gbif_occurrences_nh <- spocc::occ(from = "gbif", 
                gbifopts = list(
-                 taxonKey = sp_data$key,
+                 taxonKey = sp_data$key
                ),
-               limit = 10000, # as.integer(number_observations), 
+               limit = 5000, # as.integer(number_observations), 
                has_coords = TRUE
     )
-  gbif_occurrences_nh$gbif$data %>% 
+  } else {
+    gbif_occurrences_nh <- spocc::occ(from = "gbif", 
+                                      gbifopts = list(
+                                        taxonKey = sp_data$key,
+                                        geometry = query_poly_bbox_wkt
+                                      ),
+                                      limit = 5000, # as.integer(number_observations), 
+                                      has_coords = TRUE
+    )
+  }
+    
+  gbif_occurrences_nh <- gbif_occurrences_nh$gbif$data %>% 
     dplyr::bind_rows() %>% 
     dplyr::filter(basisOfRecord %in% c("OCCURRENCE", "PRESERVED_SPECIMEN", "OBSERVATION", "MACHINE_OBSERVATION"))
 
@@ -37,16 +77,38 @@ get_gbif_data <- function(sp_data, number_observations, gbif = TRUE, inat = TRUE
   }
   
   if (inat){
+    
+    # inat_counts <- purrr::map_dbl(sp_data$key, function(x) rgbif::occ_count(taxonKey = x, hasCoordinate = TRUE, institutionCode = "iNaturalist"))
+    # ebird_counts <- purrr::map_dbl(taxon_data$synonyms$key, function(x) rgbif::occ_count(taxonKey = x, hasCoordinate = TRUE, datasetKey = "4fa7b334-ce0d-4e88-aaae-2e0c138d049e"))
+    # full_counts <- purrr::map_dbl(1:length(gbif_counts), function(x) sum(gbif_counts[x], inat_counts[x], ebird_counts[x]))
+    # 
+    # if (!is.null(gbif_occurrences)){
+    #   if (nrow(gbif_occurrences) >= 5000){
+    #     gbif_occurrences <- gbif_occurrences[1:5000, ]
+    #   }
+    # }
+    
+    if (is.null(query_poly_bbox_wkt)){
     ## Extract species occurrences across all relevant scientific names from GBIF using the SPOCC package
     inat_data <- spocc::occ(from = "gbif", 
                              gbifopts = list(
                                taxonKey = sp_data$key, 
                                institutionCode = "iNaturalist"
                              ),
-                             limit = 10000, # as.integer(number_observations), 
+                             limit = 5000/sum(c(inat, ebird)), # as.integer(number_observations), 
                              has_coords = TRUE
     )
-    
+    } else {
+      inat_data <- spocc::occ(from = "gbif", 
+                              gbifopts = list(
+                                taxonKey = sp_data$key, 
+                                institutionCode = "iNaturalist",
+                                geometry = query_poly_bbox_wkt
+                              ),
+                              limit = 5000/sum(c(inat, ebird)), # as.integer(number_observations), 
+                              has_coords = TRUE
+      )
+    }
     inat_occurrences <- inat_data$gbif$data %>%
       dplyr::bind_rows()
     
@@ -70,15 +132,27 @@ get_gbif_data <- function(sp_data, number_observations, gbif = TRUE, inat = TRUE
   }
   
   if (ebird){
+    if (is.null(query_poly_bbox_wkt)){
     ## Extract species occurrences across all relevant scientific names from GBIF using the SPOCC package
-    ebird_data <- spocc::occ(from = "gbif", 
-                            gbifopts = list(
-                              taxonKey = sp_data$key, 
-                              datasetKey = "4fa7b334-ce0d-4e88-aaae-2e0c138d049e"
-                            ),
-                            limit = 10000, # as.integer(number_observations), 
-                            has_coords = TRUE
-    )
+      ebird_data <- spocc::occ(from = "gbif", 
+                               gbifopts = list(
+                                 taxonKey = sp_data$key, 
+                                 datasetKey = "4fa7b334-ce0d-4e88-aaae-2e0c138d049e"
+                               ),
+                               limit = 5000/sum(c(inat, ebird)), # as.integer(number_observations), 
+                               has_coords = TRUE
+      )
+    } else {
+      ebird_data <- spocc::occ(from = "gbif", 
+                               gbifopts = list(
+                                 taxonKey = sp_data$key, 
+                                 datasetKey = "4fa7b334-ce0d-4e88-aaae-2e0c138d049e",
+                                 geometry = query_poly_bbox_wkt
+                               ),
+                               limit = 5000/sum(c(inat, ebird)), # as.integer(number_observations), 
+                               has_coords = TRUE
+      )
+    }
     
     ebird_occurrences <- ebird_data$gbif$data %>%
       dplyr::bind_rows()
@@ -165,12 +239,12 @@ clean_gbif_data <- function(gbif_occurrences, clean = TRUE, minimum_fields = min
   }
 
   gbif_occurrences <- gbif_occurrences %>%
-    dplyr::select(intersect(names(gbif_occurrences), minimum_fields)) %>%
+    dplyr::select(all_of(intersect(names(gbif_occurrences), minimum_fields))) %>%
     cbind(matrix(NA, nrow = nrow(gbif_occurrences), ncol = length(setdiff(minimum_fields, names(gbif_occurrences)))) %>%
             as.data.frame() %>%
             set_names(setdiff(minimum_fields, names(gbif_occurrences)))
     ) %>%
-    dplyr::select(minimum_fields)
+    dplyr::select(all_of(minimum_fields))
 
   return(gbif_occurrences)
 }
@@ -445,7 +519,7 @@ run_rank_assessment <- function(taxon_names,
                                 nations_filter = NULL,
                                 states_filter = NULL,
                                 network_polys = network_polys,
-                                sources_filter = NULL,
+                                sources_filter = c("gbif", "inat", "ebird"),
                                 grid_cell_size = 2,
                                 sep_distance = 1000,
                                 trends_period1 = c("1900-01-01", "2025-12-31"),
@@ -453,7 +527,7 @@ run_rank_assessment <- function(taxon_names,
 ){
   
   taxon_data_list <- purrr::map(1:length(taxon_names), function(i){
-    taxon_data <- list(
+    list(
       info = data.frame(scientificName = "New taxon"),
       info_extended = NULL,
       synonyms = NULL,
@@ -501,6 +575,8 @@ run_rank_assessment <- function(taxon_names,
   
   for (taxon_name in taxon_names){
     
+    print(taxon_name)
+    
     ns_table_full <- natserv::ns_search_spp(text_adv = list(searchToken = taxon_name, matchAgainst = "allScientificNames", operator="contains"))$results
     gbif_table <- rgbif::name_suggest(q = taxon_name, rank = c("species", "subspecies"), limit = 10)$data
     
@@ -522,43 +598,61 @@ run_rank_assessment <- function(taxon_names,
         dplyr::select(scientificName, Source, elementGlobalId, primaryCommonName, roundedGRank, elcode, uniqueId, synonyms)
       taxon_info <- rbind(taxon_info, gbif_table)
     }
-    taxon_data$info <- taxon_info
-    taxon_data$info_extended <- natserv::ns_id(uid = taxon_data$info$uniqueId %>% unique() %>% na.omit() %>% as.character() %>% head(1)) 
-    taxon_data$family <- ns_table_full$speciesGlobal$family
+    taxon_data_list[[taxon_name]]$info <- taxon_info
+    taxon_data_list[[taxon_name]]$info_extended <- natserv::ns_id(uid = taxon_data_list[[taxon_name]]$info$uniqueId %>% unique() %>% na.omit() %>% as.character() %>% head(1)) 
+    taxon_data_list[[taxon_name]]$family <- ns_table_full$speciesGlobal$family
     selected_taxon <- c(taxon_info$scientificName, unlist(taxon_info$synonyms)) %>% na.omit() %>% unique()
     selected_taxon <- gsub("ssp. |var. ", "", selected_taxon)
     
     if (length(selected_taxon) == 1){
-      taxon_data$synonyms <- rgbif::name_usage(name = selected_taxon)$data
+      taxon_data_list[[taxon_name]]$synonyms <- rgbif::name_usage(name = selected_taxon)$data
     } else {
-      taxon_data$synonyms <- purrr::map(selected_taxon, function(sp) rgbif::name_usage(name = sp)) %>%
+      taxon_data_list[[taxon_name]]$synonyms <- purrr::map(selected_taxon, function(sp) rgbif::name_usage(name = sp)) %>%
         purrr::map("data") %>%
         bind_rows()
     }
+
+    taxon_data_list[[taxon_name]]$synonyms <- taxon_data_list[[taxon_name]]$synonyms %>% 
+      dplyr::distinct(., .keep_all = TRUE)
     
-    taxon_data$synonyms <- taxon_data$synonyms %>% 
-      dplyr::distinct(., .keep_all = TRUE)   
+    occurrence_counts <- purrr::map_dbl(taxon_data_list[[taxon_name]]$synonyms$key, function(x) rgbif::occ_count(taxonKey = x, hasCoordinate = TRUE))
+
+    taxon_data_list[[taxon_name]]$synonyms <- taxon_data_list[[taxon_name]]$synonyms %>% 
+      dplyr::mutate(occurrence_count = occurrence_counts) %>% 
+      dplyr::filter(occurrence_count > 0)
     
   }
 
-  
   gbif_lgl <- sum(grepl("gbif", sources_filter)) > 0
-  inat_lgl <- sum(grepl("inat", sources_filter)) > 0
   ebird_lgl <- sum(grepl("ebird", sources_filter)) > 0
+  inat_lgl <- sum(grepl("inat", sources_filter)) > 0
   
-  taxon_data$gbif_occurrences_raw <- get_gbif_data(
-    sp_data = taxon_data$synonyms, 
-    number_observations = max_number_observations, 
+  gbif_occurrences_raw <- get_gbif_data(
+    sp_data = purrr::map(taxon_data_list, "synonyms") %>% bind_rows(), 
     gbif = gbif_lgl,
     inat = inat_lgl,
-    ebird = ebird_lgl
+    ebird = ebird_lgl,
+    nations = nations_filter,
+    subnations = states_filter
     )$sp_occurrences
   
-  taxon_data$gbif_occurrences <- taxon_data$gbif_occurrences_raw %>% 
-    clean_gbif_data(clean = clean_occ, remove_centroids = centroid_filter, minimum_fields = minimum_fields)
+  # gbif_occurrences <- gbif_occurrences_raw %>% 
+  #   clean_gbif_data(clean = clean_occ, remove_centroids = centroid_filter, minimum_fields = minimum_fields)
+  # 
+  taxon_assessment_output <- purrr::map(taxon_names, function(taxon_name){
 
-  taxon_data$uploaded_occurrences <- uploaded_data
-  
+    taxon_data <- taxon_data_list[[taxon_name]]
+    
+    taxon_data$gbif_occurrences_raw <- gbif_occurrences_raw %>% 
+      dplyr::filter(taxonKey %in% taxon_data$synonyms$key)
+    taxon_data$gbif_occurrences <- taxon_data$gbif_occurrences_raw %>% 
+      clean_gbif_data(clean = clean_occ, remove_centroids = centroid_filter, minimum_fields = minimum_fields)
+    
+    if (!is.null(uploaded_data)){
+      taxon_data$uploaded_occurrences <- uploaded_data %>% 
+      dplyr::filter(scientificName %in% c(taxon_name, taxon_data$synonyms$canonicalName))
+    }
+
   taxon_data$all_occurrences <- rbind(
     taxon_data$gbif_occurrences,
     taxon_data$uploaded_occurrences
@@ -677,7 +771,12 @@ run_rank_assessment <- function(taxon_names,
     taxon_data$temporal_trends$eo_count_change[2] <- round(((taxon_data$temporal_trends$eo_count[2]-taxon_data$temporal_trends$eo_count[1])/taxon_data$temporal_trends$eo_count[1])*100, 1)
   }
   
-  return(taxon_data)
+  taxon_data
+  
+  }) %>% 
+    purrr::set_names(taxon_names)
+  
+  return(taxon_assessment_output)
   
 }
 

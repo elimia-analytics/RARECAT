@@ -1526,6 +1526,8 @@ function(input, output, session) {
   
   observeEvent(input$batch_assessment, {
 
+    shinybusy::show_modal_spinner("circle", color = "#024b6c") # show the modal window
+    
     if (!is.null(input$batch_filedata_obs$datapath)){
       batch_uploaded_occurrences <- uploaded_obs_data_batch()
       batch_uploaded_occurrences <- batch_uploaded_occurrences %>% 
@@ -1536,6 +1538,7 @@ function(input, output, session) {
       #   out
       uploaded_names <- batch_uploaded_occurrences$scientificName %>% unique()
     } else {
+      batch_uploaded_occurrences <- NULL
       uploaded_names <- NULL
     }
     
@@ -1559,31 +1562,59 @@ function(input, output, session) {
     
     updateCollapse(session = session, id = "batch_parameters", close = "Rank assessment parameters")
     
-    # Create a Progress object
-    progress <- shiny::Progress$new()
-    # Make sure it closes when we exit this reactive, even if there's an error
-    on.exit(progress$close())
+    # # Create a Progress object
+    # progress <- shiny::Progress$new()
+    # # Make sure it closes when we exit this reactive, even if there's an error
+    # on.exit(progress$close())
+    # 
+    # progress$set(message = "Running Multispecies Assessment", value = 0)
+    # 
+    # n <- length(batch_run_taxon_list$names$user_supplied_name)
+    # 
+    # for (i in 1:n) {
+    #   
+    #   taxon_name <- batch_run_taxon_list$names$user_supplied_name[i]
+    #   
+    #   if (!is.null(input$batch_filedata_obs$datapath)){
+    #   taxon_uploaded_observations <- batch_uploaded_occurrences %>% 
+    #     dplyr::filter(scientificName == taxon_name)
+    #   } else {
+    #     taxon_uploaded_observations <- NULL
+    #   }
+    # 
+    #   batch_run_output$results[[i]] <- safe_batch_run(
+    #     taxon_name = taxon_name,
+    #     minimum_fields = c("key", "scientificName", "prov", "longitude", "latitude", "coordinateUncertaintyInMeters", "stateProvince", "countryCode", "year", "month", "institutionCode", "EORANK", "references"),
+    #     max_number_observations = 10000, 
+    #     uploaded_data = taxon_uploaded_observations,
+    #     clean_occ = input$batch_clean_occ,
+    #     centroid_filter = input$batch_centroid_filter,
+    #     date_start = input$batch_year_filter[1],
+    #     date_end = input$batch_year_filter[2],
+    #     months = input$batch_seasonality,
+    #     uncertainty_filter = input$batch_uncertainty_filter,
+    #     nations_filter = input$batch_nation_filter,
+    #     states_filter = input$batch_states_filter,
+    #     network_polys = network_polys,
+    #     sources_filter = input$batch_sources_filter,
+    #     grid_cell_size = input$batch_grid_cell_size,
+    #     sep_distance = input$batch_separation_distance,
+    #     trends_period1 = input$batch_period1,
+    #     trends_period2 = input$batch_period2
+    #     )
+    #   
+    #   # Increment the progress bar, and update the detail text.
+    #   progress$inc(1/n, detail = taxon_name)
+    #   
+    #   # Pause for 0.1 seconds to simulate a long computation.
+    #   Sys.sleep(0.1)
+    # }
     
-    progress$set(message = "Running Multispecies Assessment", value = 0)
-    
-    n <- length(batch_run_taxon_list$names$user_supplied_name)
-    
-    for (i in 1:n) {
-      
-      taxon_name <- batch_run_taxon_list$names$user_supplied_name[i]
-      
-      if (!is.null(input$batch_filedata_obs$datapath)){
-      taxon_uploaded_observations <- batch_uploaded_occurrences %>% 
-        dplyr::filter(scientificName == taxon_name)
-      } else {
-        taxon_uploaded_observations <- NULL
-      }
-
-      batch_run_output$results[[i]] <- safe_batch_run(
-        taxon_name = taxon_name,
+      batch_run_output$results <- safe_batch_run(
+        taxon_name = batch_run_taxon_list$names$user_supplied_name,
         minimum_fields = c("key", "scientificName", "prov", "longitude", "latitude", "coordinateUncertaintyInMeters", "stateProvince", "countryCode", "year", "month", "institutionCode", "EORANK", "references"),
-        max_number_observations = 10000, 
-        uploaded_data = taxon_uploaded_observations,
+        max_number_observations = 10000,
+        uploaded_data = batch_uploaded_occurrences,
         clean_occ = input$batch_clean_occ,
         centroid_filter = input$batch_centroid_filter,
         date_start = input$batch_year_filter[1],
@@ -1599,19 +1630,12 @@ function(input, output, session) {
         trends_period1 = input$batch_period1,
         trends_period2 = input$batch_period2
         )
-      
-      # Increment the progress bar, and update the detail text.
-      progress$inc(1/n, detail = taxon_name)
-      
-      # Pause for 0.1 seconds to simulate a long computation.
-      Sys.sleep(0.1)
-    }
     
-    batch_run_output$results <- purrr::map(batch_run_output$results, "result")
+    batch_run_output$results <- batch_run_output$results$result
     
-    batch_run_output$results <- batch_run_output$results %>% 
+    batch_run_output$results <- batch_run_output$results %>%
       set_names(batch_run_taxon_list$names$user_supplied_name)
-    
+
     batch_run_output$table <- data.frame(
       taxon = batch_run_taxon_list$names$user_supplied_name,
       total_observations_used = purrr::map(batch_run_output$results, function(out) ifelse(!is.null(out$sf_filtered), nrow(out$sf_filtered), 0)) %>% unlist(),
@@ -1702,6 +1726,8 @@ function(input, output, session) {
     
     shinyjs::show("batch_output")
     
+    shinybusy::remove_modal_spinner()
+    
     } else {
       
       sendSweetAlert(session, type = "warning", title = "Oops!", text = "You have not selected any taxa to assess!", closeOnClickOutside = TRUE)
@@ -1746,30 +1772,26 @@ function(input, output, session) {
       rownames = FALSE
       ) 
     
-    for (i in 1:nrow(batch_run_table)){
-      if (grepl("lower than", batch_run_table$`Range Extent (Current Rank)`[i])) out_tab <- out_tab %>% formatStyle(columns = "Range Extent (Current Rank)", rows = i, backgroundColor = "#fcbba1") 
-      if (grepl("higher than", batch_run_table$`Range Extent (Current Rank)`[i])) out_tab <- out_tab %>% formatStyle(columns = "Range Extent (Current Rank)",rows = i, backgroundColor = "#abd9e9")
-      if (grepl("lower than", batch_run_table$`AOO (Current Rank)`[i])) out_tab <- out_tab %>% formatStyle(columns = "Range Extent (Current Rank)", rows = i, backgroundColor = "#fcbba1") 
-      if (grepl("higher than", batch_run_table$`AOO (Current Rank)`[i])) out_tab <- out_tab %>% formatStyle(columns = "Range Extent (Current Rank)",rows = i, backgroundColor = "#abd9e9")
-      if (grepl("lower than", batch_run_table$`Occurrence Count (Current Rank)`[i])) out_tab <- out_tab %>% formatStyle(columns = "Range Extent (Current Rank)", rows = i, backgroundColor = "#fcbba1") 
-      if (grepl("higher than", batch_run_table$`Occurrence Count (Current Rank)`[i])) out_tab <- out_tab %>% formatStyle(columns = "Range Extent (Current Rank)",rows = i, backgroundColor = "#abd9e9")
+      if (sum(grepl("lower than", batch_run_table$`Range Extent (Current Rank)`)) > 0) out_tab <- out_tab %>% formatStyle(columns = "Range Extent (Current Rank)", backgroundColor = styleRow(rows = grep("lower than", batch_run_table$`Range Extent (Current Rank)`), values = "#fcbba1"))
+      if (sum(grepl("higher than", batch_run_table$`Range Extent (Current Rank)`)) > 0) out_tab <- out_tab %>% formatStyle(columns = "Range Extent (Current Rank)", backgroundColor = styleRow(rows = grep("higher than", batch_run_table$`Range Extent (Current Rank)`), values = "#abd9e9"))
+      if (sum(grepl("lower than", batch_run_table$`AOO (Current Rank)`)) > 0) out_tab <- out_tab %>% formatStyle(columns = "AOO (Current Rank)", backgroundColor = styleRow(rows = grep("lower than", batch_run_table$`AOO (Current Rank)`), values = "#fcbba1"))
+      if (sum(grepl("higher than", batch_run_table$`AOO (Current Rank)`)) > 0) out_tab <- out_tab %>% formatStyle(columns = "AOO (Current Rank)", backgroundColor = styleRow(rows = grep("higher than", batch_run_table$`AOO (Current Rank)`), values = "#abd9e9"))
+      if (sum(grepl("lower than", batch_run_table$`Occurrence Count (Current Rank)`)) > 0) out_tab <- out_tab %>% formatStyle(columns = "Occurrence Count (Current Rank)", backgroundColor = styleRow(rows = grep("lower than", batch_run_table$`Occurrence Count (Current Rank)`), values = "#fcbba1"))
+      if (sum(grepl("higher than", batch_run_table$`Occurrence Count (Current Rank)`)) > 0) out_tab <- out_tab %>% formatStyle(columns = "Occurrence Count (Current Rank)", backgroundColor = styleRow(rows = grep("higher than", batch_run_table$`Occurrence Count (Current Rank)`), values = "#abd9e9"))
       
-      range_extent_trend_value <- gsub("%", "", batch_run_table$`Range Extent Trend`[i]) %>% as.numeric()
-      aoo_trend_value <- gsub("%", "", batch_run_table$`AOO Trend`[i]) %>% as.numeric()
-      eo_count_trend_value <- gsub("%", "", batch_run_table$`Occurrence Count Trend`[i]) %>% as.numeric()
-      
-      if (range_extent_trend_value <= -30 & range_extent_trend_value >= -50) out_tab <- out_tab %>% formatStyle(columns = "Range Extent Trend", rows = i, backgroundColor = "#fee08b") 
-      if (range_extent_trend_value <= -51 & range_extent_trend_value >= -70) out_tab <- out_tab %>% formatStyle(columns = "Range Extent Trend", rows = i, backgroundColor = "#fdae61") 
-      if (range_extent_trend_value <= -71) out_tab <- out_tab %>% formatStyle(columns = "Range Extent Trend", rows = i, backgroundColor = "#f46d43") 
-      if (aoo_trend_value <= -30 & aoo_trend_value >= -50) out_tab <- out_tab %>% formatStyle(columns = "AOO Trend", rows = i, backgroundColor = "#fee08b") 
-      if (aoo_trend_value <= -51 & aoo_trend_value >= -70) out_tab <- out_tab %>% formatStyle(columns = "AOO Trend", rows = i, backgroundColor = "#fdae61") 
-      if (aoo_trend_value <= -71) out_tab <- out_tab %>% formatStyle(columns = "AOO Trend", rows = i, backgroundColor = "#f46d43") 
-      if (eo_count_trend_value <= -30 & eo_count_trend_value >= -50) out_tab <- out_tab %>% formatStyle(columns = "Occurrence Count Trend", rows = i, backgroundColor = "#fee08b") 
-      if (eo_count_trend_value <= -51 & eo_count_trend_value >= -70) out_tab <- out_tab %>% formatStyle(columns = "Occurrence Count Trend", rows = i, backgroundColor = "#fdae61") 
-      if (eo_count_trend_value <= -71) out_tab <- out_tab %>% formatStyle(columns = "Occurrence Count Trend", rows = i, backgroundColor = "#f46d43") 
-      
-    }
-      
+      range_extent_trend_value <- gsub("%", "", batch_run_table$`Range Extent Trend`) %>% as.numeric()
+      aoo_trend_value <- gsub("%", "", batch_run_table$`AOO Trend`) %>% as.numeric()
+      eo_count_trend_value <- gsub("%", "", batch_run_table$`Occurrence Count Trend`) %>% as.numeric()
+      if (sum(range_extent_trend_value <= -30 & range_extent_trend_value >= -50) > 0) out_tab <- out_tab %>% formatStyle(columns = "Range Extent Trend", backgroundColor = styleRow(rows = which(range_extent_trend_value <= -30 & range_extent_trend_value >= -50), values = "#fee08b"))
+      if (sum(range_extent_trend_value <= -51 & range_extent_trend_value >= -70) > 0) out_tab <- out_tab %>%  formatStyle(columns = "Range Extent Trend", backgroundColor = styleRow(rows = which(range_extent_trend_value <= -51 & range_extent_trend_value >= -70), values = "#fdae61"))
+      if (sum(range_extent_trend_value <= -71) > 0) out_tab <- out_tab %>% formatStyle(columns = "Range Extent Trend", backgroundColor = styleRow(rows = which(range_extent_trend_value <= -71), values = "#f46d43"))
+      if (sum(aoo_trend_value <= -30 & aoo_trend_value >= -50) > 0) out_tab <- out_tab %>% formatStyle(columns = "AOO Trend", backgroundColor = styleRow(rows = which(aoo_trend_value <= -30 & aoo_trend_value >= -50), values = "#fee08b"))
+      if (sum(aoo_trend_value <= -51 & aoo_trend_value >= -70) > 0) out_tab <- out_tab %>% formatStyle(columns = "AOO Trend", backgroundColor = styleRow(rows = which(aoo_trend_value <= -51 & aoo_trend_value >= -70), values = "#fdae61"))
+      if (sum(aoo_trend_value <= -71) > 0) out_tab <- out_tab %>% formatStyle(columns = "AOO Trend", backgroundColor = styleRow(rows = which(aoo_trend_value <= -71), values = "#f46d43"))
+      if (sum(eo_count_trend_value <= -30 & eo_count_trend_value >= -50) > 0) out_tab <- out_tab %>% formatStyle(columns = "Occurrence Count Trend", backgroundColor = styleRow(rows = which(eo_count_trend_value <= -30 & eo_count_trend_value >= -50), values = "#fee08b"))
+      if (sum(eo_count_trend_value <= -51 & eo_count_trend_value >= -70) > 0) out_tab <- out_tab %>% formatStyle(columns = "Occurrence Count Trend", backgroundColor = styleRow(rows = which(eo_count_trend_value <= -51 & eo_count_trend_value >= -70), values = "#fdae61"))
+      if (sum(eo_count_trend_value <= -71) > 0) out_tab <- out_tab %>% formatStyle(columns = "Occurrence Count Trend", backgroundColor = styleRow(rows = which(eo_count_trend_value <= -71), values = "#f46d43"))
+
       out_tab
     
   })
