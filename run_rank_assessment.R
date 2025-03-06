@@ -135,9 +135,29 @@ run_rank_assessment <- function(taxon_name,
   
 }
 
-taxon_names <- c("Acacia millefolia", "Juncus abortivus", "Artemisia pattersonii")
+
 Acacia millefolia
 Juncus abortivus
 Artemisia pattersonii
-x <- purrr::map(taxon_names, run_rank_assessment) %>% 
-  set_names(taxon_names)
+Allium abramsii
+Salix alba
+Rumex hastatulus
+Agave yavapaiensis
+Erigeron calvus
+Marshallia legrandii
+Quercus prinus
+
+
+taxon_names <- c(
+  "Acacia millefolia",
+  "Juncus abortivus",
+  "Artemisia pattersonii",
+  "Allium abramsii",
+  "Salix alba",
+  "Rumex hastatulus",
+  "Agave yavapaiensis",
+  "Erigeron calvus",
+  "Marshallia legrandii",
+  "Quercus prinus"
+)
+

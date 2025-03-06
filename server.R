@@ -563,6 +563,8 @@ function(input, output, session) {
         
       }
       
+      
+      # if (is.null(batch_taxon_focus$taxon)){
       updateDateRangeInput(session = session, inputId = "year_filter",
                            start = paste0(min(unique(taxon_data$sf$year), na.rm = TRUE), "-01-01"),
                            end = paste0(max(unique(taxon_data$sf$year), na.rm = TRUE), "-01-01")
@@ -574,6 +576,11 @@ function(input, output, session) {
       updateSelectizeInput(session = session, inputId = "states_filter", choices = taxon_data$states, selected = NULL) # , taxon_data$states)
       updateSelectizeInput(session = session, inputId = "synonyms_filter", choices = unique(taxon_data$sf$scientificName), selected = unique(taxon_data$sf$scientificName))
       updateSelectizeInput(session = session, inputId = "sources_filter", choices = unique(taxon_data$sf$prov), selected = unique(taxon_data$sf$prov))
+      updateDateRangeInput(session = session, inputId = "year_filter",
+                           start = paste0(min(unique(taxon_data$sf$year), na.rm = TRUE), "-01-01"),
+                           end = paste0(max(unique(taxon_data$sf$year), na.rm = TRUE), "-01-01")
+      )
+      # }
       
       if (!is.null(batch_taxon_focus$taxon)){
         batch_taxon_filters <- batch_run_output$results[[batch_taxon_focus$taxon]]$filters_selected
@@ -606,6 +613,10 @@ function(input, output, session) {
         updateMaterialSwitch(session = session, inputId = "range_extent", value = TRUE)
         updateMaterialSwitch(session = session, inputId = "area_of_occupancy", value = TRUE)
         updateMaterialSwitch(session = session, inputId = "number_EOs", value = TRUE)
+        updateDateRangeInput(session = session, inputId = "period1", start = input$batch_period1[1], end = input$batch_period1[2])
+        updateDateRangeInput(session = session, inputId = "period2", start = input$batch_period2[1], end = input$batch_period2[2])
+        updateDateRangeInput(session = session, inputId = "period3", start = NA, end = NA)
+
       }
       
       observeEvent({
@@ -826,54 +837,62 @@ function(input, output, session) {
   
   output$metric_barchart_period <- plotly::renderPlotly({
     
-    dat <- data.frame(period = c(1, 2, 3), 
-                      rec_count = NA, rec_count_change = NA,
-                      eoo = NA, eoo_change = NA,
-                      aoo = NA, aoo_change = NA,
-                      eo_count = NA, eo_count_change = NA
-                      )
-    # Calculate period 1 rarity
-    period1_dat <- taxon_data$sf_filtered %>% 
-      dplyr::filter(year >= substr(input$period1[1], 1, 4) & year < substr(input$period1[2], 1, 4))
-    if (nrow(period1_dat) > 0){
-      dat$rec_count[1] <- nrow(period1_dat)
-      dat$rec_count_change[1] <- 0
-      dat$eoo[1] <- (period1_dat %>% calculate_eoo(shifted = taxon_data$shifted))$EOO
-      dat$eoo_change[1] <- 0
-      dat$aoo[1] <- (aoo2(period1_dat, as.numeric(input$grid_cell_size)*1000))/4
-      dat$aoo_change[1] <- 0
-      dat$eo_count[1] <- (calculate_number_occurrences(period1_dat, separation_distance = input$separation_distance %>% as.numeric(), added_distance = 0))$eo_count
-      dat$eo_count_change[1] <- 0
-    }
+    # dat <- data.frame(period = c(1, 2, 3), 
+    #                   rec_count = NA, rec_count_change = NA,
+    #                   eoo = NA, eoo_change = NA,
+    #                   aoo = NA, aoo_change = NA,
+    #                   eo_count = NA, eo_count_change = NA
+    #                   )
+    # # Calculate period 1 rarity
+    # period1_dat <- taxon_data$sf_filtered %>% 
+    #   dplyr::filter(year >= substr(input$period1[1], 1, 4) & year < substr(input$period1[2], 1, 4))
+    # if (nrow(period1_dat) > 0){
+    #   dat$rec_count[1] <- nrow(period1_dat)
+    #   dat$rec_count_change[1] <- 0
+    #   dat$eoo[1] <- (period1_dat %>% calculate_eoo(shifted = taxon_data$shifted))$EOO
+    #   dat$eoo_change[1] <- 0
+    #   dat$aoo[1] <- (aoo2(period1_dat, as.numeric(input$grid_cell_size)*1000))/4
+    #   dat$aoo_change[1] <- 0
+    #   dat$eo_count[1] <- (calculate_number_occurrences(period1_dat, separation_distance = input$separation_distance %>% as.numeric(), added_distance = 0))$eo_count
+    #   dat$eo_count_change[1] <- 0
+    # }
+    # 
+    # period2_dat <- taxon_data$sf_filtered %>% 
+    #   dplyr::filter(year >= substr(input$period2[1], 1, 4) & year < substr(input$period2[2], 1, 4))
+    # if (nrow(period2_dat) > 0){
+    # dat$rec_count[2] <- nrow(period2_dat)
+    # dat$rec_count_change[2] <- round(((dat$rec_count[2]-dat$rec_count[1])/dat$rec_count[1])*100, 1)
+    # dat$eoo[2] <- (period2_dat %>% calculate_eoo(shifted = taxon_data$shifted))$EOO
+    # dat$eoo_change[2] <- round(((dat$eoo[2]-dat$eoo[1])/dat$eoo[1])*100, 1)
+    # dat$aoo[2] <- (aoo2(period2_dat, as.numeric(input$grid_cell_size)*1000))/4
+    # dat$aoo_change[2] <- round(((dat$aoo[2]-dat$aoo[1])/dat$aoo[1])*100, 1)
+    # dat$eo_count[2] <- (calculate_number_occurrences(period2_dat, separation_distance = input$separation_distance %>% as.numeric(), added_distance = 0))$eo_count
+    # dat$eo_count_change[2] <- round(((dat$eo_count[2]-dat$eo_count[1])/dat$eo_count[1])*100, 1)
+    # }
+    # 
+    # period3_dat <- taxon_data$sf_filtered %>% 
+    #   dplyr::filter(year >= substr(input$period3[1], 1, 4) & year < substr(input$period3[2], 1, 4))
+    # if (nrow(period3_dat) > 0){
+    # dat$rec_count[3] <- nrow(period3_dat)
+    # dat$rec_count_change[3] <- round(((dat$rec_count[3]-dat$rec_count[2])/dat$rec_count[2])*100, 1)
+    # dat$eoo[3] <- (period3_dat %>% calculate_eoo(shifted = taxon_data$shifted))$EOO
+    # dat$eoo_change[3] <- round(((dat$eoo[3]-dat$eoo[2])/dat$eoo[2])*100, 1)
+    # dat$aoo[3] <- (aoo2(period3_dat, as.numeric(input$grid_cell_size)*1000))/4
+    # dat$aoo_change[3] <- round(((dat$aoo[3]-dat$aoo[2])/dat$aoo[2])*100, 1)
+    # dat$eo_count[3] <- (calculate_number_occurrences(period3_dat, separation_distance = input$separation_distance %>% as.numeric(), added_distance = 0))$eo_count
+    # dat$eo_count_change[3] <- round(((dat$eo_count[3]-dat$eo_count[2])/dat$eo_count[2])*100, 1)
+    # }
     
-    period2_dat <- taxon_data$sf_filtered %>% 
-      dplyr::filter(year >= substr(input$period2[1], 1, 4) & year < substr(input$period2[2], 1, 4))
-    if (nrow(period2_dat) > 0){
-    dat$rec_count[2] <- nrow(period2_dat)
-    dat$rec_count_change[2] <- round(((dat$rec_count[2]-dat$rec_count[1])/dat$rec_count[1])*100, 1)
-    dat$eoo[2] <- (period2_dat %>% calculate_eoo(shifted = taxon_data$shifted))$EOO
-    dat$eoo_change[2] <- round(((dat$eoo[2]-dat$eoo[1])/dat$eoo[1])*100, 1)
-    dat$aoo[2] <- (aoo2(period2_dat, as.numeric(input$grid_cell_size)*1000))/4
-    dat$aoo_change[2] <- round(((dat$aoo[2]-dat$aoo[1])/dat$aoo[1])*100, 1)
-    dat$eo_count[2] <- (calculate_number_occurrences(period2_dat, separation_distance = input$separation_distance %>% as.numeric(), added_distance = 0))$eo_count
-    dat$eo_count_change[2] <- round(((dat$eo_count[2]-dat$eo_count[1])/dat$eo_count[1])*100, 1)
-    }
-    
-    period3_dat <- taxon_data$sf_filtered %>% 
-      dplyr::filter(year >= substr(input$period3[1], 1, 4) & year < substr(input$period3[2], 1, 4))
-    if (nrow(period3_dat) > 0){
-    dat$rec_count[3] <- nrow(period3_dat)
-    dat$rec_count_change[3] <- round(((dat$rec_count[3]-dat$rec_count[2])/dat$rec_count[2])*100, 1)
-    dat$eoo[3] <- (period3_dat %>% calculate_eoo(shifted = taxon_data$shifted))$EOO
-    dat$eoo_change[3] <- round(((dat$eoo[3]-dat$eoo[2])/dat$eoo[2])*100, 1)
-    dat$aoo[3] <- (aoo2(period3_dat, as.numeric(input$grid_cell_size)*1000))/4
-    dat$aoo_change[3] <- round(((dat$aoo[3]-dat$aoo[2])/dat$aoo[2])*100, 1)
-    dat$eo_count[3] <- (calculate_number_occurrences(period3_dat, separation_distance = input$separation_distance %>% as.numeric(), added_distance = 0))$eo_count
-    dat$eo_count_change[3] <- round(((dat$eo_count[3]-dat$eo_count[2])/dat$eo_count[2])*100, 1)
-    }
-    
-    dat <- dat %>% 
+    dat <- calculate_rarity_change(taxon_data = taxon_data, 
+                                   period1 = input$period1,
+                                   period2 = input$period2,
+                                   period3 = input$period3,
+                                   aoo_grid_cell_size = input$grid_cell_size, 
+                                   occ_sep_distance = input$separation_distance
+                                   ) %>% 
       dplyr::filter(complete.cases(.))
+    
+    print(dat)
     
     p <- ggplot(data = dat) + 
       geom_bar(mapping = aes(x = .data[["period"]], y = .data[[input$barchart_metric]]), stat = "identity", fill = "#B2BBCB") +
@@ -884,13 +903,9 @@ function(input, output, session) {
         which(c("Number of Records" = "rec_count", "Range Extent" = "eoo", "Area of Occupancy" = "aoo", "Number of Occurrences" = "eo_count") == input$barchart_metric) %>% names()
       ) +
       xlim(1-0.5, nrow(dat)+0.5)
-      
-    if (nrow(period2_dat) > 0){ 
+
       p <- p + annotate("text", x = dat$period[2], y = max(dat[[input$barchart_metric]], na.rm = TRUE)/2, label = paste0(dat[[paste0(input$barchart_metric, "_change")]][2], "%"), parse = TRUE, colour = grey(.1)) 
-    }
-    if (nrow(period3_dat) > 0){
       p <- p + annotate("text", x = dat$period[3], y = max(dat[[input$barchart_metric]], na.rm = TRUE)/2, label = paste0(dat[[paste0(input$barchart_metric, "_change")]][3], "%"), parse = TRUE, colour = grey(.1))
-    } 
     
     gg <- plotly_build(p) %>%
       config(displayModeBar = FALSE) %>%
@@ -1517,16 +1532,30 @@ function(input, output, session) {
 
       nation_subset <- network_polys %>% dplyr::filter(FIPS_CNTRY %in% input$batch_nation_filter)
       
+      subnations_already_selected <- input$batch_states_filter
+      
       updateSelectizeInput(session = session,
                            inputId = "batch_states_filter",
-                           choices = (nation_subset$Admin_abbr %>% na.omit() %>% as.character()) %>% set_names(nation_subset$ADMIN_NAME%>% na.omit() %>% as.character()) %>% sort()
+                           choices = (nation_subset$Admin_abbr %>% na.omit() %>% as.character()) %>% set_names(nation_subset$ADMIN_NAME%>% na.omit() %>% as.character()) %>% sort(),
+                           selected = subnations_already_selected
       )
+    
+  })
+  
+  observeEvent(input$batch_states_filter, {
+
+    relevant_nation <- network_polys %>% dplyr::filter(Admin_abbr %in% input$batch_states_filter) %>% dplyr::pull(FIPS_CNTRY)
+    
+    updateSelectizeInput(session = session,
+                         inputId = "batch_nation_filter", 
+                         selected = relevant_nation %>% set_names(relevant_nation)
+    )
     
   })
   
   observeEvent(input$batch_assessment, {
 
-    shinybusy::show_modal_spinner("circle", color = "#024b6c") # show the modal window
+    # shinybusy::show_modal_spinner("circle", color = "#024b6c") # show the modal window
     
     if (!is.null(input$batch_filedata_obs$datapath)){
       batch_uploaded_occurrences <- uploaded_obs_data_batch()
@@ -1726,7 +1755,7 @@ function(input, output, session) {
     
     shinyjs::show("batch_output")
     
-    shinybusy::remove_modal_spinner()
+    # shinybusy::remove_modal_spinner()
     
     } else {
       
@@ -1827,15 +1856,128 @@ function(input, output, session) {
       sep_distance = input$separation_distance
     )
 
+    # dat <- 
+    #   data.frame(period = c(1, 2), 
+    #              rec_count = NA, rec_count_change = NA,
+    #              eoo = NA, eoo_change = NA,
+    #              aoo = NA, aoo_change = NA,
+    #              eo_count = NA, eo_count_change = NA
+    #   )
+    # 
+    # # Calculate period 1 rarity
+    # period1_dat <- taxon_data$sf_filtered %>% 
+    #   dplyr::filter(year >= substr(input$period1[1], 1, 4) & year < substr(input$period1[2], 1, 4))
+    # if (nrow(period1_dat) > 0){
+    #   dat$rec_count[1] <- nrow(period1_dat)
+    #   dat$rec_count_change[1] <- 0
+    #   dat$eoo[1] <- (period1_dat %>% calculate_eoo(shifted = taxon_data$shifted))$EOO
+    #   dat$eoo_change[1] <- 0
+    #   dat$aoo[1] <- (aoo2(period1_dat, as.numeric(input$grid_cell_size)*1000))/4
+    #   dat$aoo_change[1] <- 0
+    #   dat$eo_count[1] <- (calculate_number_occurrences(period1_dat, separation_distance = input$separation_distance %>% as.numeric(), added_distance = 0))$eo_count
+    #   dat$eo_count_change[1] <- 0
+    # }
+    # 
+    # period2_dat <- taxon_data$sf_filtered %>% 
+    #   dplyr::filter(year >= substr(input$period2[1], 1, 4) & year < substr(input$period2[2], 1, 4))
+    # if (nrow(period2_dat) > 0){
+    #   dat$rec_count[2] <- nrow(period2_dat)
+    #   dat$rec_count_change[2] <- round(((dat$rec_count[2]-dat$rec_count[1])/dat$rec_count[1])*100, 1)
+    #   dat$eoo[2] <- (period2_dat %>% calculate_eoo(shifted = taxon_data$shifted))$EOO
+    #   dat$eoo_change[2] <- round(((dat$eoo[2]-dat$eoo[1])/dat$eoo[1])*100, 1)
+    #   dat$aoo[2] <- (aoo2(period2_dat, as.numeric(input$grid_cell_size)*1000))/4
+    #   dat$aoo_change[2] <- round(((dat$aoo[2]-dat$aoo[1])/dat$aoo[1])*100, 1)
+    #   dat$eo_count[2] <- (calculate_number_occurrences(period2_dat, separation_distance = input$separation_distance %>% as.numeric(), added_distance = 0))$eo_count
+    #   dat$eo_count_change[2] <- round(((dat$eo_count[2]-dat$eo_count[1])/dat$eo_count[1])*100, 1)
+    # }
+    
+    batch_run_output$results[[batch_taxon_focus$taxon]]$temporal_trends <- calculate_rarity_change(
+      taxon_data = taxon_data,
+      period1 = input$period1,
+      period2 = input$period2,
+      period3 = input$period3, 
+      aoo_grid_cell_size = input$grid_cell_size, 
+      occ_sep_distance = input$separation_distance
+    )
+    
     updated_batch_table <- data.frame(
       taxon = taxon_data$info$scientificName,
       total_observations_used = nrow(taxon_data$sf_filtered),
       range_value = paste0(taxon_data$species_range_value, " (", taxon_data$species_range_factor, ")"),
-      current_range_value = NA,
+      current_range_value = purrr::map_chr(1, function(i){
+        if (!is.null(taxon_data$info_extended$rankInfo$rangeExtent$rangeExtentDescEn)){
+          new_range <- ifelse(!is.null(taxon_data$species_range_value), taxon_data$species_range_value, NA)
+          current_range <- taxon_data$info_extended$rankInfo$rangeExtent$rangeExtentDescEn %>% str_split_1(" square") %>% head(1) %>% str_split_1("-") %>% head(2) %>% parse_number()
+          range_checks <- c(new_range >= current_range[1], new_range <= current_range[1])
+          if (sum(range_checks) == 2) out <- paste0("Newly calculated value is within current rank factor value of ", 
+                                                    taxon_data$info_extended$rankInfo$rangeExtent$rangeExtentDescEn %>% str_split_1(" km") %>% head(1), " km"
+          )
+          if (isFALSE(range_checks[1])) out <- paste0("Newly calculated value is lower than current rank factor value of ", 
+                                                      taxon_data$info_extended$rankInfo$rangeExtent$rangeExtentDescEn %>% str_split_1(" km") %>% head(1), " km"
+          )
+          
+          if (isFALSE(range_checks[2])) out <- paste0("Newly calculated value is higher than current rank factor value of ", 
+                                                      taxon_data$info_extended$rankInfo$rangeExtent$rangeExtentDescEn %>% str_split_1(" km") %>% head(1), " km"
+          )
+        } else {
+          out <- NA
+        }
+        out
+      }) %>% unlist(),
+      range_value_trend = purrr::map_chr(1, function(i){
+        out <- ifelse(!is.na(taxon_data$temporal_trends$eoo_change[2]), taxon_data$temporal_trends$eoo_change[2], NA)
+        paste0(out, "%")
+      }) %>% unlist(),
       AOO_value = paste0(taxon_data$AOO_value, " (", taxon_data$AOO_factor, ")"),
-      current_AOO_value = NA,
+      current_AOO_value = purrr::map_chr(1, function(i){
+        if (!is.null(taxon_data$info_extended$rankInfo$rangeExtent$rangeExtentDescEn)){
+          new_AOO <- ifelse(!is.null(taxon_data$AOO_value), paste0(taxon_data$AOO_value, " (", taxon_data$AOO_factor, ")"), NA)
+          current_AOO <- taxon_data$info_extended$rankInfo$areaOfOccupancy$areaOfOccupancyDescEn %>% str_split_1(" square") %>% head(1) %>% str_split_1("-") %>% head(2) %>% parse_number()
+          AOO_checks <- c(new_AOO >= current_AOO[1], new_AOO <= current_AOO[2])
+          if (sum(AOO_checks) == 2) out <- paste0("Newly calculated value is within current rank factor value of ", 
+                                                  taxon_data$info_extended$rankInfo$areaOfOccupancy$areaOfOccupancyDescEn %>% str_split_1(" km") %>% head(1), " km"
+          )
+          if (isFALSE(AOO_checks[1])) out <- paste0("Newly calculated value is lower than current rank factor value of ", 
+                                                    taxon_data$info_extended$rankInfo$areaOfOccupancy$areaOfOccupancyDescEn %>% str_split_1(" km") %>% head(1), " km"
+          )
+          
+          if (isFALSE(AOO_checks[2])) out <- paste0("Newly calculated value is higher than current rank factor value of ", 
+                                                    taxon_data$info_extended$rankInfo$areaOfOccupancy$areaOfOccupancyDescEn %>% str_split_1(" km") %>% head(1), " km"
+          )
+        } else {
+          out <- NA
+        }
+        out
+      }) %>% unlist(),
+      AOO_value_trend = purrr::map(1, function(i){
+        out <- ifelse(!is.na(out$temporal_trends$aoo_change[2]), out$temporal_trends$aoo_change[2], NA)
+        paste0(out, "%")
+      }) %>% unlist(),
       EOcount_value = paste0(taxon_data$EOcount_value, " (", taxon_data$EOcount_factor, ")"),
-      current_EOcount_value = NA,
+      current_EOcount_value = purrr::map(1, function(i){
+        if (!is.null(taxon_data$info_extended$rankInfo$numberEos$numberEosDescEn)){
+          new_EOcount <- ifelse(!is.null(taxon_data$EOcount_value), paste0(taxon_data), NA)
+          current_EOcount <- taxon_data$info_extended$rankInfo$numberEos$numberEosDescEn %>% str_split_1("-") %>% head(2) %>% parse_number()
+          EOcount_checks <- c(new_EOcount >= current_EOcount[1], new_EOcount <= current_EOcount[2])
+          if (sum(EOcount_checks) == 2) out <- paste0("Newly calculated value is within current rank factor value of ", 
+                                                      taxon_data$info_extended$rankInfo$numberEos$numberEosDescEn
+          )
+          if (isFALSE(EOcount_checks[1])) out <- paste0("Newly calculated value is lower than current rank factor value of ", 
+                                                        taxon_data$info_extended$rankInfo$numberEos$numberEosDescEn
+          )
+          
+          if (isFALSE(EOcount_checks[2])) out <- paste0("Newly calculated value is higher than current rank factor value of ", 
+                                                        taxon_data$info_extended$rankInfo$numberEos$numberEosDescEn
+          )
+        } else {
+          out <- NA
+        }
+        out
+      }) %>% unlist(),
+      EOcount_value_trend = purrr::map(1, function(i){
+        out <- ifelse(!is.na(out$temporal_trends$eo_count_change[2]), out$temporal_trends$eo_count_change[2], NA)
+        paste0(out, "%")
+      }) %>% unlist(),
       Reviewed = TRUE
     )
     
@@ -1851,95 +1993,7 @@ function(input, output, session) {
           updated_batch_table
         )
     }
-    
-    batch_run_output$table <- data.frame(
-      taxon = batch_run_taxon_list$names$user_supplied_name,
-      total_observations_used = purrr::map(batch_run_output$results, function(out) ifelse(!is.null(out$sf_filtered), nrow(out$sf_filtered), 0)) %>% unlist(),
-      range_value = purrr::map(batch_run_output$results, function(out){
-        ifelse(!is.null(out$species_range_value), paste0(out$species_range_value, " (", out$species_range_factor, ")"), NA)
-      }) %>% unlist(),
-      current_range_value = purrr::map(batch_run_output$results, function(out){
-        if (!is.null(out$info_extended$rankInfo$rangeExtent$rangeExtentDescEn)){
-          new_range <- ifelse(!is.null(out$species_range_value), out$species_range_value, NA)
-          current_range <- out$info_extended$rankInfo$rangeExtent$rangeExtentDescEn %>% str_split_1(" square") %>% head(1) %>% str_split_1("-") %>% head(2) %>% parse_number()
-          range_checks <- c(new_range >= current_range[1], new_range <= current_range[1])
-          if (sum(range_checks) == 2) out <- paste0("Newly calculated value is within current rank factor value of ", 
-                                                    out$info_extended$rankInfo$rangeExtent$rangeExtentDescEn %>% str_split_1(" km") %>% head(1), " km"
-          )
-          if (isFALSE(range_checks[1])) out <- paste0("Newly calculated value is lower than current rank factor value of ", 
-                                                      out$info_extended$rankInfo$rangeExtent$rangeExtentDescEn %>% str_split_1(" km") %>% head(1), " km"
-          )
-          
-          if (isFALSE(range_checks[2])) out <- paste0("Newly calculated value is higher than current rank factor value of ", 
-                                                      out$info_extended$rankInfo$rangeExtent$rangeExtentDescEn %>% str_split_1(" km") %>% head(1), " km"
-          )
-          # out <- paste0(range_diff[which.min(abs(range_diff))], " (", 100*(range_diff[which.min(abs(range_diff))]/current_range[which.min(abs(range_diff))]), "%)")
-        } else {
-          out <- NA
-        }
-        out
-      }) %>% unlist(),
-      range_value_trend = purrr::map(batch_run_output$results, function(out){
-        out <- ifelse(!is.na(out$temporal_trends$eoo_change[2]), out$temporal_trends$eoo_change[2], NA)
-        paste0(out, "%")
-      }) %>% unlist(),
-      AOO_value = purrr::map(batch_run_output$results, function(out){
-        ifelse(!is.null(out$AOO_value), out$AOO_value, NA)
-      }) %>% unlist(),
-      current_AOO_value = purrr::map(batch_run_output$results, function(out){
-        if (!is.null(out$info_extended$rankInfo$areaOfOccupancy$areaOfOccupancyDescEn)){
-          new_AOO <- ifelse(!is.null(out$AOO_value), paste0(out$AOO_value, " (", out$AOO_factor, ")"), NA)
-          current_AOO <- out$info_extended$rankInfo$areaOfOccupancy$areaOfOccupancyDescEn %>% str_split_1(" square") %>% head(1) %>% str_split_1("-") %>% head(2) %>% parse_number()
-          AOO_checks <- c(new_AOO >= current_AOO[1], new_AOO <= current_AOO[2])
-          if (sum(AOO_checks) == 2) out <- paste0("Newly calculated value is within current rank factor value of ", 
-                                                  out$info_extended$rankInfo$areaOfOccupancy$areaOfOccupancyDescEn %>% str_split_1(" km") %>% head(1), " km"
-          )
-          if (isFALSE(AOO_checks[1])) out <- paste0("Newly calculated value is lower than current rank factor value of ", 
-                                                    out$info_extended$rankInfo$areaOfOccupancy$areaOfOccupancyDescEn %>% str_split_1(" km") %>% head(1), " km"
-          )
-          
-          if (isFALSE(AOO_checks[2])) out <- paste0("Newly calculated value is higher than current rank factor value of ", 
-                                                    out$info_extended$rankInfo$areaOfOccupancy$areaOfOccupancyDescEn %>% str_split_1(" km") %>% head(1), " km"
-          )
-        } else {
-          out <- NA
-        }
-        out
-      }) %>% unlist(),
-      AOO_value_trend = purrr::map(batch_run_output$results, function(out){
-        out <- ifelse(!is.na(out$temporal_trends$aoo_change[2]), out$temporal_trends$aoo_change[2], NA)
-        paste0(out, "%")
-      }) %>% unlist(),
-      EOcount_value = purrr::map(batch_run_output$results, function(out){
-        ifelse(!is.null(out$EOcount_value), out$EOcount_value, NA)
-      }) %>% unlist(),
-      current_EOcount_value = purrr::map(batch_run_output$results, function(out){
-        if (!is.null(out$info_extended$rankInfo$numberEos$numberEosDescEn)){
-          new_EOcount <- ifelse(!is.null(out$EOcount_value), paste0(out$EOcount_value, " (", out$EOcount_factor, ")"), NA)
-          current_EOcount <- out$info_extended$rankInfo$numberEos$numberEosDescEn %>% str_split_1("-") %>% head(2) %>% parse_number()
-          EOcount_checks <- c(new_EOcount >= current_EOcount[1], new_EOcount <= current_EOcount[2])
-          if (sum(EOcount_checks) == 2) out <- paste0("Newly calculated value is within current rank factor value of ", 
-                                                      out$info_extended$rankInfo$numberEos$numberEosDescEn
-          )
-          if (isFALSE(EOcount_checks[1])) out <- paste0("Newly calculated value is lower than current rank factor value of ", 
-                                                        out$info_extended$rankInfo$numberEos$numberEosDescEn
-          )
-          
-          if (isFALSE(EOcount_checks[2])) out <- paste0("Newly calculated value is higher than current rank factor value of ", 
-                                                        out$info_extended$rankInfo$numberEos$numberEosDescEn
-          )
-        } else {
-          out <- NA
-        }
-        out
-      }) %>% unlist(),
-      EOcount_value_trend = purrr::map(batch_run_output$results, function(out){
-        out <- ifelse(!is.na(out$temporal_trends$eo_count_change[2]), out$temporal_trends$eo_count_change[2], NA)
-        paste0(out, "%")
-      }) %>% unlist(),
-      Reviewed = FALSE
-    )
-    
+ 
   })
   
   observeEvent(input$select_button, {
@@ -1974,7 +2028,6 @@ function(input, output, session) {
     # taxon_data$AOO_map <- batch_run_output$results[[batch_taxon_focus$taxon]]$AOO_map
     # taxon_data$EOcount_map <- batch_run_output$results[[batch_taxon_focus$taxon]]$EOcount_map
     # taxon_data$EOcount_value <- batch_run_output$results[[batch_taxon_focus$taxon]]$EOcount_value
-    
     taxon_data$info$scientificName <- batch_taxon_focus$taxon
     selected_taxon$name <- batch_taxon_focus$taxon[1]
     
@@ -1996,7 +2049,7 @@ function(input, output, session) {
       } else {
         batch_rank_factor_file <- NULL
       }
-      batch_out <- purrr::map(1:length(batch_run_output$results), function(i){
+      batch_out_tab1 <- purrr::map(1:length(batch_run_output$results), function(i){
         taxon_data <- batch_run_output$results[[i]]
         out <- matrix(nrow = 1, ncol = 42, data = "") %>%
           as.data.frame()
@@ -2100,7 +2153,62 @@ function(input, output, session) {
     }
       out
     }) %>% bind_rows()
-      write.csv(batch_out, file, row.names = FALSE, na = "")
+      
+      batch_out_tab2 <- purrr::map(1:length(batch_run_output$results), function(i){
+        taxon_data <- batch_run_output$results[[i]]
+        out2_names <- c("GBIF taxonomic concepts with GBIF IDs", "NatureServe synonyms", "NatureServe accepted name", "EGT ID", "ELCODE", "EST ID", "New assessment date",
+                        "Number of observations included", "Data sources included", "Date range of observations included", "Months of observations included", "Locational uncertainty cutoff",
+                        "Nations included", "Subnations included", "Current Range Extent factor value", "Current Range Extent factor letter", "Newly Calculated Range Extent value", "Newly Calculated Range Extent letter",
+                        "Current Area of Occupancy factor value", "Current Area of Occupancy factor letter", "Newly calculated Area of Occupancy grid cell size", "Newly Calculated Area of Occupancy value", 
+                        "Newly Calculated Area of Occupancy letter", "Current Number of Occurrences factor value", "Current Number of Occurrences factor letter", "Newly Calculated Occurrence separation distance", "Newly Calculated Number of Occurrences value", "Newly Calculated Number of Occurrences letter"
+        )
+      
+      out2 <- matrix(nrow = 1, ncol = length(out2_names), data = "") %>%
+        as.data.frame()
+      names(out2) <- out2_names
+      out2[, 1] <- paste0(paste0(taxon_data$synonyms$scientificName, " (GBIF key: ", taxon_data$synonyms$key, ")"), collapse = ", ")
+      out2[, 2] <- paste0(taxon_data$info$synonyms, collapse = ", ")
+      out2[, 3] <- taxon_data$info_extended$scientificName
+      out2[, 4] <- taxon_data$info_extended$elementGlobalId
+      out2[, 5] <- taxon_data$info_extended$elcode
+      out2[, 7] <- Sys.Date()
+      out2[, 8] <- nrow(taxon_data$sf_filtered)
+      out2[, 9] <- taxon_data$filters_selected$sources_filter
+      out2[, 10] <- paste0(taxon_data$filters_selected$date_start, " - ", taxon_data$filters_selected$date_end)
+      out2[, 11] <- paste0(taxon_data$filters_selected$months, collapse = ", ")      
+      out2[, 12] <- taxon_data$filters_selected$uncertainty_filter
+      out2[, 13] <- taxon_data$filters_selected$nations_filter
+      out2[, 14] <- taxon_data$filters_selected$states_filter
+      out2[, 15] <- taxon_data$info_extended$rankInfo$rangeExtent$rangeExtentDescEn
+      current_EOO <- out2[, 15] %>% str_split_1(" square") %>% head(1) %>% str_split_1("-") %>% head(2) %>% parse_number()
+      out2[, 16] <- cut(as.numeric(current_EOO[2]), breaks = c(0, 0.999, 99.999, 249.999, 999.999, 4999.999, 19999.999, 199999.999, 2499999.999, 1000000000), labels = c("Z", LETTERS[1:8]))
+      out2[, 17] <- ifelse(!is.null(taxon_data$EOO_value), taxon_data$EOO_value, "")
+      out2[, 18] <- ifelse(!is.null(taxon_data$EOO_factor), taxon_data$EOO_factor, "")
+      out2[, 19] <- taxon_data$info_extended$rankInfo$areaOfOccupancy$areaOfOccupancyDescEn
+      current_AOO <- out2[, 19] %>% str_split_1(" square") %>% head(1) %>% str_split_1("-") %>% head(2) %>% parse_number()
+      out2[, 20] <- get_aoo_factor(current_AOO[2], grid_cell_size = 1)
+      out2[, 21] <- taxon_data$filters_selected$grid_cell_size
+      out2[, 22] <- ifelse(!is.null(taxon_data$AOO_value), taxon_data$AOO_value, "")
+      out2[, 23] <- ifelse(!is.null(taxon_data$AOO_factor), taxon_data$AOO_factor, "")
+      out2[, 24] <- taxon_data$info_extended$rankInfo$numberEos$numberEosDescEn
+      current_EO_count <- taxon_data$info_extended$rankInfo$numberEos$numberEosDescEn %>% str_split_1("-") %>% head(2) %>% parse_number()
+      out2[, 25] <- cut(as.numeric(current_EO_count[2]), breaks = c(0, 0.999, 5.999, 19.999, 79.999, 299.999, 1000000000), labels = c("Z", LETTERS[1:5]))
+      out2[, 26] <- taxon_data$filters_selected$sep_distance
+      out2[, 27] <- ifelse(!is.null(taxon_data$EOcount_value), taxon_data$EOcount_value, "")
+      out2[, 28] <- ifelse(!is.null(taxon_data$EOcount_factor), taxon_data$EOcount_factor, "") 
+      
+      out2
+      
+    }) %>% bind_rows()
+      
+  writexl::write_xlsx(
+    list(
+      "Rank Calculator" = batch_out_tab1,
+      "Assessment Details" = batch_out_tab2
+    ), 
+    path = file
+  )
+
 })
   
   observeEvent(input$batch_clear, {

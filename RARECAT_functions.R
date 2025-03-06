@@ -12,8 +12,7 @@ get_gbif_data <- function(sp_data,
   
   if (!is.null(nations) | !is.null(subnations)){
   
-    query_poly <- network_polys %>% 
-      dplyr::filter(
+    query_poly <- network_polys %>% dplyr::filter(
         FIPS_CNTRY %in% nations,
         Admin_abbr %in% subnations
         )
@@ -526,6 +525,13 @@ run_rank_assessment <- function(taxon_names,
                                 trends_period2 = c("1985-01-01", "2025-12-31")
 ){
   
+  # Create a Progress object
+  progress <- shiny::Progress$new()
+  # Make sure it closes when we exit this reactive, even if there's an error
+  on.exit(progress$close())
+
+  progress$set(message = "Running Multispecies Assessment", value = 0)
+  
   taxon_data_list <- purrr::map(1:length(taxon_names), function(i){
     list(
       info = data.frame(scientificName = "New taxon"),
@@ -573,9 +579,13 @@ run_rank_assessment <- function(taxon_names,
   }) %>% 
     purrr::set_names(taxon_names)
   
-  for (taxon_name in taxon_names){
+  
+  for (i in 1:length(taxon_names)){
     
-    print(taxon_name)
+    taxon_name <- taxon_names[i]
+    
+    # Increment the progress bar, and update the detail text.
+    progress$inc(0.33/length(taxon_names), detail = paste0("Cross-referencing taxonomy for ", taxon_name))
     
     ns_table_full <- natserv::ns_search_spp(text_adv = list(searchToken = taxon_name, matchAgainst = "allScientificNames", operator="contains"))$results
     gbif_table <- rgbif::name_suggest(q = taxon_name, rank = c("species", "subspecies"), limit = 10)$data
@@ -627,6 +637,9 @@ run_rank_assessment <- function(taxon_names,
   ebird_lgl <- sum(grepl("ebird", sources_filter)) > 0
   inat_lgl <- sum(grepl("inat", sources_filter)) > 0
   
+  # Increment the progress bar, and update the detail text.
+  progress$inc(0.33, detail = paste0("Downloading and processing data..."))
+  
   gbif_occurrences_raw <- get_gbif_data(
     sp_data = purrr::map(taxon_data_list, "synonyms") %>% bind_rows(), 
     gbif = gbif_lgl,
@@ -639,9 +652,14 @@ run_rank_assessment <- function(taxon_names,
   # gbif_occurrences <- gbif_occurrences_raw %>% 
   #   clean_gbif_data(clean = clean_occ, remove_centroids = centroid_filter, minimum_fields = minimum_fields)
   # 
-  taxon_assessment_output <- purrr::map(taxon_names, function(taxon_name){
+  taxon_assessment_output <- purrr::map(1:length(taxon_names), function(i){
 
+    taxon_name <- taxon_names[i]
+    
     taxon_data <- taxon_data_list[[taxon_name]]
+    
+    # Increment the progress bar, and update the detail text.
+    progress$inc(0.33/length(taxon_names), detail = paste0("Calculating factors for ", taxon_name))
     
     taxon_data$gbif_occurrences_raw <- gbif_occurrences_raw %>% 
       dplyr::filter(taxonKey %in% taxon_data$synonyms$key)
@@ -790,6 +808,51 @@ shinyInput <- function(FUN, len, id, ...) {
     inputs[i] <- as.character(FUN(paste0(id, i), ...))
   }
   inputs
+}
+
+# Calculate rarity change
+calculate_rarity_change <- function(taxon_data = taxon_data, 
+                                    period1 = c("1900-01-01", "2025-12-31"),
+                                    period2 = c("1985-01-01", "2025-12-31"),
+                                    period3 = c(NA, NA),
+                                    aoo_grid_cell_size = 2,
+                                    occ_sep_distance = 1000
+                                    ){
+  
+  period_list <- list(period1, period2, period3)
+  
+  # Remove empty periods
+  period_list <- period_list[purrr::map_lgl(period_list, function(x) !identical(x, c(NA, NA)))]
+  
+  number_periods <- length(period_list)
+  
+  dat <- data.frame(period = 1:number_periods, 
+                    rec_count = NA, rec_count_change = NA,
+                    eoo = NA, eoo_change = NA,
+                    aoo = NA, aoo_change = NA,
+                    eo_count = NA, eo_count_change = NA
+  )
+  
+  for (period in 1:length(period_list)){
+    
+    period_dat <- taxon_data$sf_filtered %>% 
+      dplyr::filter(year >= substr(period_list[[period]][1], 1, 4) & year < substr(period_list[[period]][2], 1, 4))
+    
+    if (nrow(period_dat) > 0){
+      dat$rec_count[period] <- nrow(period_dat)
+      dat$rec_count_change[period] <- ifelse(period > 1, round(((dat$rec_count[period]-dat$rec_count[period-1])/dat$rec_count[period-1])*100, 1), 0)
+      dat$eoo[period] <- (period_dat %>% calculate_eoo(shifted = taxon_data$shifted))$EOO
+      dat$eoo_change[period] <- ifelse(period > 1, round(((dat$eoo[period]-dat$eoo[period-1])/dat$eoo[period-1])*100, 1), 0)
+      dat$aoo[period] <- (aoo2(period_dat, as.numeric(aoo_grid_cell_size)*1000))/4
+      dat$aoo_change[period] <- ifelse(period > 1, round(((dat$aoo[period]-dat$aoo[period-1])/dat$aoo[period-1])*100, 1), 0)
+      dat$eo_count[period] <- (calculate_number_occurrences(period_dat, separation_distance = occ_sep_distance %>% as.numeric(), added_distance = 0))$eo_count
+      dat$eo_count_change[period] <- ifelse(period > 1, round(((dat$eo_count[period]-dat$eo_count[period-1])/dat$eo_count[period-1])*100, 1), 0)
+    }
+
+  }
+  
+  return(dat)
+
 }
 
 # Get temporal trends
@@ -984,7 +1047,7 @@ get_temporal_trends <- function(taxon_data = taxon_data, referenceTaxon = "kingd
           axis.text = element_text(size = 8)
     )
   
-  p <- subplot(p1, p2, p3, p5, p6, nrows = 5, shareX = TRUE, titleX = TRUE, margin = 0.005, which_layout = 1)
+  p <- subplot(p1, p2, p3, p6, nrows = 5, shareX = TRUE, titleX = TRUE, margin = 0.005, which_layout = 1)
   
   gg <- plotly_build(p) %>%
     config(displayModeBar = FALSE) %>%
