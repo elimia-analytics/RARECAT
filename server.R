@@ -892,8 +892,6 @@ function(input, output, session) {
                                    ) %>% 
       dplyr::filter(complete.cases(.))
     
-    print(dat)
-    
     p <- ggplot(data = dat) + 
       geom_bar(mapping = aes(x = .data[["period"]], y = .data[[input$barchart_metric]]), stat = "identity", fill = "#B2BBCB") +
       theme_bw() +
@@ -1401,28 +1399,30 @@ function(input, output, session) {
       out2[, 7] <- Sys.Date()
       out2[, 8] <- nrow(taxon_data$sf_filtered)
       out2[, 9] <- input$sources_filter
-      out2[, 10] <- paste0(input$year_filter, collapse = "-")
-      out2[, 11] <- paste0(input$seasonality, collapse = "-")      
+      out2[, 10] <- paste0(input$year_filter, collapse = " - ")
+      out2[, 11] <- paste0(input$seasonality, collapse = ", ")      
       out2[, 12] <- input$uncertainty_filter
-      out2[, 13] <- input$nation_filter
-      out2[, 14] <- input$states_filter
-      out2[, 15] <- taxon_data$info_extended$rankInfo$rangeExtent$rangeExtentDescEn
-      current_EOO <- out2[, 15] %>% str_split_1(" square") %>% head(1) %>% str_split_1("-") %>% head(2) %>% parse_number()
-      out2[, 16] <- cut(as.numeric(current_EOO[2]), breaks = c(0, 0.999, 99.999, 249.999, 999.999, 4999.999, 19999.999, 199999.999, 2499999.999, 1000000000), labels = c("Z", LETTERS[1:8]))
+      out2[, 13] <- ifelse(!is.null(input$nation_filter), paste0(input$nation_filter, collapse = ", "), "")
+      out2[, 14] <- ifelse(!is.null(input$states_filter), paste0(input$states_filter, collapse = ", "), "")
+      out2[, 15] <- ifelse(!is.null(taxon_data$info_extended$rankInfo$rangeExtent$rangeExtentDescEn), taxon_data$info_extended$rankInfo$rangeExtent$rangeExtentDescEn, "")
+      current_EOO <- ifelse(!is.null(taxon_data$info_extended$rankInfo$rangeExtent$rangeExtentDescEn), taxon_data$info_extended$rankInfo$rangeExtent$rangeExtentDescEn %>% str_split_1(" square") %>% head(1) %>% str_split_1("-") %>% head(2) %>% parse_number(), NA)
+      out2[, 16] <- ifelse(!is.na(current_EOO), cut(as.numeric(current_EOO[2]), breaks = c(0, 0.999, 99.999, 249.999, 999.999, 4999.999, 19999.999, 199999.999, 2499999.999, 1000000000), labels = c("Z", LETTERS[1:8])), "")
       out2[, 17] <- ifelse(!is.null(taxon_data$EOO_value), taxon_data$EOO_value, "")
       out2[, 18] <- ifelse(!is.null(taxon_data$EOO_factor), taxon_data$EOO_factor, "")
-      out2[, 19] <- taxon_data$info_extended$rankInfo$areaOfOccupancy$areaOfOccupancyDescEn
-      current_AOO <- out2[, 19] %>% str_split_1(" square") %>% head(1) %>% str_split_1("-") %>% head(2) %>% parse_number()
-      out2[, 20] <- get_aoo_factor(current_AOO[2], grid_cell_size = 1)
+      out2[, 19] <- ifelse(!is.null(taxon_data$info_extended$rankInfo$areaOfOccupancy$areaOfOccupancyDescEn), taxon_data$info_extended$rankInfo$areaOfOccupancy$areaOfOccupancyDescEn, "")
+      current_AOO <- ifelse(!is.null(taxon_data$info_extended$rankInfo$areaOfOccupancy$areaOfOccupancyDescEn), taxon_data$info_extended$rankInfo$areaOfOccupancy$areaOfOccupancyDescEn %>% str_split_1(" square") %>% head(1) %>% str_split_1("-") %>% head(2) %>% parse_number(), NA)
+      out2[, 20] <- ifelse(!is.na(current_AOO), get_aoo_factor(current_AOO[2], grid_cell_size = input$grid_cell_size), "")
       out2[, 21] <- input$grid_cell_size
       out2[, 22] <- ifelse(!is.null(taxon_data$AOO_value), taxon_data$AOO_value, "")
       out2[, 23] <- ifelse(!is.null(taxon_data$AOO_factor), taxon_data$AOO_factor, "")
-      out2[, 24] <- taxon_data$info_extended$rankInfo$numberEos$numberEosDescEn
-      current_EO_count <- taxon_data$info_extended$rankInfo$numberEos$numberEosDescEn %>% str_split_1("-") %>% head(2) %>% parse_number()
-      out2[, 25] <- cut(as.numeric(current_EO_count[2]), breaks = c(0, 0.999, 5.999, 19.999, 79.999, 299.999, 1000000000), labels = c("Z", LETTERS[1:5]))
+      out2[, 24] <- ifelse(!is.null(taxon_data$info_extended$rankInfo$numberEos$numberEosDescEn), taxon_data$info_extended$rankInfo$numberEos$numberEosDescEn, "")
+      current_EO_count <- ifelse(!is.null(taxon_data$info_extended$rankInfo$numberEos$numberEosDescEn), taxon_data$info_extended$rankInfo$numberEos$numberEosDescEn %>% str_split_1("-") %>% head(2) %>% parse_number(), NA)
+      out2[, 25] <- ifelse(!is.na(current_EO_count), cut(as.numeric(current_EO_count[2]), breaks = c(0, 0.999, 5.999, 19.999, 79.999, 299.999, 1000000000), labels = c("Z", LETTERS[1:5])), "")
       out2[, 26] <- input$separation_distance
       out2[, 27] <- ifelse(!is.null(taxon_data$EOcount_value), taxon_data$EOcount_value, "")
-      out2[, 28] <- ifelse(!is.null(taxon_data$EOcount_factor), taxon_data$EOcount_factor, "") 
+      out2[, 28] <- ifelse(!is.null(taxon_data$EOcount_factor), taxon_data$EOcount_factor, "")
+
+      print(out2 %>% as.data.frame())
       
       writexl::write_xlsx(
         list(
@@ -2154,7 +2154,7 @@ function(input, output, session) {
       out
     }) %>% bind_rows()
       
-      batch_out_tab2 <- purrr::map(1:length(batch_run_output$results), function(i){
+    batch_out_tab2 <- purrr::map(1:length(batch_run_output$results), function(i){
         taxon_data <- batch_run_output$results[[i]]
         out2_names <- c("GBIF taxonomic concepts with GBIF IDs", "NatureServe synonyms", "NatureServe accepted name", "EGT ID", "ELCODE", "EST ID", "New assessment date",
                         "Number of observations included", "Data sources included", "Date range of observations included", "Months of observations included", "Locational uncertainty cutoff",
