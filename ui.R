@@ -67,17 +67,63 @@ navbarPage(title = HTML("<span style='float: left; display: inline-block; paddin
                         
                         absolutePanel(id = "cond_inputs_panel",
                                       class = "panel panel-default",
-                                      top = 57, left = 50, right = "auto", bottom = "auto",
-                                      width = "25em",
-                                      height = "3em",
-                                      style = "margin-top: 0; padding: 0em 1.8em 1em 3em; border: none; border-bottom: none; border-color: transparent; background-color: rgba(169, 169, 169, 0); z-index: 1 !important; overflow-y: hidden !important; overflow-x: hidden; box-shadow: none !important;",
-                                      textInput(inputId = "search_taxon", label = "", placeholder = "Select target taxon", width = "100%")
+                                      top = 57, left = 30, right = "auto", bottom = "auto",
+                                      width = "75vw",
+                                      height = "20em",
+                                      style = "margin-top: 0; padding: 0em 1.8em 1em 3em; border: none; border-bottom: none; border-color: transparent; background-color: rgba(169, 169, 169, 0); z-index: 1 !important; overflow: visible; overflow-y: hidden !important; overflow-x: hidden; box-shadow: none !important;",
+                                      
+                                      fluidRow(style = "padding: 0 0 10px 20px;",
+                                               column(width = 2, style = "width: 25%; padding-left: 0; margin-left: 0;",
+                                                      textInput(inputId = "search_taxon", label = "", placeholder = "Select assessment taxon", width = "100%")
+                                               ),
+                                               column(width = 2, style = "width: 20%;",
+                                                      selectizeInput(inputId = "single_assessment_type",
+                                                                     label = "",
+                                                                     choices = c(list("Global Assessment (G)" = "global", "National Assessment (N)" = "national", "Subnational Assessment (S)" = "subnational")),
+                                                                     multiple = FALSE, 
+                                                                     width = "100%",
+                                                                     options = list(placeholder = "Select assessment geography")
+                                                      )
+                                               ),
+                                               # hidden(
+                                               column(id = "single_nation", width = 2, style = "width: 20%; padding-left: 0;",  
+                                                      selectizeInput(inputId = "single_assessment_nation",
+                                                                     label = "",
+                                                                     choices = c(list("Canada" = "CA", "United States" = "US")),
+                                                                     multiple = FALSE,
+                                                                     width = "100%",
+                                                                     options = list(placeholder = "Select assessment nation")
+                                                      )
+                                                      # )
+                                               ),
+                                               # hidden(
+                                               column(id = "single_subnation", width = 2, style = "width: 20%; padding-left: 0;", 
+                                                      selectizeInput(inputId = "single_assessment_subnation",
+                                                                     label = "",
+                                                                     choices = (network_polys$Admin_abbr %>% na.omit() %>% as.character()) %>% set_names(network_polys$ADMIN_NAME%>% na.omit() %>% as.character()) %>% sort(),
+                                                                     multiple = TRUE, 
+                                                                     width = "100%",
+                                                                     options = list(placeholder = "Select assessment subnation(s)")
+                                                      )
+                                                      # )
+                                               )
+                                      )
                         ),
+                        
+                        
+                        # absolutePanel(id = "cond_inputs_panel",
+                        #               class = "panel panel-default",
+                        #               top = 57, left = 50, right = "auto", bottom = "auto",
+                        #               width = "25em",
+                        #               height = "3em",
+                        #               style = "margin-top: 0; padding: 0em 1.8em 1em 3em; border: none; border-bottom: none; border-color: transparent; background-color: rgba(169, 169, 169, 0); z-index: 1 !important; overflow-y: hidden !important; overflow-x: hidden; box-shadow: none !important;",
+                        #               textInput(inputId = "search_taxon", label = "", placeholder = "Select target taxon", width = "100%")
+                        # ),
                         
                         hidden(
                           absolutePanel(id = "taxon_search_panel", 
                                         class = "panel panel-default",
-                                        top = 100, left = 90, right = "auto", bottom = "auto",
+                                        top = 100, left = 92, right = "auto", bottom = "auto",
                                         width = "33vw",
                                         height = "25vh",
                                         style = "padding: 0.5em; border-bottom: none; border-color: transparent; background-color: rgba(255, 255, 255, 0.8); z-index: 1 !important; overflow-y: scroll; overflow-x: hidden; scrollbar-color: #fff !important;",
@@ -88,7 +134,7 @@ navbarPage(title = HTML("<span style='float: left; display: inline-block; paddin
                         hidden(
                           absolutePanel(id = "taxon_options_panel", 
                                         class = "panel panel-default",
-                                        top = 100, left = 90, right = "auto", bottom = "auto",
+                                        top = 100, left = 92, right = "auto", bottom = "auto",
                                         width = "33vw",
                                         height = "25vh",
                                         style = "padding: 0.5em; border-bottom: none; border-color: transparent; background-color: rgba(255, 255, 255, 0.8); z-index: 1 !important; overflow-y: scroll; overflow-x: hidden; scrollbar-color:  rgba(255, 255, 255, 0.8) !important;",
@@ -102,7 +148,7 @@ navbarPage(title = HTML("<span style='float: left; display: inline-block; paddin
                           div(id = "analysis_panel",
                               absolutePanel(id = "cond_inputs_panel2", 
                                             class = "panel panel-default", 
-                                            top = 58, left = "auto", right = 14, bottom = "auto",
+                                            top = 60, left = "auto", right = 14, bottom = "auto",
                                             width = "33vw",
                                             height = "58vh",
                                             style = "margin: 0; padding: 0.3em 0.2em 0.3em 0.3em; background-color: white; box-shadow: -5px 5px 5px rgba(169, 169, 169, .8); z-index: 1000 !important; overflow-y: scroll; scrollbar-color: #fff !important;", 
@@ -119,7 +165,7 @@ navbarPage(title = HTML("<span style='float: left; display: inline-block; paddin
                                             fluidRow(style = "padding-top: 10px;",
                                               column(width = 6, style = "margin-bottom: -15px; padding-bottom: 0px;",
                                                      fluidRow(
-                                                       column(width = 4, style = "width: 21%; padding: 10px 10px 10px 20px; margin-right: 0;",
+                                                       column(width = 4, style = "width: 23%; padding: 10px 10px 10px 20px; margin-right: 0;",
                                                               materialSwitch(inputId = "map_uploads", 
                                                                              label = "", 
                                                                              value = FALSE, 
@@ -142,7 +188,7 @@ navbarPage(title = HTML("<span style='float: left; display: inline-block; paddin
                                                 div(id = "load_data_panel",
                                                     column(width = 6, style = "padding-left: 10px;",
                                                            fluidRow(
-                                                             column(width = 4, style = "width: 21%; padding: 10px 10px 10px 20px; margin-right: 0;",
+                                                             column(width = 4, style = "width: 23%; padding: 10px 10px 10px 20px; margin-right: 0;",
                                                                     materialSwitch(inputId = "load_gbif_data", 
                                                                                    label = "", 
                                                                                    value = FALSE

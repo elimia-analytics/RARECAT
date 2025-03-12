@@ -131,8 +131,6 @@ table.dataTable {
   z-index: 1000 !important;
 }
 
-}
-
 .shiny-notification {
               height: 100px;
               width: 800px;
@@ -194,6 +192,12 @@ table.dataTable {
 
 .nav-tabs>li>a:hover {
     border-bottom: 1px solid #347AB7;
+}
+
+.selectize-control { 
+  z-index: 1200 !important; 
+}
+
 }
 /*********************************************************************
                             Small screens, phones
@@ -421,5 +425,9 @@ table.dataTable {
 .nav-tabs>li>a:hover {
     border-bottom: 1px solid #347AB7;
 }
-    
+
+.selectize-control { 
+  z-index: 1200 !important; 
+}
+
 }

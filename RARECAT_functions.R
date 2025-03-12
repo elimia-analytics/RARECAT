@@ -4,6 +4,7 @@ get_gbif_data <- function(sp_data,
                           gbif = TRUE, 
                           inat = TRUE, 
                           ebird = TRUE,
+                          network_polys = network_polys,
                           nations = NULL,
                           subnations = NULL
                           ){

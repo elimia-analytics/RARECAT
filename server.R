@@ -153,10 +153,12 @@ function(input, output, session) {
       
       gbif_download <- get_gbif_data(
         sp_data = taxon_data$synonyms_selected, 
-        number_observations = input$number_gbif_occurrences,
         gbif = gbif_lgl, # "gbif" %in% input$input_sources,
         inat = inat_lgl, # "inat" %in% input$input_sources,
-        ebird = ebird_lgl # %in% input$input_sources
+        ebird = ebird_lgl, # %in% input$input_sources
+        nations = input$single_assessment_nation,
+        subnations = input$single_assessment_subnation,
+        network_polys = network_polys
         )
       
       if (nrow(gbif_download$sp_occurrences) > 0){
@@ -260,20 +262,20 @@ function(input, output, session) {
     
     taxon_data$synonyms <- taxon_data$synonyms %>% 
       dplyr::distinct(., .keep_all = TRUE) 
-    
-    gbif_counts <- purrr::map_dbl(taxon_data$synonyms$key, function(x) rgbif::occ_count(taxonKey = x, hasCoordinate = TRUE, basisOfRecord = c("OCCURRENCE;PRESERVED_SPECIMEN;OBSERVATION;MACHINE_OBSERVATION")))
-    inat_counts <- purrr::map_dbl(taxon_data$synonyms$key, function(x) rgbif::occ_count(taxonKey = x, hasCoordinate = TRUE, institutionCode = "iNaturalist"))
-    ebird_counts <- purrr::map_dbl(taxon_data$synonyms$key, function(x) rgbif::occ_count(taxonKey = x, hasCoordinate = TRUE, datasetKey = "4fa7b334-ce0d-4e88-aaae-2e0c138d049e"))
-    full_counts <- purrr::map_dbl(1:length(gbif_counts), function(x) sum(gbif_counts[x], inat_counts[x], ebird_counts[x]))
-    
+
+      gbif_counts <- purrr::map_dbl(taxon_data$synonyms$key, function(x) rgbif::occ_count(taxonKey = x, hasCoordinate = TRUE, basisOfRecord = c("OCCURRENCE;PRESERVED_SPECIMEN;OBSERVATION;MACHINE_OBSERVATION")))
+      inat_counts <- purrr::map_dbl(taxon_data$synonyms$key, function(x) rgbif::occ_count(taxonKey = x, hasCoordinate = TRUE, institutionCode = "iNaturalist"))
+      ebird_counts <- purrr::map_dbl(taxon_data$synonyms$key, function(x) rgbif::occ_count(taxonKey = x, hasCoordinate = TRUE, datasetKey = "4fa7b334-ce0d-4e88-aaae-2e0c138d049e"))
+      full_counts <- purrr::map_dbl(1:length(gbif_counts), function(x) sum(gbif_counts[x], inat_counts[x], ebird_counts[x]))
+
     taxon_data$synonyms <- taxon_data$synonyms %>% 
       dplyr::mutate(occurrence_count = full_counts,
                     gbif_count = gbif_counts,
                     inat_count = inat_counts,
                     ebird_count = ebird_counts
-                    ) %>% 
+      ) %>% 
       dplyr::filter(occurrence_count > 0)
-    
+
     shinyInput <- function(FUN, len, id, ...) {
       inputs <- character(len)
       for (i in seq_len(len)) {
@@ -353,6 +355,110 @@ function(input, output, session) {
     
   })
   
+  observeEvent(input$single_assessment_type, {
+    
+    if (input$single_assessment_type == "global"){
+      updateSelectizeInput(session = session,
+                           inputId = "single_assessment_nation",
+                           choices = "",
+                           selected = ""
+      )
+      
+      updateSelectizeInput(session = session,
+                           inputId = "single_assessment_subnation",
+                           choices = "",
+                           selected = ""
+      )
+    }
+    
+    if (input$single_assessment_type == "national"){
+      updateSelectizeInput(session = session,
+                           inputId = "single_assessment_nation",
+                           choices = c(list("Canada" = "CA", "United States" = "US"))
+      )
+      
+      updateSelectizeInput(session = session,
+                           inputId = "single_assessment_subnation",
+                           choices = "",
+                           selected = ""
+      )
+    }
+    
+    if (input$single_assessment_type == "subnational"){
+      updateSelectizeInput(session = session,
+                           inputId = "single_assessment_nation",
+                           choices = c(list("Canada" = "CA", "United States" = "US"))
+      )
+    }
+    
+  })
+  
+  observeEvent(input$single_assessment_nation, {
+    
+    if (input$single_assessment_type == "subnational"){
+      
+    nation_subset <- network_polys %>% dplyr::filter(FIPS_CNTRY %in% input$single_assessment_nation)
+    
+    subnations_already_selected <- input$single_assessment_subnation
+    
+    updateSelectizeInput(session = session,
+                         inputId = "single_assessment_subnation",
+                         choices = (nation_subset$Admin_abbr %>% na.omit() %>% as.character()) %>% set_names(nation_subset$ADMIN_NAME%>% na.omit() %>% as.character()) %>% sort(),
+                         selected = subnations_already_selected
+    )
+    }
+    
+  })
+  
+  observeEvent(input$single_assessment_subnation, {
+    
+    relevant_nation <- network_polys %>% dplyr::filter(Admin_abbr %in% input$single_assessment_subnation) %>% dplyr::pull(FIPS_CNTRY)
+    
+    updateSelectizeInput(session = session,
+                         inputId = "single_assessment_nation", 
+                         selected = relevant_nation %>% set_names(relevant_nation)
+    )
+    
+  })
+  
+  observe({
+        
+    print(input$single_assessment_nation)
+    print(input$single_assessment_subnation)
+    
+    if (input$single_assessment_type != "global" & input$single_assessment_nation != "" & !is.null(input$single_assessment_subnation)){
+      
+        query_poly <- network_polys %>% dplyr::filter(
+          FIPS_CNTRY %in% input$single_assessment_nation,
+          Admin_abbr %in% input$single_assessment_subnation
+        )
+        print(query_poly)
+        query_poly_bbox <- sf::st_bbox(query_poly) %>% sf::st_as_sfc()
+        p <- terra::vect(query_poly_bbox)
+        pcc <- terra::forceCCW(p)
+        query_poly_bbox_wkt <- query_poly_bbox %>%
+          terra::vect() %>% 
+          terra::forceCCW() %>%
+          geom(wkt = TRUE)
+        
+        gbif_counts <- purrr::map_dbl(taxon_data$synonyms_selected$key, function(x) rgbif::occ_count(taxonKey = x, hasCoordinate = TRUE, geometry = query_poly_bbox_wkt, basisOfRecord = c("OCCURRENCE;PRESERVED_SPECIMEN;OBSERVATION;MACHINE_OBSERVATION")))
+        inat_counts <- purrr::map_dbl(taxon_data$synonyms_selected$key, function(x) rgbif::occ_count(taxonKey = x, hasCoordinate = TRUE, geometry = query_poly_bbox_wkt, institutionCode = "iNaturalist"))
+        ebird_counts <- purrr::map_dbl(taxon_data$synonyms_selected$key, function(x) rgbif::occ_count(taxonKey = x, hasCoordinate = TRUE, geometry = query_poly_bbox_wkt, datasetKey = "4fa7b334-ce0d-4e88-aaae-2e0c138d049e"))
+        full_counts <- purrr::map_dbl(1:length(gbif_counts), function(x) sum(gbif_counts[x], inat_counts[x], ebird_counts[x]))
+      
+  # updateTextInput(session = session, inputId = "number_gbif_occurrences", label = "", value = sum(taxon_data$synonyms_selected$occurrence_count))
+  checkbox_choices <- c(paste0("gbif (", sum(gbif_counts), ")"), paste0("inat (", sum(inat_counts), ")"), paste0("ebird (", sum(ebird_counts), ")"))
+  checkbox_choices <- checkbox_choices[-grep("\\(0)$", checkbox_choices)]
+  
+  updateSelectizeInput(session = session,
+                       "input_sources", 
+                       choices = checkbox_choices, 
+                       selected = checkbox_choices
+  )
+    }
+
+  })
+  
   observeEvent({
     input$begin_assessment
     input$taxon_options_table_rows_selected
@@ -363,17 +469,16 @@ function(input, output, session) {
     if (assessment_start_button_presses$values[length(assessment_start_button_presses$values)] != assessment_start_button_presses$values[length(assessment_start_button_presses$values)-1]){
       taxon_data$synonyms_selected <- taxon_data$synonyms[input$taxon_options_table_rows_selected, ]
       shinyjs::hide(id = "taxon_options_panel")
-      
-      # updateTextInput(session = session, inputId = "number_gbif_occurrences", label = "", value = sum(taxon_data$synonyms_selected$occurrence_count))
-      checkbox_choices <- c(paste0("gbif (", sum(sum(taxon_data$synonyms_selected$gbif_count)), ")"), paste0("inat (", sum(sum(taxon_data$synonyms_selected$inat_count)), ")"), paste0("ebird (", sum(sum(taxon_data$synonyms_selected$ebird_count)), ")"))
-      checkbox_choices <- checkbox_choices[-grep("\\(0)$", checkbox_choices)]
-      updateSelectizeInput(session = session,
-                               "input_sources", 
-                               choices = checkbox_choices, 
-                               selected = checkbox_choices
-                           )
       shinyjs::show(id = "load_data_panel")
       
+      checkbox_choices <- c(paste0("gbif (", sum(sum(taxon_data$synonyms_selected$gbif_count)), ")"), paste0("inat (", sum(sum(taxon_data$synonyms_selected$inat_count)), ")"), paste0("ebird (", sum(sum(taxon_data$synonyms_selected$ebird_count)), ")"))
+      checkbox_choices <- checkbox_choices[-grep("\\(0)$", checkbox_choices)]
+      
+      updateSelectizeInput(session = session,
+                           "input_sources", 
+                           choices = checkbox_choices, 
+                           selected = checkbox_choices
+      )
     }
     
   })
