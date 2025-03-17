@@ -5,6 +5,10 @@
 
 @media (min-width: 1600px) { 
  
+ html {
+  zoom: 95%;
+}
+
 .container-fluid {
 padding-left: 0;
 padding-right: 0;
@@ -147,7 +151,7 @@ table.dataTable {
 }
 
 .nav-tabs>li.active>a, .nav-tabs>li.active>a:focus, .nav-tabs>li.active>a:hover {
-  background-color: rgba(249, 249, 249, 1) !important;
+  background-color: rgba(230, 239, 240, 0.5) !important;
 }
 
 .panel-group {
@@ -174,28 +178,44 @@ table.dataTable {
     
     #outputs_single.panel-group {
       padding: 0 !important;
+      margin-bottom: 8px;
     }
     
     table.dataTable th.dt-right, table.dataTable td.dt-right {
       text-align: left;
     }
     
+.btn-default {
+  font-size: 12px;
+}
+
+.btn-primary {
+  font-size: 12px;
+}
+
+.btn-lg {
+  font-size: 16px !important;  
+  padding: 6px 10px 6px 10px !important;
+}
+
 .nav-tabs {
-  border-bottom: 1px solid #347AB7;
+  border-bottom: transparent;
 }
 
 .nav-tabs>li.active>a, .nav-tabs>li.active>a:focus, .nav-tabs>li.active>a:hover {
-        background-color: white !important;
-        border-color: #347AB7;
+        background-color: rgba(230, 239, 240, 0.5) !important;
+        border-color: transparent;
         border-bottom-color: transparent;
     }
 
 .nav-tabs>li>a:hover {
-    border-bottom: 1px solid #347AB7;
+    border-bottom: transparent;
 }
 
-.selectize-control { 
-  z-index: 1200 !important; 
+.selectize-input {
+  max-height: 10vh;
+  overflow-y: scroll;
+  scrollbar-color: transparent transparent !important;
 }
 
 }
@@ -212,7 +232,7 @@ padding-right: 0;
 } 
 
 html {
-  zoom: 95%;
+  zoom: 80%;
 }
 
 
@@ -328,6 +348,11 @@ table.dataTable {
   font-size: 11px;
 }
 
+.btn-lg {
+  font-size: 16px !important;
+  padding: 6px 10px 6px 10px !important;
+}
+
 .input-group-sm>.form-control, .input-group-sm>.input-group-addon, .input-group-sm>.input-group-btn>.btn {
   font-size: 13px;
 }
@@ -379,7 +404,7 @@ table.dataTable {
 }
 
 .nav-tabs>li.active>a, .nav-tabs>li.active>a:focus, .nav-tabs>li.active>a:hover {
-  background-color: white !important;
+  background-color: rgba(230, 239, 240, 0.5) !important;
 }
 
 .panel-group {
@@ -406,6 +431,7 @@ table.dataTable {
     
     #outputs_single.panel-group {
       padding: 0 !important;
+      margin-bottom: 8px;
     }
     
     table.dataTable th.dt-right, table.dataTable td.dt-right {
@@ -413,21 +439,22 @@ table.dataTable {
     }
 
 .nav-tabs {
-  border-bottom: 1px solid #347AB7;
+  border-bottom: transparent;
 }
 
 .nav-tabs>li.active>a, .nav-tabs>li.active>a:focus, .nav-tabs>li.active>a:hover {
-        background-color: white !important;
-        border-color: #347AB7;
+        background-color: rgba(230, 239, 240, 0.5) !important;
+        border-color: transparent;
         border-bottom-color: transparent;
     }
 
 .nav-tabs>li>a:hover {
-    border-bottom: 1px solid #347AB7;
+    border-bottom: transparent;
 }
 
-.selectize-control { 
-  z-index: 1200 !important; 
+.selectize-input {
+  max-height: 10vh;
+  overflow-y: scroll;
 }
 
 }
