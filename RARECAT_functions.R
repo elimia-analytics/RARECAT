@@ -10,21 +10,42 @@ get_gbif_data <- function(taxa_metadata,
 
   if ("gbif" %in% datasets_metadata$datasetKey){
     
+    if (datasets_metadata$count < 5000){
     gbif_occurrences <- spocc::occ(from = "gbif",
                                    gbifopts = list(
                                      taxonKey = taxa_metadata$key,
                                      geometry = query_polygon
                                    ),
-                                   limit = 5000, 
+                                   limit = as.numeric(datasets_metadata$count), 
                                    has_coords = TRUE
     )
-    
     gbif_occurrences <- gbif_occurrences$gbif$data$custom_query
+    } else {
+      gbif_occurrences <- purrr::map2(
+        list(
+          c(paste0((substr(Sys.Date(), 1, 4) %>% as.numeric()) - 10, "-01-01"), Sys.Date() %>% as.character()),
+          c(paste0((substr(Sys.Date(), 1, 4) %>% as.numeric()) - 20, "-01-01"), paste0((substr(Sys.Date(), 1, 4) %>% as.numeric()) - 11, "-12-31")),
+          c(paste0((substr(Sys.Date(), 1, 4) %>% as.numeric()) - 30, "-01-01"), paste0((substr(Sys.Date(), 1, 4) %>% as.numeric()) - 21, "-12-31")),
+          c(paste0((substr(Sys.Date(), 1, 4) %>% as.numeric()) - 40, "-01-01"), paste0((substr(Sys.Date(), 1, 4) %>% as.numeric()) - 31, "-12-31")),
+          c(paste0((substr(Sys.Date(), 1, 4) %>% as.numeric()) - 50, "-01-01"), paste0((substr(Sys.Date(), 1, 4) %>% as.numeric()) - 41, "-12-31"))
+        ),
+        c(2000, 1000, 500, 500, 1000),
+        function(x, y){
+        out <- spocc::occ(from = "gbif",
+                                     gbifopts = list(
+                                       taxonKey = taxa_metadata$key,
+                                       geometry = query_polygon
+                                     ),
+                                     limit = y, date = x,
+                                     has_coords = TRUE
+      )
+        out$gbif$data$custom_query
+        }
+      ) %>% bind_rows()
+    }
     
     dataset_keys <- gbif_occurrences$datasetKey %>% table() %>% sort() %>% head(20) %>% names() %>% unique()
 
-    print(dataset_keys)
-    
     datasets_details <- data.frame(
       datasetKey = dataset_keys,
       datasetName = purrr::map_chr(dataset_keys, function(k) rgbif::dataset_get(k)$title)
@@ -45,7 +66,7 @@ get_gbif_data <- function(taxa_metadata,
                             basisOfRecord = c("OCCURRENCE", "PRESERVED_SPECIMEN", "OBSERVATION", "MACHINE_OBSERVATION"),
                             geometry = query_polygon
                           ),
-                          limit = ifelse(all_occ_data, 2500, 5000),
+                          limit = ifelse(all_humobs_data, 2500, 5000),
                           has_coords = TRUE
         )
         out$gbif$data$custom_query
@@ -104,7 +125,7 @@ get_gbif_data <- function(taxa_metadata,
                                               taxonKey = taxa_metadata$key,
                                               basisOfRecord = "HUMAN_OBSERVATION"
                                             ),
-                                            limit = ifelse(all_humobs_data, 2500, 5000),
+                                            limit = ifelse(all_occ_data, 2500, 5000),
                                             has_coords = TRUE
       )
       
@@ -245,10 +266,9 @@ process_user_data <- function(user_file, minimum_fields){
   latitude_names <- c("latitude", "LATITUDE", "decimalLatitude", "private_latitude", "Decimal Latitude", "Latitude", "lat", "Lat", "Y", "y")
   latitude_names <- latitude_names %>% set_names(rep("latitude", length(latitude_names)))
   
-  
   if (sum(grepl(paste0(longitude_names, collapse = "|"), names(user_data))) > 0 & sum(grepl(paste0(latitude_names, collapse = "|"), names(user_data))) > 0){
     
-    scientificName_names <- c("scientificName", "Scientific name", "GNAME", "scientific_name", "SciName", "scientific name", "Scientific Name")
+    scientificName_names <- c("scientificName_Assessment", "scientificName", "Scientific name", "GNAME", "scientific_name", "SciName", "scientific name", "Scientific Name")
     scientificName_names <- scientificName_names %>% set_names(rep("scientificName", length(scientificName_names)))
     stateProvince_names <- c("stateProvince", "STATE", "GNAME", "place_state_name", "State", "State or Province", "state", "Province", "province", "PROVINCE", "place_guess")
     stateProvince_names <- stateProvince_names %>% set_names(rep("stateProvince", length(stateProvince_names)))
@@ -493,6 +513,86 @@ calculate_number_occurrences <- function(occ, separation_distance = 1000, added_
   return(out)
 }
 
+compare_rank_factors <- function(taxon_data){
+  
+  out <- data.frame(
+    previous_species_range_letter = NA,
+    new_previous_species_range_comparison = NA,
+    previous_aoo_letter = NA,
+    new_previous_aoo_comparison = NA,
+    previous_eocount_letter = NA,
+    new_previous_eocount_comparison = NA
+  )
+  
+  if (!is.null(taxon_data$info_extended$rankInfo$rangeExtent$rangeExtentDescEn)){
+    previous_species_range_value <- taxon_data$info_extended$rankInfo$rangeExtent$rangeExtentDescEn %>% str_split_1(" square") %>% head(1) %>% str_split_1("-") %>% head(2) %>% parse_number()      
+    out$previous_species_range_letter <- cut(previous_species_range_value, breaks = c(0, 0.999, 99.999, 249.999, 999.999, 4999.999, 19999.999, 199999.999, 2499999.999, 1000000000), labels = c("Z", LETTERS[1:8])) %>% as.character() %>% unique() %>% paste0(collapse = "")
+    previous_letters <- strsplit(out$previous_species_range_letter, "")[[1]]
+    if (length(previous_letters) == 1){
+    out$new_previous_species_range_comparison <- ifelse(identical(taxon_data$species_range_factor, previous_letters), "equal", 
+                           ifelse(
+                             which(LETTERS %in% taxon_data$species_range_factor) < which(LETTERS %in% previous_letters),
+                             "lower", "higher"
+                           ))
+    } else {
+      out$new_previous_species_range_comparison <- 
+        ifelse(taxon_data$species_range_factor %in% previous_letters, "equal",
+               ifelse(
+                 (which(LETTERS %in% taxon_data$species_range_factor) < which(LETTERS %in% previous_letters[1])),
+                 "lower",
+                 "higher"
+               )
+        )
+    }
+  }
+    
+    if (!is.null(taxon_data$info_extended$rankInfo$areaOfOccupancy$areaOfOccupancyDescEn)){
+      previous_aoo_value <- taxon_data$info_extended$rankInfo$areaOfOccupancy$areaOfOccupancyDescEn %>% str_split_1("-") %>% head(2) %>% parse_number()
+      out$previous_aoo_letter <- purrr::map(previous_aoo_value, get_aoo_factor) %>% unlist() %>% as.character() %>% unique() %>% paste0(collapse = "")
+      previous_letters <- strsplit(out$previous_aoo_letter, "")[[1]]
+      if (length(previous_letters) == 1){
+        out$new_previous_aoo_comparison <- ifelse(identical(taxon_data$AOO_factor, previous_letters), "equal", 
+                                                            ifelse(
+                                                              which(LETTERS %in% taxon_data$AOO_factor) < which(LETTERS %in% previous_letters),
+                                                              "lower", "higher"
+                                                            ))
+      } else {
+        out$new_previous_aoo_comparison <- 
+          ifelse(taxon_data$AOO_factor %in% previous_letters, "equal",
+                 ifelse(
+                   (which(LETTERS %in% taxon_data$AOO_factor) < which(LETTERS %in% previous_letters[1])),
+                   "lower",
+                   "higher"
+                 )
+          )
+      }
+    }
+    
+    if (!is.null(taxon_data$info_extended$rankInfo$numberEos$numberEosDescEn)){
+      previous_EOcount_value <- taxon_data$info_extended$rankInfo$numberEos$numberEosDescEn %>% str_split_1("-") %>% head(2) %>% parse_number()
+      out$previous_eocount_letter <- cut(as.numeric(previous_EOcount_value), breaks = c(0, 0.999, 5.999, 19.999, 79.999, 299.999, 1000000000), labels = c("Z", LETTERS[1:5])) %>% as.character() %>% unique() %>% paste0(collapse = "")
+      previous_letters <- strsplit(out$previous_eocount_letter, "")[[1]]
+      if (length(previous_letters) == 1){
+        out$new_previous_eocount_comparison <- ifelse(identical(taxon_data$EOcount_factor, previous_letters), "equal", 
+                                                  ifelse(
+                                                    which(LETTERS %in% taxon_data$EOcount_factor) < which(LETTERS %in% previous_letters),
+                                                    "lower", "higher"
+                                                  ))
+      } else {
+        out$new_previous_eocount_comparison <- 
+          ifelse(taxon_data$EOcount_factor %in% previous_letters, "equal",
+                 ifelse(
+                   (which(LETTERS %in% taxon_data$EOcount_factor) < which(LETTERS %in% previous_letters[1])),
+                   "lower",
+                   "higher"
+                 )
+          )
+      }
+    }
+  
+  return(out)
+}
+  
 # Run full rank assessment
 run_rank_assessment <- function(taxon_names, 
                                 minimum_fields = c("key", "scientificName", "prov", "longitude", "latitude", "coordinateUncertaintyInMeters", "stateProvince", "countryCode", "year", "month", "institutionCode", "basisOfRecord", "EORANK", "references"),
@@ -507,7 +607,8 @@ run_rank_assessment <- function(taxon_names,
                                 nations_filter = NULL,
                                 states_filter = NULL,
                                 network_polys = network_polys,
-                                sources_filter = c("gbif", "inat", "ebird"),
+                                sources_filter = c("OCCURRENCE", "HUMAN_OBSERVATION"),
+                                rank_filter = NULL,
                                 grid_cell_size = 2,
                                 sep_distance = 1000,
                                 trends_period1 = c("1900-01-01", "2025-12-31"),
@@ -548,6 +649,7 @@ run_rank_assessment <- function(taxon_names,
         nations_filter = nations_filter,
         states_filter = states_filter,
         sources_filter = sources_filter,
+        rank_filter = rank_filter,
         grid_cell_size = grid_cell_size,
         sep_distance = sep_distance
       ),
@@ -565,7 +667,8 @@ run_rank_assessment <- function(taxon_names,
       EOcount_map = NULL,
       EOcount_value = NULL,
       EOcount_factor = NULL,
-      temporal_trends = NULL
+      rank_factor_comparison = NULL,
+      temporal_change = NULL
     )
   }) %>% 
     purrr::set_names(taxon_names)
@@ -614,12 +717,14 @@ run_rank_assessment <- function(taxon_names,
 
     taxon_data_list[[taxon_name]]$synonyms <- taxon_data_list[[taxon_name]]$synonyms %>% 
       dplyr::distinct(., .keep_all = TRUE)
+
+    query_poly_bbox_wkt <- NULL
     
-    if (!is.null(nations) | !is.null(subnations)){
+    if (!is.null(nations_filter) | !is.null(states_filter)){
 
       query_poly <- network_polys %>% dplyr::filter(
-        FIPS_CNTRY %in% nations,
-        Admin_abbr %in% subnations
+        FIPS_CNTRY %in% nations_filter,
+        Admin_abbr %in% states_filter
       )
 
       query_poly_bbox <- sf::st_bbox(query_poly) %>% sf::st_as_sfc()
@@ -629,7 +734,8 @@ run_rank_assessment <- function(taxon_names,
         terra::vect() %>%
         terra::forceCCW() %>%
         geom(wkt = TRUE)
-
+    }
+  
       gbif_counts <- purrr::map_dbl(taxon_data_list[[taxon_name]]$synonyms$key,
                                     function(x) rgbif::occ_count(taxonKey = x,
                                                                  geometry = query_poly_bbox_wkt,
@@ -637,27 +743,30 @@ run_rank_assessment <- function(taxon_names,
                                                                  )
                                     )
 
-    } else {
-      gbif_counts <- purrr::map_dbl(taxon_data_list[[taxon_name]]$synonyms$key, function(x) rgbif::occ_count(taxonKey = x, hasCoordinate = TRUE))
-    }
-
     taxon_data_list[[taxon_name]]$synonyms <- taxon_data_list[[taxon_name]]$synonyms %>% 
       dplyr::mutate(occurrence_count = gbif_counts) %>% 
       dplyr::filter(occurrence_count > 0)
 
-    taxon_data_list[[taxon_name]]$datasets <- taxon_data_list[[taxon_name]]$datasets_selected <- data.frame(datasetKey = "gbif", count = sum(taxon_data_list[[taxon_name]]$synonyms$occurrence_count))
+    total_count <- sum(taxon_data_list[[taxon_name]]$synonyms$occurrence_count)
     
+    if (identical(c("OCCURRENCE", "HUMAN_OBSERVATION"), sources_filter)){
+      taxon_data_list[[taxon_name]]$datasets <- taxon_data_list[[taxon_name]]$datasets_selected <- data.frame(datasetKey = "gbif", count = total_count)
+    } else {
+      taxon_data_list[[taxon_name]]$datasets <- taxon_data_list[[taxon_name]]$datasets_selected <- data.frame(datasetKey = sources_filter, count = total_count)
+    }
+      
   }
   
   # Increment the progress bar, and update the detail text.
   progress$inc(0.33, detail = paste0("Downloading and processing data..."))
 
+  
   gbif_occurrences_raw <- get_gbif_data(
     taxa_metadata = purrr::map(taxon_data_list, "synonyms") %>% bind_rows(), 
     datasets_metadata = taxon_data_list[[1]]$datasets_selected,
-    network_polys = network_polys,
-    nations = nations_filter,
-    subnations = states_filter
+    query_polygon = query_poly_bbox_wkt,
+    all_occ_data = "OCCURRENCE" %in% sources_filter,
+    all_humobs_data = "HUMAN_OBSERVATION" %in% sources_filter
     )$sp_occurrences
   
   # gbif_occurrences <- gbif_occurrences_raw %>% 
@@ -742,65 +851,97 @@ run_rank_assessment <- function(taxon_names,
       dplyr::filter(purrr::map_int(st_intersects(taxon_data$sf_filtered, network_polys %>% dplyr::filter(Admin_abbr %in% states_filter)), length) > 0)
   }
   
-  if (!is.null(sources_filter)){
-    source_exclusions <- setdiff(taxon_data$sf_filtered$prov, sources_filter)
-    
-    if (length(source_exclusions) > 0){
-      taxon_data$sf_filtered <- taxon_data$sf_filtered %>%
-        dplyr::filter(!(prov %in% source_exclusions))
-    }
+  # if (!is.null(sources_filter)){
+  #   source_exclusions <- setdiff(taxon_data$sf_filtered$prov, sources_filter)
+  #   
+  #   if (length(source_exclusions) > 0){
+  #     taxon_data$sf_filtered <- taxon_data$sf_filtered %>%
+  #       dplyr::filter(!(prov %in% source_exclusions))
+  #   }
+  # }
+
+  eoo_output <- taxon_data$sf_filtered %>% safe_eoo(shifted = shifted)
+  if (!is.null(eoo_output$result)){
+    eoo_output <- eoo_output$result
+    taxon_data$species_range_value <- eoo_output$EOO
+    taxon_data$species_range_map <- eoo_output$hull
+    taxon_data$species_range_factor <- eoo_output$factor %>% as.character()
+  } else {
+    taxon_data$species_range_value <- NA
+    taxon_data$species_range_map <- NA
+    taxon_data$species_range_factor <- NA
   }
-
-  eoo_output <- taxon_data$sf_filtered %>% calculate_eoo(shifted = shifted)
-  taxon_data$species_range_value <- eoo_output$EOO
-  taxon_data$species_range_map <- eoo_output$hull
-  taxon_data$species_range_factor <- eoo_output$factor
-
-  taxon_data$AOO_value <- (aoo2(taxon_data$sf_filtered, as.numeric(grid_cell_size)*1000))/4
-  taxon_data$AOO_map <- get_aoo_polys(taxon_data$sf_filtered, as.numeric(grid_cell_size))
-  taxon_data$AOO_factor <- get_aoo_factor(taxon_data$AOO_value, grid_cell_size = as.numeric(grid_cell_size))
-  number_EOs <- calculate_number_occurrences(taxon_data$sf_filtered, separation_distance = sep_distance %>% as.numeric(), added_distance = 0)
-  taxon_data$EOcount_value <- number_EOs$eo_count
-  taxon_data$EOcount_map <- number_EOs$buffered_occurrences
-  taxon_data$EOcount_factor <- number_EOs$factor
-  taxon_data$shifted <- shifted 
   
-  taxon_data$temporal_trends <- 
+  taxon_data$AOO_value <- purrr::safely(aoo2)(taxon_data$sf_filtered, as.numeric(grid_cell_size)*1000)
+  taxon_data$AOO_value <- ifelse(!is.null(taxon_data$AOO_value$result), taxon_data$AOO_value$result/4, NA)
+  taxon_data$AOO_map <- purrr::safely(get_aoo_polys)(taxon_data$sf_filtered, as.numeric(grid_cell_size))      
+  if (!is.null(taxon_data$AOO_map$result)){
+    taxon_data$AOO_map <- taxon_data$AOO_map$result
+  } else {
+    taxon_data$AOO_map <- NA
+  }
+  
+  taxon_data$AOO_factor <- purrr::safely(get_aoo_factor)(taxon_data$AOO_value, grid_cell_size = as.numeric(grid_cell_size))
+  taxon_data$AOO_factor <- ifelse(!is.null(taxon_data$AOO_factor$result), as.character(taxon_data$AOO_factor$result), NA)
+  # if (taxon_data$AOO_factor != "H"){
+  number_EOs <- purrr::safely(calculate_number_occurrences)(taxon_data$sf_filtered, separation_distance = sep_distance %>% as.numeric(), added_distance = 0)
+  # } else {
+  # thinned_records <- spThin::thin(loc.data = taxon_data$sf_filtered %>% st_set_geometry(NULL) %>% dplyr::mutate(tax = "taxon"), lat.col = "latitude", long.col = "longitude", spec.col = "tax", thin.par = 1, reps = 1, locs.thinned.list.return = TRUE, write.files = FALSE)
+  # new_dat <- taxon_data$sf_filtered[thinned_records[[1]] %>% row.names() %>% as.numeric(), ] %>% sample_n(1000)
+  # print(nrow(new_dat))
+  # number_EOs <- purrr::safely(calculate_number_occurrences)(new_dat, separation_distance = sep_distance %>% as.numeric(), added_distance = 0)
+  # }
+  if (!is.null(number_EOs$result)){
+    number_EOs <- number_EOs$result
+    taxon_data$EOcount_value <- number_EOs$eo_count
+    taxon_data$EOcount_map <- number_EOs$buffered_occurrences
+    taxon_data$EOcount_factor <- number_EOs$factor %>% as.character()
+  } else {
+    taxon_data$EOcount_value <- NULL
+    taxon_data$EOcount_map <- NULL
+    taxon_data$EOcount_factor <- NULL
+  }   
+
+  taxon_data$shifted < - shifted
+
+  taxon_data$rank_factor_comparison <- compare_rank_factors(taxon_data)
+  
+  taxon_data$temporal_change <- 
     data.frame(period = c(1, 2), 
                rec_count = NA, rec_count_change = NA,
                eoo = NA, eoo_change = NA,
                aoo = NA, aoo_change = NA,
                eo_count = NA, eo_count_change = NA
     )
-  
-  period1_dat <- taxon_data$sf_filtered %>% 
+
+  period1_dat <- taxon_data$sf_filtered %>%
     dplyr::filter(year >= substr(trends_period1[1], 1, 4) & year < substr(trends_period1[2], 1, 4))
 
   if (nrow(period1_dat) > 0){
-    taxon_data$temporal_trends$rec_count[1] <- nrow(period1_dat)
-    taxon_data$temporal_trends$rec_count_change[1] <- 0
-    taxon_data$temporal_trends$eoo[1] <- (period1_dat %>% calculate_eoo(shifted = shifted))$EOO
-    taxon_data$temporal_trends$eoo_change[1] <- 0
-    taxon_data$temporal_trends$aoo[1] <- (aoo2(period1_dat, as.numeric(grid_cell_size)*1000))/4
-    taxon_data$temporal_trends$aoo_change[1] <- 0
-    taxon_data$temporal_trends$eo_count[1] <- (calculate_number_occurrences(period1_dat, separation_distance = as.numeric(sep_distance), added_distance = 0))$eo_count
-    taxon_data$temporal_trends$eo_count_change[1] <- 0
+    taxon_data$temporal_change$rec_count[1] <- nrow(period1_dat)
+    taxon_data$temporal_change$rec_count_change[1] <- 0
+    taxon_data$temporal_change$eoo[1] <- (period1_dat %>% calculate_eoo(shifted = shifted))$EOO
+    taxon_data$temporal_change$eoo_change[1] <- 0
+    taxon_data$temporal_change$aoo[1] <- (aoo2(period1_dat, as.numeric(grid_cell_size)*1000))/4
+    taxon_data$temporal_change$aoo_change[1] <- 0
+    taxon_data$temporal_change$eo_count[1] <- (calculate_number_occurrences(period1_dat, separation_distance = as.numeric(sep_distance), added_distance = 0))$eo_count
+    taxon_data$temporal_change$eo_count_change[1] <- 0
   }
 
-  period2_dat <- taxon_data$sf_filtered %>% 
+  period2_dat <- taxon_data$sf_filtered %>%
     dplyr::filter(year >= substr(trends_period2[1], 1, 4) & year < substr(trends_period2[2], 1, 4))
-  
+
   if (nrow(period2_dat) > 0){
-    taxon_data$temporal_trends$rec_count[2] <- nrow(period2_dat)
-    taxon_data$temporal_trends$rec_count_change[2] <- round(((taxon_data$temporal_trends$rec_count[2]-taxon_data$temporal_trends$rec_count[1])/taxon_data$temporal_trends$rec_count[1])*100, 1)
-    taxon_data$temporal_trends$eoo[2] <- (period2_dat %>% calculate_eoo(shifted = taxon_data$shifted))$EOO
-    taxon_data$temporal_trends$eoo_change[2] <- round(((taxon_data$temporal_trends$eoo[2]-taxon_data$temporal_trends$eoo[1])/taxon_data$temporal_trends$eoo[1])*100, 1)
-    taxon_data$temporal_trends$aoo[2] <- (aoo2(period2_dat, as.numeric(grid_cell_size)*1000))/4
-    taxon_data$temporal_trends$aoo_change[2] <- round(((taxon_data$temporal_trends$aoo[2]-taxon_data$temporal_trends$aoo[1])/taxon_data$temporal_trends$aoo[1])*100, 1)
-    taxon_data$temporal_trends$eo_count[2] <- (calculate_number_occurrences(period2_dat, separation_distance = sep_distance %>% as.numeric(), added_distance = 0))$eo_count
-    taxon_data$temporal_trends$eo_count_change[2] <- round(((taxon_data$temporal_trends$eo_count[2]-taxon_data$temporal_trends$eo_count[1])/taxon_data$temporal_trends$eo_count[1])*100, 1)
+    taxon_data$temporal_change$rec_count[2] <- nrow(period2_dat)
+    taxon_data$temporal_change$rec_count_change[2] <- round(((taxon_data$temporal_change$rec_count[2]-taxon_data$temporal_change$rec_count[1])/taxon_data$temporal_change$rec_count[1])*100, 1)
+    taxon_data$temporal_change$eoo[2] <- (period2_dat %>% calculate_eoo(shifted = taxon_data$shifted))$EOO
+    taxon_data$temporal_change$eoo_change[2] <- round(((taxon_data$temporal_change$eoo[2]-taxon_data$temporal_change$eoo[1])/taxon_data$temporal_change$eoo[1])*100, 1)
+    taxon_data$temporal_change$aoo[2] <- (aoo2(period2_dat, as.numeric(grid_cell_size)*1000))/4
+    taxon_data$temporal_change$aoo_change[2] <- round(((taxon_data$temporal_change$aoo[2]-taxon_data$temporal_change$aoo[1])/taxon_data$temporal_change$aoo[1])*100, 1)
+    taxon_data$temporal_change$eo_count[2] <- (calculate_number_occurrences(period2_dat, separation_distance = sep_distance %>% as.numeric(), added_distance = 0))$eo_count
+    taxon_data$temporal_change$eo_count_change[2] <- round(((taxon_data$temporal_change$eo_count[2]-taxon_data$temporal_change$eo_count[1])/taxon_data$temporal_change$eo_count[1])*100, 1)
   }
-  
+
   taxon_data
   
   }) %>% 
@@ -870,7 +1011,7 @@ calculate_rarity_change <- function(taxon_data = taxon_data,
 # Get temporal trends
 get_temporal_trends <- function(taxon_data = taxon_data, referenceTaxon = "kingdom", start_year = 1980){
   
-  min_fields <- c("key", "scientificName", "prov", "longitude", "latitude", "coordinateUncertaintyInMeters", "stateProvince", "countryCode", "year", "institutionCode", "references")
+  min_fields <- c("key", "scientificName", "prov", "longitude", "latitude", "coordinateUncertaintyInMeters", "stateProvince", "countryCode", "year", "month", "datasetName", "institutionCode", "basisOfRecord", "EORANK", "references")
 
   key_value <- taxon_data$synonyms %>% 
     dplyr::filter(datasetKey == "d7dddbf4-2cf0-4f39-9b2a-bb099caae36c") %>% 
@@ -907,6 +1048,7 @@ get_temporal_trends <- function(taxon_data = taxon_data, referenceTaxon = "kingd
   
   gbif_data <- gbif_data %>% 
     rbind(taxon_data$sf_filtered %>% 
+            dplyr::select(names(gbif_data)) %>% 
             dplyr::filter(year >= start_year) %>% 
             dplyr::mutate(scientificName = "focal_taxon")) %>% 
     dplyr::distinct(key, .keep_all = TRUE) 
@@ -958,13 +1100,21 @@ get_temporal_trends <- function(taxon_data = taxon_data, referenceTaxon = "kingd
       reporting_rate = focal_species_detection/n_visits
     )
   
+  annotation_x <- quantile(temporal_trend_data$year, .35)
+  num_chars <- list(nchar(paste0("Observations of ", taxon_data$info$scientificName)),
+                    nchar(paste0("Observations of ", referenceTaxon, " ", reference_taxon_name)),
+                    nchar("Proportion of Observations"),
+                    nchar("Modeled probability of detection")
+                    )
+  num_chars_missing <- purrr::map(num_chars, function(n) max(unlist(num_chars)) - n)
+  
   # Number of focal observations
   p1 <- ggplot(data = temporal_trend_data, aes(x = year, y = focal_species_count)) + 
     geom_col(col = "#2c7bb680", alpha = 0.5) + 
     ylab("") +
     xlab("") +
     ylim(c(0, max(temporal_trend_data$focal_species_count)+(0.2 *max(temporal_trend_data$focal_species_count)))) +
-    annotate("text", x = median(temporal_trend_data$year), y = max(temporal_trend_data$focal_species_count)+(0.08 *max(temporal_trend_data$focal_species_count)), label = paste0("Observations of ", taxon_data$info$scientificName)) +
+    annotate("text", x = annotation_x, y = max(temporal_trend_data$focal_species_count)+(0.08 *max(temporal_trend_data$focal_species_count)), label = paste0("Observations of ", taxon_data$info$scientificName, rep(" ", num_chars_missing[[1]])), hjust = 0) +
     theme_linedraw() +
     theme(legend.position = "none",
           panel.grid.major = element_blank(), 
@@ -973,13 +1123,14 @@ get_temporal_trends <- function(taxon_data = taxon_data, referenceTaxon = "kingd
           axis.text.x = element_blank(),
           axis.text = element_text(size = 8)
     )
+  
   # Total number of observations of reference taxon
   p2 <- ggplot(data = temporal_trend_data, aes(x = year, y = total_number_observations)) + 
     geom_col(col = "#2c7bb680", alpha = 0.5) + 
     ylim(c(0, max(temporal_trend_data$total_number_observations)+(0.2 *max(temporal_trend_data$total_number_observations)))) +
     ylab("") +
     xlab("") +
-    annotate("text", x = median(temporal_trend_data$year), y = max(temporal_trend_data$total_number_observations)+(0.08 *max(temporal_trend_data$total_number_observations)), label = paste0("Observations of ", referenceTaxon, " ", reference_taxon_name)) +
+    annotate("text", x = annotation_x, y = max(temporal_trend_data$total_number_observations)+(0.08 *max(temporal_trend_data$total_number_observations)), label = paste0("Observations of ", referenceTaxon, " ", reference_taxon_name, rep(" ", num_chars_missing[[2]])), hjust = 0) +
     theme_linedraw() +
     theme(legend.position = "none",
           panel.grid.major = element_blank(), 
@@ -994,7 +1145,7 @@ get_temporal_trends <- function(taxon_data = taxon_data, referenceTaxon = "kingd
     geom_smooth(size = 1.5, se = FALSE, col = "black") +
     ylab("") +
     xlab("") +
-    annotate("text", x = median(temporal_trend_data$year), y = max(temporal_trend_data$proportion_observations)+(0.08 *max(temporal_trend_data$proportion_observations)), label = "Proportion of Observations") +
+    annotate("text", x = annotation_x, y = max(temporal_trend_data$proportion_observations)+(0.08 *max(temporal_trend_data$proportion_observations)), label = paste0("Proportion of Observations", rep(" ", num_chars_missing[[3]])), hjust = 0) +
     ylim(c(0, max(temporal_trend_data$proportion_observations)+(0.2 *max(temporal_trend_data$proportion_observations)))) +
     theme_linedraw() +
     theme(legend.position = "none",
@@ -1003,46 +1154,46 @@ get_temporal_trends <- function(taxon_data = taxon_data, referenceTaxon = "kingd
           axis.title = element_text(size = 9),
           axis.text.x = element_blank(),
           axis.text = element_text(size = 8)
-          )
-  # Mean proportion of species
-  p4 <- ggplot(data = temporal_trend_data, aes(x = year, y = proportion_species)) +
-    geom_col(col = "#2c7bb680", alpha = 0.5) +
-    geom_smooth(size = 1.5, se = FALSE, col = "black") +
-    ylab("") +
-    xlab("") +
-    annotate("text", x = median(temporal_trend_data$year), y = max(temporal_trend_data$proportion_species)+(0.08 *max(temporal_trend_data$proportion_species)), label = "Proportion of Species") +
-    ylim(c(0, max(temporal_trend_data$proportion_species)+(0.2 *max(temporal_trend_data$proportion_species)))) +
-    theme_linedraw() +
-    theme(legend.position = "none",
-          panel.grid.major = element_blank(),
-          panel.grid.minor = element_blank(),
-          axis.title = element_text(size = 9),
-          axis.text.x = element_blank(),
-          axis.text = element_text(size = 8)
     )
-  
-  # Yearly reporting rate
-  p5 <- ggplot(data = temporal_trend_data, aes(x = year, y = reporting_rate)) + 
-    geom_col(col = "#2c7bb680", alpha = 0.5) + 
-    geom_smooth(size = 1, se = FALSE, col = "black") + 
-    ylim(c(0, max(temporal_trend_data$reporting_rate)+(0.2 *max(temporal_trend_data$reporting_rate)))) +
-    ylab("") +
-    annotate("text", x = median(temporal_trend_data$year), y = max(temporal_trend_data$reporting_rate)+(0.08 *max(temporal_trend_data$reporting_rate)), label = "Observation Rate") +
-    theme_linedraw() +
-    theme(legend.position = "none",
-          panel.grid.major = element_blank(), 
-          panel.grid.minor = element_blank(),
-          axis.title = element_text(size = 9),
-          axis.text.x = element_blank(),
-          axis.text = element_text(size = 8)
-    )
+  # # Mean proportion of species
+  # p4 <- ggplot(data = temporal_trend_data, aes(x = year, y = proportion_species)) +
+  #   # geom_col(col = "#2c7bb680", alpha = 0.5) +
+  #   geom_smooth(size = 1.5, se = FALSE, col = "black") +
+  #   ylab("") +
+  #   xlab("") +
+  #   # annotate("text", x = median(temporal_trend_data$year), y = max(temporal_trend_data$proportion_species)+(0.08 *max(temporal_trend_data$proportion_species)), label = "Proportion of Species") +
+  #   # ylim(c(0, max(temporal_trend_data$proportion_species)+(0.2 *max(temporal_trend_data$proportion_species)))) +
+  #   theme_linedraw() +
+  #   theme(legend.position = "none",
+  #         panel.grid.major = element_blank(),
+  #         panel.grid.minor = element_blank(),
+  #         axis.title = element_text(size = 9),
+  #         axis.text.x = element_blank(),
+  #         axis.text = element_text(size = 8)
+  #   )
+  # 
+  # # Yearly reporting rate
+  # p5 <- ggplot(data = temporal_trend_data, aes(x = year, y = reporting_rate)) + 
+  #   geom_col(col = "#2c7bb680", alpha = 0.5) + 
+  #   geom_smooth(size = 1, se = FALSE, col = "black") + 
+  #   ylim(c(0, max(temporal_trend_data$reporting_rate)+(0.2 *max(temporal_trend_data$reporting_rate)))) +
+  #   ylab("") +
+  #   annotate("text", x = median(temporal_trend_data$year), y = max(temporal_trend_data$reporting_rate)+(0.08 *max(temporal_trend_data$reporting_rate)), label = "Observation Rate") +
+  #   theme_linedraw() +
+  #   theme(legend.position = "none",
+  #         panel.grid.major = element_blank(), 
+  #         panel.grid.minor = element_blank(),
+  #         axis.title = element_text(size = 9),
+  #         axis.text.x = element_blank(),
+  #         axis.text = element_text(size = 8)
+  #   )
   ## GLMER (with spatial random effect)
   options(na.action = "na.fail")
   glmer_result <- lme4::glmer(focal_species_detection ~ splines::bs(year, df = 3) + total_number_observations + species_list_length + (1 | cellID), 
                               data = focal_species_detection_data, family = binomial, control = lme4::glmerControl(tol = 1e-5, optimizer = "bobyqa", optCtrl=list(maxfun=2e5))
   )
   # Modeled probability of detection
-  p6 <- data.frame(fitted = fitted(glmer_result), year = focal_species_detection_data$year) %>% 
+  p4 <- data.frame(fitted = fitted(glmer_result), year = focal_species_detection_data$year) %>% 
     ggplot(aes(x = year, y = fitted)) + 
     geom_point(col = "#2c7bb680", alpha = 0.5) + 
     geom_smooth(size = 1, se = FALSE, col = "black") + 
@@ -1050,7 +1201,7 @@ get_temporal_trends <- function(taxon_data = taxon_data, referenceTaxon = "kingd
     scale_y_continuous(breaks = c(0, 0.2, 0.4, 0.6, 0.8, 1), limits = c(0, 1.2)) +
     xlab("Year") +
     ylab("") +
-    annotate("text", x = median(focal_species_detection_data$year), y = 1.08, label = "Modeled probability of detection") +
+    annotate("text", x = annotation_x, y = 1.08, label = paste0("Modeled probability of detection", rep(" ", num_chars_missing[[4]])), hjust = 0) +
     theme_linedraw() +
     theme(legend.position = "none",
           panel.grid.major = element_blank(), 
@@ -1059,7 +1210,7 @@ get_temporal_trends <- function(taxon_data = taxon_data, referenceTaxon = "kingd
           axis.text = element_text(size = 8)
     )
   
-  p <- subplot(p1, p2, p3, p6, nrows = 5, shareX = TRUE, titleX = TRUE, margin = 0.005, which_layout = 1)
+  p <- subplot(p1, p2, p3, p4, nrows = 4, shareX = TRUE, titleX = TRUE, margin = 0.01, which_layout = 1)
   
   gg <- plotly_build(p) %>%
     config(displayModeBar = FALSE) %>%

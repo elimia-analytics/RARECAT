@@ -88,7 +88,7 @@ navbarPage(title = HTML("<span style='float: left; display: inline-block; paddin
                                                        options = list(placeholder = "Select assessment nation")
                                         )
                                  ),
-                                 column(id = "single_subnation", width = 2, style = "width: 18%; padding-left: 0; padding-right: 15px;",
+                                 column(id = "single_subnation", width = 2, style = "width: 17%; padding-left: 0; padding-right: 15px;",
                                         selectizeInput(inputId = "single_assessment_subnation",
                                                        label = "",
                                                        choices = (network_polys$Admin_abbr %>% na.omit() %>% as.character()) %>% set_names(network_polys$ADMIN_NAME%>% na.omit() %>% as.character()) %>% sort(),
@@ -123,7 +123,7 @@ navbarPage(title = HTML("<span style='float: left; display: inline-block; paddin
                                         DT::dataTableOutput("taxon_options_table", width = "100%"),
                                         br(),
                                         fluidRow(style = "padding-top: 20px; ", 
-                                            column(width = 6, style = "position: absolute; bottom: 20px; left: 10px;", actionButton(inputId = "begin_assessment_coarse", label = paste0("Start assessment with last \u2264 5000 records"), block = TRUE, class = "btn-primary btn-lg", width = "95%", style = "font-size: 14px !important;")),
+                                            column(width = 6, style = "position: absolute; bottom: 20px; left: 10px;", actionButton(inputId = "begin_assessment_coarse", label = paste0("Start assessment with all records (up to 5000)"), block = TRUE, class = "btn-primary btn-lg", width = "95%", style = "font-size: 14px !important;")),
                                             column(width = 6, style = "position: absolute; bottom: 20px; right: 5px;", actionButton(inputId = "select_datasets", label = "Select specific datasets", block = TRUE, class = "btn-primary btn-lg", width = "95%", style = "font-size: 14px !important;"))
                                             )
                           )
@@ -164,15 +164,15 @@ navbarPage(title = HTML("<span style='float: left; display: inline-block; paddin
                           )
                           )
                         ),
-                        shinycssloaders::withSpinner(leafletOutput("main_map", height="60vh", width = "106vw"), type = 7),
+                        shinycssloaders::withSpinner(leafletOutput("main_map", height="60vh", width = "101vw"), type = 7),
                         
                           div(id = "analysis_panel",
                               absolutePanel(id = "cond_inputs_panel2", 
                                             class = "panel panel-default", 
-                                            top = 115, left = "auto", right = 20, bottom = "auto",
+                                            top = 115, left = "auto", right = 0, bottom = "auto",
                                             width = "35vw",
                                             height = "58vh",
-                                            style = "margin: 0; padding: 0.3em 0 0.3em 0.3em; background-color: white; z-index: 1000 !important; overflow-y: scroll; scrollbar-color: #C7C7C7 rgba(255, 255, 255, 1) !important; border: 1px solid rgba(0, 0, 0, 0.15); border-radius: 4px; box-shadow: 0 6px 12px rgba(0, 0, 0, 0.175);", 
+                                            style = "margin: 0; padding: 0.3em 0 0 0.3em; background-color: white; z-index: 1000 !important; overflow-y: scroll; overflow-x: hidden; scrollbar-color: #C7C7C7 rgba(255, 255, 255, 1) !important; border: 1px solid rgba(0, 0, 0, 0.15); border-radius: 4px; box-shadow: 0 6px 12px rgba(0, 0, 0, 0.175);", 
                                             fluidRow(style = "padding: 0px 0px 10px 10px",
                                                      column(width = 9, style = "padding-top: 0; margin-top: 0;",
                                                             htmlOutput("species_name")
@@ -348,8 +348,9 @@ navbarPage(title = HTML("<span style='float: left; display: inline-block; paddin
                           div(id = "species_occurrences_table", style = "padding-right: 20px; padding-left: 20px; height: 80vh;",
                               
                               fluidRow(
-                                column(width = 2, style = "height: 80vh; margin-top: 5px; padding-bottom: 20px; margin-left: 0; background-color: rgba(230, 239, 240, 0.5); overflow-y: scroll; scrollbar-color: scrollbar-color: #C7C7C7 rgba(230, 239, 240, 0.5) !important;",
+                                column(width = 2, style = "height: 80vh; margin-top: 5px; padding-bottom: 20px; margin-left: 0; background-color: rgba(230, 239, 240, 0.5);",
                                        h3("Filters", style = "padding-bottom: 12px;"),
+                                       div(style = "height: 70vh; padding: 0.4em; overflow-y: scroll; overflow-x: hidden; scrollbar-color: #C7C7C7 rgba(230, 239, 240, 0) !important;",
                                        br(),
                                        materialSwitch(inputId = "clean_occ", 
                                                       label = "Clean up GBIF records", 
@@ -446,7 +447,8 @@ navbarPage(title = HTML("<span style='float: left; display: inline-block; paddin
                                                                multiple = TRUE, 
                                                                width = "100%"
                                                 )  
-                                       ),
+                                       )
+                                       )
                                        ),
                                 
                                 
@@ -472,7 +474,7 @@ navbarPage(title = HTML("<span style='float: left; display: inline-block; paddin
                                 ),
                                 column(width = 4, style = "padding-top: 5px; width: 34vw; height: 80vh !important;",
                                        tabsetPanel(type = "tabs",
-                                         tabPanel("Change over time", style = "height: 75vh !important; background-color: rgba(230, 239, 240, 0.5);",
+                                         tabPanel("Change over time", style = "height: 75vh !important; width: 34vw; background-color: rgba(230, 239, 240, 0.5);",
                                                   fluidRow(style = "padding: 5px 35px 2px 35px;",
                                                            h3("Records per year"),
                                                            dygraphs::dygraphOutput("occurrences_barchart_full", height = "16vh", width = "100%")
@@ -498,7 +500,7 @@ navbarPage(title = HTML("<span style='float: left; display: inline-block; paddin
                                                            )
                                                   )
                                                   ),
-                                         tabPanel("Temporal trend analysis", style = "height: 75vh !important; background-color: rgba(230, 239, 240, 0.5);",
+                                         tabPanel("Temporal analysis", style = "height: 75vh !important; width: 34vw; background-color: rgba(230, 239, 240, 0.5);",
                                                   fluidRow(style = "padding-left: 5px; padding-bottom: 10px;",
                                                            column(width = 4,
                                                                   p("Select reference taxon ", style = "padding-top: 19px; float: right;")
@@ -513,11 +515,11 @@ navbarPage(title = HTML("<span style='float: left; display: inline-block; paddin
                                                                   )
                                                            ),
                                                            column(width = 4, style = "padding: 12px 30px 5px 0px; float: right;",
-                                                                  actionButton(inputId = "temporal_trend", label = "Calculate temporal trend", block = TRUE, class = "btn-primary btn-sm", width = "100%")
+                                                                  actionButton(inputId = "temporal_trend", label = "Calculate temporal change", block = TRUE, class = "btn-primary btn-sm", width = "100%")
                                                            ),
                                                            hidden(
-                                                           fluidRow(id = "temporal_trend_plots", style = "padding: 25px 25px 10px 25px;",
-                                                             plotlyOutput("temporal_trends_output", height = "800px")
+                                                           fluidRow(id = "temporal_trend_plots", style = "padding: 35px;",
+                                                             plotlyOutput("temporal_trends_output", height = "70vh")
                                                            )
                                                            )
                                                   )
@@ -631,8 +633,8 @@ tabPanel("MULTISPECIES MODE", height = "100%",
                              h3("Select data sources to include"),
                              selectizeInput(inputId = "batch_sources_filter",
                                             label = "", 
-                                            choices = c("gbif", "inat", "ebird", "uploaded"),  
-                                            selected = c("gbif", "inat", "ebird", "uploaded"),
+                                            choices = c("OCCURRENCE", "HUMAN_OBSERVATION"),  
+                                            selected = c("OCCURRENCE", "HUMAN_OBSERVATION"),
                                             multiple = TRUE, 
                                             width = "90%"
                              )
@@ -699,7 +701,7 @@ tabPanel("MULTISPECIES MODE", height = "100%",
                              textInput(inputId = "batch_separation_distance", label = "", value = 1000)
                       ),
                       column(width = 4,
-                        h3("Calculate temporal trends in rarity metrics"),
+                        h3("Calculate temporal change in rarity metrics"),
                         br(),
                         column(width = 6, style = "padding-left: 0;",
                                dateRangeInput("batch_period1", "Set time period 1", format = "yyyy", start = "1900-01-01", end = "2025-12-31")
