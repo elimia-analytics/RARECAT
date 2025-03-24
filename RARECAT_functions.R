@@ -347,7 +347,7 @@ process_user_data <- function(user_file, minimum_fields){
               as.data.frame() %>%
               set_names(setdiff(minimum_fields, names(processed_data)))
       ) %>%
-      dplyr::select(minimum_fields) %>%
+      dplyr::select(all_of(minimum_fields)) %>%
       dplyr::distinct(., .keep_all = TRUE) %>%    
       dplyr::filter(complete.cases(latitude, longitude), latitude != 0, longitude != 0) 
     

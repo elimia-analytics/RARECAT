@@ -52,7 +52,11 @@ function(input, output, session) {
     leaflet::leaflet(options = leafletOptions(zoomDelta = 0.5, zoomSnap = 0, attributionControl = FALSE, worldCopyJump = FALSE)) %>% # Open new leaflet web map
       leaflet::setView(lng = mean(c(-104.4474, -67.27911)), lat = 50, zoom = 3.5) %>%  # Zoom in on North America
       leaflet::addMapPane("basemap1", zIndex = -100) %>% # Add basemap 1
-      leaflet::addProviderTiles(providers$Esri.WorldTerrain, group = "Esri World Terrain", options = list(pathOptions(pane = "basemap1"))) %>%
+      leaflet::addProviderTiles(providers$Esri.WorldTerrain, group = "Esri World Terrain", options = list(pathOptions(pane = "basemap1")),
+                                providerTileOptions(
+                                  updateWhenZooming = FALSE,      # map won't update tiles until zoom is done
+                                  updateWhenIdle = TRUE           # map won't load new tiles when panning
+                                )) %>%
       leaflet::addMapPane("basemap2", zIndex = -100) %>% # Add basemap 2
       leaflet::addProviderTiles(providers$Esri.WorldImagery, group = "Esri World Imagery", options = list(pathOptions(pane = "basemap2"))) %>%
       leaflet::addMapPane("basemap3", zIndex = -100) %>% # Add basemap 3
@@ -229,7 +233,7 @@ function(input, output, session) {
                           "Kingdom" = kingdom
                           ) %>% 
 
-            DT::datatable(options = list(dom = 't', pageLength = 100, autoWidth = TRUE), selection = list(mode = 'single', target = 'row'), escape = FALSE, rownames = FALSE)
+            DT::datatable(options = list(dom = 't', pageLength = 10, autoWidth = TRUE), selection = list(mode = 'single', target = 'row'), escape = FALSE, rownames = FALSE)
           
         })
         
@@ -355,7 +359,7 @@ function(input, output, session) {
                     "Key" = key,
                     "Number of GBIF records" = occurrence_count
       ) %>% 
-      DT::datatable(options = list(dom = 't', pageLength = 100, autoWidth = TRUE,
+      DT::datatable(options = list(dom = 't', pageLength = 5, autoWidth = TRUE,
                                    columnDefs = list(list(className = "text-left", width = '400px', targets = c(0)),
                                                      list(className = "text-left", targets = c(1, 2))
                                    )
@@ -913,7 +917,7 @@ function(input, output, session) {
         updateSelectizeInput(session = session, inputId = "type_filter", choices = unique(taxon_data$sf$basisOfRecord), selected = unique(taxon_data$sf$basisOfRecord))
       }
       if (!identical(NA, unique(taxon_data$sf$EORANK))){
-        updateSelectizeInput(session = session, inputId = "rank_filter", choices = unique(taxon_data$sf$EORANK), selected = unique(taxon_data$sf$EORANK))
+        updateSelectizeInput(session = session, inputId = "rank_filter", choices = setdiff(unique(taxon_data$sf$EORANK), NA), selected = setdiff(unique(taxon_data$sf$EORANK), NA))
       }
       if (!identical(NA, unique(taxon_data$sf$datasetName))){
       updateSelectizeInput(session = session, inputId = "sources_filter", choices = unique(taxon_data$sf$datasetName) %>% sort(), selected = unique(taxon_data$sf$datasetName) %>% sort())
@@ -1020,7 +1024,7 @@ function(input, output, session) {
           
           if (!is.null(input$rank_filter)){
             taxon_data$sf_filtered <- taxon_data$sf_filtered %>%
-              dplyr::filter(EORANK %in% input$rank_filter)
+              dplyr::filter(EORANK %in% input$rank_filter | is.na(EORANK))
           }
           
           if (isTRUE(input$remove_selections)){
@@ -1038,7 +1042,7 @@ function(input, output, session) {
           type_exclusions <- setdiff(unique(taxon_data$sf_filtered$basisOfRecord), input$type_filter)
           
           if (length(type_exclusions) > 0){
-            if (!is.na(type_exclusions)){
+            if (!identical(NA, type_exclusions)){
             taxon_data$sf_filtered <- taxon_data$sf_filtered %>%
               dplyr::filter(!(basisOfRecord %in% type_exclusions))
             updateSelectizeInput(session = session, inputId = "sources_filter", selected = unique(taxon_data$sf_filtered$datasetName) %>% sort())

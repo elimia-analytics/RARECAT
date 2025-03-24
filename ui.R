@@ -107,7 +107,7 @@ navbarPage(title = HTML("<span style='float: left; display: inline-block; paddin
                                         class = "panel panel-default",
                                         top = 94, left = 15, right = "auto", bottom = "auto",
                                         width = "64%",
-                                        height = "25vh",
+                                        height = "35vh",
                                         style = "padding: 0.5em; border-bottom: none; border-color: transparent; background-color: rgba(255, 255, 255, 1); z-index: 1001 !important; overflow-y: scroll; overflow-x: hidden; scrollbar-color: #C7C7C7 rgba(255, 255, 255, 1) !important; border: 1px solid rgba(0, 0, 0, 0.15); border-radius: 4px; box-shadow: 0 6px 12px rgba(0, 0, 0, 0.175);",
                                         DT::dataTableOutput("taxon_NS_table", width = "100%")
                           )
@@ -118,7 +118,7 @@ navbarPage(title = HTML("<span style='float: left; display: inline-block; paddin
                                         class = "panel panel-default",
                                         top = 94, left = 15, right = "auto", bottom = "auto",
                                         width = "64%",
-                                        height = "25vh",
+                                        height = "35vh",
                                         style = "padding: 0.5em; border-bottom: none; border-color: transparent; background-color: rgba(255, 255, 255, 1); z-index: 1001 !important; overflow-y: scroll; overflow-x: hidden; scrollbar-color: #C7C7C7 rgba(255, 255, 255, 1) !important; border: 1px solid rgba(0, 0, 0, 0.15); border-radius: 4px; box-shadow: 0 6px 12px rgba(0, 0, 0, 0.175);",
                                         DT::dataTableOutput("taxon_options_table", width = "100%"),
                                         br(),
