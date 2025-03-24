@@ -3,7 +3,8 @@ get_gbif_data <- function(taxa_metadata,
                           datasets_metadata,
                           query_polygon = taxon_data$assessment_polygon,
                           all_occ_data = FALSE,
-                          all_humobs_data = FALSE
+                          all_humobs_data = FALSE,
+                          shift_occurrences = FALSE
                           ){
 
   gbif_occurrences <- gbif_occurrences_occ <- gbif_occurrences_humobs <- NULL
@@ -52,7 +53,7 @@ get_gbif_data <- function(taxa_metadata,
     )
 
     gbif_occurrences <- gbif_occurrences %>%
-      dplyr::select(-datasetName) %>% 
+      dplyr::select(-any_of("datasetName")) %>% 
       dplyr::left_join(datasets_details, by = "datasetKey")
 
   } else {
@@ -176,7 +177,7 @@ get_gbif_data <- function(taxa_metadata,
     
     if (!is.null(gbif_occurrences)){
       gbif_occurrences <- gbif_occurrences %>%
-        dplyr::select(-datasetName) %>% 
+        dplyr::select(-any_of("datasetName")) %>% 
         dplyr::left_join(datasets_metadata %>% dplyr::select(datasetKey, datasetName), by = "datasetKey")
 
     }
@@ -192,20 +193,23 @@ get_gbif_data <- function(taxa_metadata,
   
   shifted <- FALSE
   
-  sp_occurrences$longitude[sp_occurrences$longitude > 180] <- sp_occurrences$longitude[sp_occurrences$longitude > 180] - 360
-  max_long <- max(sp_occurrences$longitude, na.rm = TRUE)/2
-  shifted_long <- sp_occurrences$longitude
+  if (shift_occurrences){
+    
+    sp_occurrences$longitude[sp_occurrences$longitude > 180] <- sp_occurrences$longitude[sp_occurrences$longitude > 180] - 360
+    max_long <- max(sp_occurrences$longitude, na.rm = TRUE)/2
+    shifted_long <- sp_occurrences$longitude
+    
+    if (length(sp_occurrences$longitude[sp_occurrences$longitude > max_long]) > 0){
+      shifted_long[shifted_long > max_long] <- shifted_long[shifted_long > max_long] - 360
+      shifted_long <- shifted_long + 360
+    }
+    
+    if ((max(shifted_long)-min(shifted_long)) < (max(sp_occurrences$longitude) - min(sp_occurrences$longitude))){
+      sp_occurrences$longitude <- shifted_long
+      shifted <- TRUE
+    }
+  }
   
-  if (length(sp_occurrences$longitude[sp_occurrences$longitude > max_long]) > 0){
-    shifted_long[shifted_long > max_long] <- shifted_long[shifted_long > max_long] - 360
-    shifted_long <- shifted_long + 360
-  }
-
-  if ((max(shifted_long)-min(shifted_long)) < (max(sp_occurrences$longitude) - min(sp_occurrences$longitude))){
-    sp_occurrences$longitude <- shifted_long
-    shifted <- TRUE
-  }
-
   out <- list(sp_occurrences = sp_occurrences, shifted = shifted)
   
   return(out)
@@ -217,7 +221,7 @@ clean_gbif_data <- function(gbif_occurrences, clean = TRUE, minimum_fields = min
   
   if (isTRUE(clean)){
     
-    if (nrow(gbif_occurrences) > 0){
+    if (nrow(gbif_occurrences) >= 2){
       
       gbif_occurrences <- gbif_occurrences %>% 
         dplyr::filter(!(basisOfRecord %in% c("FOSSIL_SPECIMEN", "LIVING_SPECIMEN", "MATERIAL_SAMPLE"))) # Exclude these record types
@@ -282,6 +286,16 @@ process_user_data <- function(user_file, minimum_fields){
     EORANK_names <- EORANK_names %>% set_names(rep("EORANK", length(EORANK_names)))
     lookup <- c(longitude_names, latitude_names, scientificName_names, stateProvince_names, countryCode_names, year_names, EORANK_names)
     
+    if ("coordinates_obscured" %in% names(user_data)){
+      
+      user_data <- user_data %>% 
+        dplyr::mutate(
+          latitude = ifelse(coordinates_obscured == "true" & !is.null(private_latitude), private_latitude, latitude),
+          longitude = ifelse(coordinates_obscured == "true" & !is.null(private_longitude), private_longitude, longitude)
+        )
+      
+    }
+    
     if ("latitude" %in% names(user_data)){
       user_data <- user_data %>% 
         dplyr::select(-any_of(setdiff(latitude_names, "latitude")))
@@ -290,6 +304,11 @@ process_user_data <- function(user_file, minimum_fields){
     if ("longitude" %in% names(user_data)){
       user_data <- user_data %>% 
         dplyr::select(-any_of(setdiff(longitude_names, "longitude")))
+    }
+    
+    if (length(intersect(countryCode_names, names(user_data))) > 1){
+      user_data <- user_data %>% 
+        dplyr::select(-intersect(countryCode_names, names(user_data))[2])
     }
     
     if ("observed_on" %in% names(user_data)){
@@ -667,8 +686,20 @@ run_rank_assessment <- function(taxon_names,
       EOcount_map = NULL,
       EOcount_value = NULL,
       EOcount_factor = NULL,
-      rank_factor_comparison = NULL,
-      temporal_change = NULL
+      rank_factor_comparison = data.frame(
+        previous_species_range_letter = NA,
+        new_previous_species_range_comparison = NA,
+        previous_aoo_letter = NA,
+        new_previous_aoo_comparison = NA,
+        previous_eocount_letter = NA,
+        new_previous_eocount_comparison = NA
+      ),
+      temporal_change = data.frame(period = c(1, 2), 
+                   rec_count = NA, rec_count_change = NA,
+                   eoo = NA, eoo_change = NA,
+                   aoo = NA, aoo_change = NA,
+                   eo_count = NA, eo_count_change = NA
+        )
     )
   }) %>% 
     purrr::set_names(taxon_names)
@@ -705,6 +736,17 @@ run_rank_assessment <- function(taxon_names,
     taxon_data_list[[taxon_name]]$info_extended <- natserv::ns_id(uid = taxon_data_list[[taxon_name]]$info$uniqueId %>% unique() %>% na.omit() %>% as.character() %>% head(1)) 
     taxon_data_list[[taxon_name]]$family <- ns_table_full$speciesGlobal$family
     selected_taxon <- c(taxon_info$scientificName, unlist(taxon_info$synonyms)) %>% na.omit() %>% unique()
+    
+    if (!is.null(uploaded_data)){
+      if ("scientificName_Source" %in% names(uploaded_data)){
+        selected_taxon <- c(selected_taxon, uploaded_data %>%
+                              dplyr::filter(scientificName %in% c(taxon_name, taxon_data$synonyms$canonicalName)) %>%
+                              dplyr::pull(scientificName_Source) %>%
+                              unique()
+        )
+      }
+    }
+    
     selected_taxon <- gsub("ssp. |var. ", "", selected_taxon)
     
     if (length(selected_taxon) == 1){
@@ -752,26 +794,24 @@ run_rank_assessment <- function(taxon_names,
     if (identical(c("OCCURRENCE", "HUMAN_OBSERVATION"), sources_filter)){
       taxon_data_list[[taxon_name]]$datasets <- taxon_data_list[[taxon_name]]$datasets_selected <- data.frame(datasetKey = "gbif", count = total_count)
     } else {
-      taxon_data_list[[taxon_name]]$datasets <- taxon_data_list[[taxon_name]]$datasets_selected <- data.frame(datasetKey = sources_filter, count = total_count)
+      taxon_data_list[[taxon_name]]$datasets <- taxon_data_list[[taxon_name]]$datasets_selected <- data.frame(datasetKey = "detailed", count = total_count)
     }
-      
+     
   }
   
   # Increment the progress bar, and update the detail text.
   progress$inc(0.33, detail = paste0("Downloading and processing data..."))
 
-  
-  gbif_occurrences_raw <- get_gbif_data(
-    taxa_metadata = purrr::map(taxon_data_list, "synonyms") %>% bind_rows(), 
-    datasets_metadata = taxon_data_list[[1]]$datasets_selected,
-    query_polygon = query_poly_bbox_wkt,
-    all_occ_data = "OCCURRENCE" %in% sources_filter,
-    all_humobs_data = "HUMAN_OBSERVATION" %in% sources_filter
+  if (length(sources_filter) > 0){
+    gbif_occurrences_raw <- get_gbif_data(
+      taxa_metadata = purrr::map(taxon_data_list, "synonyms") %>% bind_rows(), 
+      datasets_metadata = taxon_data_list[[1]]$datasets_selected,
+      query_polygon = query_poly_bbox_wkt,
+      all_occ_data = "OCCURRENCE" %in% sources_filter,
+      all_humobs_data = "HUMAN_OBSERVATION" %in% sources_filter
     )$sp_occurrences
+  }
   
-  # gbif_occurrences <- gbif_occurrences_raw %>% 
-  #   clean_gbif_data(clean = clean_occ, remove_centroids = centroid_filter, minimum_fields = minimum_fields)
-  # 
   taxon_assessment_output <- purrr::map(1:length(taxon_names), function(i){
 
     taxon_name <- taxon_names[i]
@@ -781,26 +821,30 @@ run_rank_assessment <- function(taxon_names,
     # Increment the progress bar, and update the detail text.
     progress$inc(0.33/length(taxon_names), detail = paste0("Calculating factors for ", taxon_name))
     
-    taxon_data$gbif_occurrences_raw <- gbif_occurrences_raw %>% 
-      dplyr::filter(taxonKey %in% taxon_data$synonyms$key)
-    taxon_data$gbif_occurrences <- taxon_data$gbif_occurrences_raw %>% 
-      clean_gbif_data(clean = clean_occ, remove_centroids = centroid_filter, minimum_fields = minimum_fields)
+    if (!is.null(gbif_occurrences_raw)){
+      taxon_data$gbif_occurrences_raw <- gbif_occurrences_raw %>% 
+        dplyr::filter(taxonKey %in% taxon_data$synonyms$key)
+      taxon_data$gbif_occurrences <- taxon_data$gbif_occurrences_raw %>% 
+        clean_gbif_data(clean = clean_occ, remove_centroids = centroid_filter, minimum_fields = minimum_fields)
+    }
     
-    if (!is.null(uploaded_data)){
-      taxon_data$uploaded_occurrences <- uploaded_data %>% 
-      dplyr::filter(scientificName %in% c(taxon_name, taxon_data$synonyms$canonicalName))
+   if (!is.null(uploaded_data)){
+      taxon_data$uploaded_occurrences <- uploaded_data %>%
+      dplyr::filter(scientificName %in% taxon_name)
     }
 
   taxon_data$all_occurrences <- rbind(
     taxon_data$gbif_occurrences,
     taxon_data$uploaded_occurrences
   )
-
+  
   shifted <- FALSE
   
   taxon_data$all_occurrences$longitude[taxon_data$all_occurrences$longitude > 180] <- taxon_data$all_occurrences$longitude[taxon_data$gbif_occurrences$longitude > 180] - 360
   max_long <- max(taxon_data$all_occurrences$longitude, na.rm = TRUE)/2
   shifted_long <- taxon_data$all_occurrences$longitude
+  
+  print(shifted_long)
   
   if (length(taxon_data$all_occurrences$longitude[taxon_data$all_occurrences$longitude > max_long]) > 0){
     shifted_long[shifted_long > max_long] <- shifted_long[shifted_long > max_long] - 360
@@ -812,6 +856,8 @@ run_rank_assessment <- function(taxon_names,
     taxon_data$all_occurrences$longitude <- shifted_long
     shifted <- TRUE
   }
+  
+  taxon_data$shifted < - shifted
   
   ### Create simple features object for geospatial calculations
   taxon_data$sf <- taxon_data$all_occurrences %>% 
@@ -833,7 +879,7 @@ run_rank_assessment <- function(taxon_names,
     dplyr::filter(
       year >= substr(date_start, 1, 4) & year <= substr(date_end, 1, 4) | is.na(year),
       month %in% season | is.na(month)
-      )
+    )
   
   if (uncertainty_filter != ""){
     
@@ -851,6 +897,8 @@ run_rank_assessment <- function(taxon_names,
       dplyr::filter(purrr::map_int(st_intersects(taxon_data$sf_filtered, network_polys %>% dplyr::filter(Admin_abbr %in% states_filter)), length) > 0)
   }
   
+  if (nrow(taxon_data$sf_filtered) >= 3){
+   
   # if (!is.null(sources_filter)){
   #   source_exclusions <- setdiff(taxon_data$sf_filtered$prov, sources_filter)
   #   
@@ -861,71 +909,69 @@ run_rank_assessment <- function(taxon_names,
   # }
 
   eoo_output <- taxon_data$sf_filtered %>% safe_eoo(shifted = shifted)
+
   if (!is.null(eoo_output$result)){
     eoo_output <- eoo_output$result
     taxon_data$species_range_value <- eoo_output$EOO
     taxon_data$species_range_map <- eoo_output$hull
     taxon_data$species_range_factor <- eoo_output$factor %>% as.character()
-  } else {
-    taxon_data$species_range_value <- NA
-    taxon_data$species_range_map <- NA
-    taxon_data$species_range_factor <- NA
   }
   
-  taxon_data$AOO_value <- purrr::safely(aoo2)(taxon_data$sf_filtered, as.numeric(grid_cell_size)*1000)
-  taxon_data$AOO_value <- ifelse(!is.null(taxon_data$AOO_value$result), taxon_data$AOO_value$result/4, NA)
-  taxon_data$AOO_map <- purrr::safely(get_aoo_polys)(taxon_data$sf_filtered, as.numeric(grid_cell_size))      
-  if (!is.null(taxon_data$AOO_map$result)){
-    taxon_data$AOO_map <- taxon_data$AOO_map$result
-  } else {
-    taxon_data$AOO_map <- NA
-  }
+  taxon_data$filtered_occurrences <- taxon_data$sf_filtered
+  taxon_data$filtered_occurrences <- taxon_data$filtered_occurrences %>%
+    st_set_geometry(NULL) %>%
+    dplyr::select(longitude, latitude) %>%
+    as.data.frame()
+  taxon_data$filtered_occurrences$longitude[taxon_data$filtered_occurrences$longitude > 180] <- taxon_data$filtered_occurrences$longitude[taxon_data$filtered_occurrences$longitude > 180] - 360
   
-  taxon_data$AOO_factor <- purrr::safely(get_aoo_factor)(taxon_data$AOO_value, grid_cell_size = as.numeric(grid_cell_size))
-  taxon_data$AOO_factor <- ifelse(!is.null(taxon_data$AOO_factor$result), as.character(taxon_data$AOO_factor$result), NA)
-  # if (taxon_data$AOO_factor != "H"){
+  taxon_data$AOO_value <- purrr::safely(aoo2)(taxon_data$filtered_occurrences, as.numeric(grid_cell_size)*1000)
+  
+  if (!is.null(taxon_data$AOO_value$result)){
+    taxon_data$AOO_value <- taxon_data$AOO_value$result/4
+    taxon_data$AOO_factor <- purrr::safely(get_aoo_factor)(taxon_data$AOO_value, grid_cell_size = as.numeric(grid_cell_size))
+    taxon_data$AOO_factor <- ifelse(!is.null(taxon_data$AOO_factor$result), as.character(taxon_data$AOO_factor$result), NULL)
+    taxon_data$AOO_map <- purrr::safely(get_aoo_polys)(taxon_data$sf_filtered, as.numeric(grid_cell_size))      
+    if (!is.null(taxon_data$AOO_map$result)){
+      taxon_data$AOO_map <- taxon_data$AOO_map$result
+    } 
+  }
+
+  if (taxon_data$AOO_factor != "H"){
   number_EOs <- purrr::safely(calculate_number_occurrences)(taxon_data$sf_filtered, separation_distance = sep_distance %>% as.numeric(), added_distance = 0)
-  # } else {
+  } else {
   # thinned_records <- spThin::thin(loc.data = taxon_data$sf_filtered %>% st_set_geometry(NULL) %>% dplyr::mutate(tax = "taxon"), lat.col = "latitude", long.col = "longitude", spec.col = "tax", thin.par = 1, reps = 1, locs.thinned.list.return = TRUE, write.files = FALSE)
   # new_dat <- taxon_data$sf_filtered[thinned_records[[1]] %>% row.names() %>% as.numeric(), ] %>% sample_n(1000)
   # print(nrow(new_dat))
-  # number_EOs <- purrr::safely(calculate_number_occurrences)(new_dat, separation_distance = sep_distance %>% as.numeric(), added_distance = 0)
-  # }
+  number_EOs <- purrr::safely(calculate_number_occurrences)(taxon_data$sf_filtered %>% sample_n(2000), separation_distance = sep_distance %>% as.numeric(), added_distance = 0)
+  }
   if (!is.null(number_EOs$result)){
     number_EOs <- number_EOs$result
     taxon_data$EOcount_value <- number_EOs$eo_count
     taxon_data$EOcount_map <- number_EOs$buffered_occurrences
     taxon_data$EOcount_factor <- number_EOs$factor %>% as.character()
-  } else {
-    taxon_data$EOcount_value <- NULL
-    taxon_data$EOcount_map <- NULL
-    taxon_data$EOcount_factor <- NULL
-  }   
+  } 
 
-  taxon_data$shifted < - shifted
 
   taxon_data$rank_factor_comparison <- compare_rank_factors(taxon_data)
   
-  taxon_data$temporal_change <- 
-    data.frame(period = c(1, 2), 
-               rec_count = NA, rec_count_change = NA,
-               eoo = NA, eoo_change = NA,
-               aoo = NA, aoo_change = NA,
-               eo_count = NA, eo_count_change = NA
-    )
-
   period1_dat <- taxon_data$sf_filtered %>%
     dplyr::filter(year >= substr(trends_period1[1], 1, 4) & year < substr(trends_period1[2], 1, 4))
 
   if (nrow(period1_dat) > 0){
     taxon_data$temporal_change$rec_count[1] <- nrow(period1_dat)
     taxon_data$temporal_change$rec_count_change[1] <- 0
-    taxon_data$temporal_change$eoo[1] <- (period1_dat %>% calculate_eoo(shifted = shifted))$EOO
-    taxon_data$temporal_change$eoo_change[1] <- 0
+    eoo_out <- period1_dat %>% safe_eoo(shifted = shifted)
+    if (!is.null(eoo_out$result)){
+      eoo_out <- eoo_out$result
+      taxon_data$temporal_change$eoo[1] <- eoo_out$EOO
+      taxon_data$temporal_change$eoo_change[1] <- 0
+    }
     taxon_data$temporal_change$aoo[1] <- (aoo2(period1_dat, as.numeric(grid_cell_size)*1000))/4
     taxon_data$temporal_change$aoo_change[1] <- 0
+    if (nrow(taxon_data$sf_filtered) <= 2000){
     taxon_data$temporal_change$eo_count[1] <- (calculate_number_occurrences(period1_dat, separation_distance = as.numeric(sep_distance), added_distance = 0))$eo_count
     taxon_data$temporal_change$eo_count_change[1] <- 0
+    }
   }
 
   period2_dat <- taxon_data$sf_filtered %>%
@@ -934,13 +980,22 @@ run_rank_assessment <- function(taxon_names,
   if (nrow(period2_dat) > 0){
     taxon_data$temporal_change$rec_count[2] <- nrow(period2_dat)
     taxon_data$temporal_change$rec_count_change[2] <- round(((taxon_data$temporal_change$rec_count[2]-taxon_data$temporal_change$rec_count[1])/taxon_data$temporal_change$rec_count[1])*100, 1)
-    taxon_data$temporal_change$eoo[2] <- (period2_dat %>% calculate_eoo(shifted = taxon_data$shifted))$EOO
-    taxon_data$temporal_change$eoo_change[2] <- round(((taxon_data$temporal_change$eoo[2]-taxon_data$temporal_change$eoo[1])/taxon_data$temporal_change$eoo[1])*100, 1)
+    eoo_out2 <- period2_dat %>% safe_eoo(shifted = shifted)
+    if (!is.null(eoo_out2$result)){
+      eoo_out2 <- eoo_out2$result
+      taxon_data$temporal_change$eoo[2] <- eoo_out2$EOO
+      if (!is.na(taxon_data$temporal_change$eoo[1])){
+      taxon_data$temporal_change$eoo_change[2] <- round(((taxon_data$temporal_change$eoo[2]-taxon_data$temporal_change$eoo[1])/taxon_data$temporal_change$eoo[1])*100, 1)
+      }
+    }
     taxon_data$temporal_change$aoo[2] <- (aoo2(period2_dat, as.numeric(grid_cell_size)*1000))/4
     taxon_data$temporal_change$aoo_change[2] <- round(((taxon_data$temporal_change$aoo[2]-taxon_data$temporal_change$aoo[1])/taxon_data$temporal_change$aoo[1])*100, 1)
+    if (nrow(taxon_data$sf_filtered) <= 2000){
     taxon_data$temporal_change$eo_count[2] <- (calculate_number_occurrences(period2_dat, separation_distance = sep_distance %>% as.numeric(), added_distance = 0))$eo_count
     taxon_data$temporal_change$eo_count_change[2] <- round(((taxon_data$temporal_change$eo_count[2]-taxon_data$temporal_change$eo_count[1])/taxon_data$temporal_change$eo_count[1])*100, 1)
+    }
   }
+    } 
 
   taxon_data
   

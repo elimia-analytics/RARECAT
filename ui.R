@@ -245,7 +245,7 @@ navbarPage(title = HTML("<span style='float: left; display: inline-block; paddin
                                                                                  value = FALSE
                                                                   )
                                                            ),
-                                                           column(width = 4, style = "position: relative; float: left; padding-left: 0.3em;",
+                                                           column(width = 5, style = "position: relative; float: left; padding-left: 0.3em;",
                                                                   fluidRow(
                                                                     column(width = 12, 
                                                                            p("Range Extent")
@@ -253,10 +253,10 @@ navbarPage(title = HTML("<span style='float: left; display: inline-block; paddin
                                                                   )
                                                            ),
                                                            hidden(
-                                                             column(id = "EOO_panel", width = 6, style = "margin-left: 0px; padding-left: 0px;",
+                                                             column(id = "EOO_panel", width = 5, style = "margin-left: 0px; padding-left: 0px;",
                                                                     fluidRow(style = "padding-top: 0;",
                                                                              column(width = 12, style = "padding-top: 0;",
-                                                                                    htmlOutput("species_range_value")
+                                                                                    shinycssloaders::withSpinner(htmlOutput("species_range_value"), type = 7, proxy.height = "0px")
                                                                              )
                                                                     )
                                                              )
@@ -287,10 +287,10 @@ navbarPage(title = HTML("<span style='float: left; display: inline-block; paddin
                                                            )
                                                   ),
                                                   fluidRow(
-                                                    column(width = 3, style = "position: relative; float: left; padding-left: 2em;",
+                                                    column(width = 4, style = "position: relative; float: left; padding-left: 2em;",
                                                            selectInput(inputId = "grid_cell_size", label = "", choices = list("2 x 2 km" = 2, "1 x 1 km" = 1))
                                                     ),
-                                                    column(width = 9, style = "position: relative; float: left; padding: 1em 0 0.5em 0em;",
+                                                    column(width = 8, style = "position: relative; float: left; padding: 1em 0 0.5em 0em;",
                                                            HTML(paste0(p("Grid cell size")))
                                                     )
                                                   ),
@@ -318,10 +318,10 @@ navbarPage(title = HTML("<span style='float: left; display: inline-block; paddin
                                                            )
                                                   ),
                                                   fluidRow(style = "padding-bottom: 0; margin-bottom: 0;",
-                                                    column(width = 3, style = "position: relative; float: left; padding-left: 2em;",
+                                                    column(width = 4, style = "position: relative; float: left; padding-left: 2em;",
                                                            textInput(inputId = "separation_distance", label = "", value = 1000)
                                                     ),
-                                                    column(width = 9, style = "position: relative; float: left; padding: 1em 0 0 0;",
+                                                    column(width = 8, style = "position: relative; float: left; padding: 1em 0 0 0;",
                                                            p("Separation distance (m)")
                                                     )
                                                   )
@@ -453,7 +453,7 @@ navbarPage(title = HTML("<span style='float: left; display: inline-block; paddin
                                 
                                 
                                 
-                                column(width = 6, style = "background-color: transparent; width: 48vw; padding-left: 30px; height: 80vh; ", 
+                                column(width = 6, style = "background-color: transparent; width: 47vw; padding-left: 30px; height: 80vh; ", 
                                        fluidRow(style = "padding: 10px 10px 10px 10px; margin-right: 0px;",
                                                 column(width = 8,
                                                        materialSwitch(inputId = "remove_selections",
@@ -469,7 +469,7 @@ navbarPage(title = HTML("<span style='float: left; display: inline-block; paddin
                                                 )
                                        ),
                                        fluidRow(style = "padding-right: 15px; overflow-x: scroll; overflow-y: hidden; scrollbar-color: #C7C7C7 rgba(255, 255, 255, 1) !important;",
-                                         DT::dataTableOutput("occurrences_table", height="40vh")
+                                         DT::dataTableOutput("occurrences_table", height="75vh")
                                        )
                                 ),
                                 column(width = 4, style = "padding-top: 5px; width: 34vw; height: 80vh !important;",

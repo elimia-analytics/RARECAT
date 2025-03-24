@@ -218,6 +218,10 @@ table.dataTable {
   scrollbar-color: transparent transparent !important;
 }
 
+table.dataTable th.dt-center, table.dataTable td.dt-center, table.dataTable td.dataTables_empty {
+  text-align: left !important;
+}
+
 }
 /*********************************************************************
                             Small screens, phones
@@ -231,11 +235,11 @@ padding-left: 0;
 padding-right: 0;
 } 
 
+/*
 html {
   zoom: 80%;
 }
-
-
+*/
  .body {
   font-family: 'Roboto', sans-serif;
   background-color: white;
@@ -455,6 +459,10 @@ table.dataTable {
 .selectize-input {
   max-height: 10vh;
   overflow-y: scroll;
+}
+
+table.dataTable th.dt-center, table.dataTable td.dt-center, table.dataTable td.dataTables_empty {
+  text-align: left !important;
 }
 
 }

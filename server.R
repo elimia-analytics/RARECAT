@@ -134,16 +134,16 @@ function(input, output, session) {
     
     if (nrow(ns_table) > 0){
       ns_table <- ns_table %>% 
-        dplyr::mutate(Source = "NatureServe", synonyms = ns_table$speciesGlobal$synonyms) %>% 
-        dplyr::select(scientificName, Source, elementGlobalId, primaryCommonName, roundedGRank, elcode, uniqueId, synonyms)
+        dplyr::mutate(Source = "NatureServe", synonyms = ns_table$speciesGlobal$synonyms, phylum = ns_table$speciesGlobal$phylum, kingdom = ns_table$speciesGlobal$kingdom) %>% 
+        dplyr::select(scientificName, Source, elementGlobalId, primaryCommonName, roundedGRank, elcode, uniqueId, synonyms, phylum, kingdom)
       out <- rbind(out, ns_table)
     } 
 
       if (nrow(gbif_table) > 0){
         gbif_table <- gbif_table %>% 
           dplyr::rename(scientificName = canonicalName, elementGlobalId = key) %>% 
-          dplyr::mutate(Source = "GBIF", primaryCommonName = NA, roundedGRank = NA, elcode = NA, synonyms = NA, uniqueId = NA) %>% 
-          dplyr::select(scientificName, Source, elementGlobalId, primaryCommonName, roundedGRank, elcode, uniqueId, synonyms)
+          dplyr::mutate(Source = "GBIF", primaryCommonName = NA, roundedGRank = NA, elcode = NA, synonyms = NA, uniqueId = NA, phylum = NA, kingdom = NA) %>% 
+          dplyr::select(scientificName, Source, elementGlobalId, primaryCommonName, roundedGRank, elcode, uniqueId, synonyms, phylum, kingdom)
       out <- rbind(out, gbif_table)
       }
     
@@ -160,7 +160,8 @@ function(input, output, session) {
         datasets_metadata = taxon_data$datasets_selected,
         query_polygon = taxon_data$assessment_polygon,
         all_occ_data = input$select_all_occ,
-        all_humobs_data = input$select_all_humobs
+        all_humobs_data = input$select_all_humobs,
+        shift_occurrences = TRUE
         )
       
       if (nrow(gbif_download$sp_occurrences) > 0){
@@ -223,7 +224,9 @@ function(input, output, session) {
             dplyr::rename("Scientific name" = scientificName, 
                           "ID" = elementGlobalId, 
                           "Common name" = primaryCommonName, 
-                          "G rank" = roundedGRank
+                          "G rank" = roundedGRank,
+                          "Phylum" = phylum,
+                          "Kingdom" = kingdom
                           ) %>% 
 
             DT::datatable(options = list(dom = 't', pageLength = 100, autoWidth = TRUE), selection = list(mode = 'single', target = 'row'), escape = FALSE, rownames = FALSE)
@@ -596,8 +599,6 @@ function(input, output, session) {
         FIPS_CNTRY %in% input$single_assessment_nation
       )
       
-      print(query_poly)
-      
       query_poly_bbox <- sf::st_bbox(query_poly) %>% sf::st_as_sfc()
       p <- terra::vect(query_poly_bbox)
       pcc <- terra::forceCCW(p)
@@ -752,8 +753,8 @@ function(input, output, session) {
         shinybusy::show_modal_spinner("circle", color = "#024b6c") # show the modal window
         
         taxon_data$uploaded_occurrences <- uploaded_data()
-        taxon_data$uploaded_occurrences <- taxon_data$uploaded_occurrences %>% 
-          dplyr::mutate(key = paste(prov, 1:nrow(taxon_data$uploaded_occurrences), sep = "_"))
+        # taxon_data$uploaded_occurrences <- taxon_data$uploaded_occurrences %>% 
+        #   dplyr::mutate(key = paste(prov, 1:nrow(taxon_data$uploaded_occurrences), sep = "_"))
 
         selected_taxon$NS <- c(selected_taxon$NS, unique(taxon_data$uploaded_occurrences$scientificName)) %>% unique()
         
@@ -865,7 +866,6 @@ function(input, output, session) {
       
       selected_taxon$NS <- c(selected_taxon$NS, unique(taxon_data$sf$scientificName)) %>% unique()
 
-      
       taxon_data$nations <- network_polys[which(purrr::map_int(st_intersects(network_polys, taxon_data$sf), length) > 0), ]$FIPS_CNTRY %>% na.omit() %>% as.character()
       taxon_data$states <- network_polys[which(purrr::map_int(st_intersects(network_polys, taxon_data$sf), length) > 0), ]$Admin_abbr %>% na.omit() %>% as.character()
       
@@ -908,10 +908,16 @@ function(input, output, session) {
       updateSelectizeInput(session = session, inputId = "nation_filter", choices = taxon_data$nations, selected = NULL)
       updateSelectizeInput(session = session, inputId = "states_filter", choices = taxon_data$states, selected = NULL) # , taxon_data$states)
       updateSelectizeInput(session = session, inputId = "synonyms_filter", choices = unique(taxon_data$sf$scientificName), selected = unique(taxon_data$sf$scientificName))
-      updateSelectizeInput(session = session, inputId = "type_filter", choices = unique(taxon_data$sf$basisOfRecord), selected = unique(taxon_data$sf$basisOfRecord))
-      updateSelectizeInput(session = session, inputId = "rank_filter", choices = unique(taxon_data$sf$EORANK), selected = unique(taxon_data$sf$EORANK))
-      updateSelectizeInput(session = session, inputId = "sources_filter", choices = unique(taxon_data$sf$datasetName) %>% sort(), selected = unique(taxon_data$sf$datasetName) %>% sort())
       
+      if (!identical(NA, unique(taxon_data$sf$basisOfRecord))){
+        updateSelectizeInput(session = session, inputId = "type_filter", choices = unique(taxon_data$sf$basisOfRecord), selected = unique(taxon_data$sf$basisOfRecord))
+      }
+      if (!identical(NA, unique(taxon_data$sf$EORANK))){
+        updateSelectizeInput(session = session, inputId = "rank_filter", choices = unique(taxon_data$sf$EORANK), selected = unique(taxon_data$sf$EORANK))
+      }
+      if (!identical(NA, unique(taxon_data$sf$datasetName))){
+      updateSelectizeInput(session = session, inputId = "sources_filter", choices = unique(taxon_data$sf$datasetName) %>% sort(), selected = unique(taxon_data$sf$datasetName) %>% sort())
+      }
       updateDateRangeInput(session = session, inputId = "year_filter",
                            start = paste0(min(unique(taxon_data$sf$year), na.rm = TRUE), "-01-01"),
                            end = paste0(max(unique(taxon_data$sf$year), na.rm = TRUE), "-01-01")
@@ -919,10 +925,10 @@ function(input, output, session) {
       
       if (!is.null(batch_taxon_focus$taxon)){
         batch_taxon_filters <- batch_run_output$results[[batch_taxon_focus$taxon]]$filters_selected
-        
+
         updateMaterialSwitch(session = session, inputId = "clean_occ", value = batch_taxon_filters$clean_occ)
         updateMaterialSwitch(session = session, inputId = "centroid_filter", value = batch_taxon_filters$centroid_filter)
-        
+
         if (!is.null(batch_taxon_filters$nations_filter)){
           updateSelectizeInput(session = session, inputId = "nation_filter", selected = batch_taxon_filters$nations_filter)
         }
@@ -930,10 +936,19 @@ function(input, output, session) {
           updateSelectizeInput(session = session, inputId = "states_filter", selected = batch_taxon_filters$states_filter) # , taxon_data$states)
         }
         if (!is.null(batch_taxon_filters$sources_filter)){
-          updateSelectizeInput(session = session, inputId = "sources_filter", choices = unique(batch_run_output$results[[batch_taxon_focus$taxon]]$sf_filtered$basisOfRecord), selected = unique(batch_run_output$results[[batch_taxon_focus$taxon]]$sf_filtered$basisOfRecord))
+          if (!identical(NA, unique(batch_run_output$results[[batch_taxon_focus$taxon]]$sf_filtered$datasetName))){
+          updateSelectizeInput(session = session, inputId = "sources_filter", choices = unique(batch_run_output$results[[batch_taxon_focus$taxon]]$sf_filtered$datasetName), selected = unique(batch_run_output$results[[batch_taxon_focus$taxon]]$sf_filtered$datasetName))
+          }
         }
-        if (batch_taxon_filters$uncertainty_filter != ""){
-          updateTextInput(session = session, inputId = "uncertainty_filter", selected = batch_taxon_filters$uncertainty_filter)
+        if (!is.null(batch_taxon_filters$type_filter)){
+          if (!identical(NA, unique(batch_run_output$results[[batch_taxon_focus$taxon]]$sf_filtered$basisOfRecord))){
+          updateSelectizeInput(session = session, inputId = "type_filter", choices = unique(batch_run_output$results[[batch_taxon_focus$taxon]]$sf_filtered$basisOfRecord), selected = unique(batch_run_output$results[[batch_taxon_focus$taxon]]$sf_filtered$basisOfRecord))
+          }
+        }
+        if (!is.null(batch_taxon_filters$rank_filter)){
+          if (!identical(NA, unique(batch_run_output$results[[batch_taxon_focus$taxon]]$sf_filtered$EORANK))){
+            updateSelectizeInput(session = session, inputId = "rank_filter", choices = unique(batch_run_output$results[[batch_taxon_focus$taxon]]$sf_filtered$EORANK), selected = unique(batch_run_output$results[[batch_taxon_focus$taxon]]$sf_filtered$EORANK))
+          }
         }
         if (batch_taxon_filters$uncertainty_filter != ""){
           updateTextInput(session = session, inputId = "uncertainty_filter", selected = batch_taxon_filters$uncertainty_filter)
@@ -942,15 +957,15 @@ function(input, output, session) {
                              start = batch_taxon_filters$date_start,
                              end = batch_taxon_filters$date_end
         )
-        updateSelectizeInput(session = session, 
+        updateSelectizeInput(session = session,
                              inputId = "seasonality",
                              selected = batch_taxon_filters$months
         )
         updateSelectInput(session = session, inputId = "grid_cell_size", selected = batch_taxon_filters$grid_cell_size)
         updateTextInput(session = session, inputId = "separation_distance", value = batch_taxon_filters$separation_distance)
-        updateMaterialSwitch(session = session, inputId = "range_extent", value = TRUE)
-        updateMaterialSwitch(session = session, inputId = "area_of_occupancy", value = TRUE)
-        updateMaterialSwitch(session = session, inputId = "number_EOs", value = TRUE)
+        # updateMaterialSwitch(session = session, inputId = "range_extent", value = TRUE)
+        # updateMaterialSwitch(session = session, inputId = "area_of_occupancy", value = TRUE)
+        # updateMaterialSwitch(session = session, inputId = "number_EOs", value = TRUE)
         updateDateRangeInput(session = session, inputId = "period1", start = input$batch_period1[1], end = input$batch_period1[2])
         updateDateRangeInput(session = session, inputId = "period2", start = input$batch_period2[1], end = input$batch_period2[2])
         updateDateRangeInput(session = session, inputId = "period3", start = NA, end = NA)
@@ -1020,15 +1035,19 @@ function(input, output, session) {
               dplyr::filter(!(scientificName %in% name_exclusions))
           }
           
-          type_exclusions <- setdiff(taxon_data$sf_filtered$basisOfRecord, input$type_filter)
+          type_exclusions <- setdiff(unique(taxon_data$sf_filtered$basisOfRecord), input$type_filter)
+          
           if (length(type_exclusions) > 0){
+            if (!is.na(type_exclusions)){
             taxon_data$sf_filtered <- taxon_data$sf_filtered %>%
               dplyr::filter(!(basisOfRecord %in% type_exclusions))
             updateSelectizeInput(session = session, inputId = "sources_filter", selected = unique(taxon_data$sf_filtered$datasetName) %>% sort())
+            }
           } else {
             updateSelectizeInput(session = session, inputId = "sources_filter", selected = unique(taxon_data$sf$datasetName) %>% sort())
           }
           
+          if (!is.null(taxon_data$datasets)){
           if ("gbif" %in% taxon_data$datasets$datasetKey){
             source_exclusions <- setdiff(taxon_data$sf_filtered$prov, input$sources_filter)
             if (length(source_exclusions) > 0){
@@ -1041,12 +1060,13 @@ function(input, output, session) {
               source_exclusions <- taxon_data$datasets_selected %>%
                 dplyr::filter(datasetName %in% source_exclusions) %>%
                 dplyr::pull(datasetKey)
-              records_to_exclude <- taxon_data$gbif_occurrences_raw %>% 
-                dplyr::filter(datasetKey %in% source_exclusions) %>% 
+              records_to_exclude <- taxon_data$gbif_occurrences_raw %>%
+                dplyr::filter(datasetKey %in% source_exclusions) %>%
                 dplyr::pull(key)
               taxon_data$sf_filtered <- taxon_data$sf_filtered %>%
                 dplyr::filter(!(key %in% records_to_exclude))
             }
+          }
           }
 
           m <- leafletProxy("main_map") %>%
@@ -1299,6 +1319,7 @@ function(input, output, session) {
                     "Source" = prov,
                     "Latitude" = latitude,
                     "Longitude" = longitude,
+                    "Dataset Name" = datasetName,
                     "Institution" = institutionCode,
                     "Year" = year,
                     "Month" = month,
@@ -1310,7 +1331,7 @@ function(input, output, session) {
                     "References" = references
       ) %>%
       DT::datatable(options = list(dom = 'tp',
-                                   pageLength = 10,
+                                   pageLength = 20,
                                    columnDefs = list(list(width = "10%", className = 'dt-left', targets = c(1,2))),
                                    language = list(emptyTable = 'You have not selected any records from the map'),
                                    width = "100%"
@@ -1401,14 +1422,14 @@ function(input, output, session) {
       
       shinyjs::show(id = "EOO_panel")
 
-      taxon_data$filtered_occurrences <- taxon_data$sf_filtered
+      # taxon_data$filtered_occurrences <- taxon_data$sf_filtered
+      # 
+      # taxon_data$filtered_occurrences <- taxon_data$filtered_occurrences %>%
+      #   st_set_geometry(NULL) %>%
+      #   dplyr::select(longitude, latitude) %>%
+      #   as.data.frame()
       
-      taxon_data$filtered_occurrences <- taxon_data$filtered_occurrences %>%
-        st_set_geometry(NULL) %>%
-        dplyr::select(longitude, latitude) %>%
-        as.data.frame()
-      
-      if (nrow(taxon_data$filtered_occurrences) >= 3){
+      if (nrow(taxon_data$sf_filtered) >= 3){
 
         if (taxon_data$shifted){
           eoo_output <- taxon_data$sf_filtered %>% safe_eoo(shifted = TRUE)
@@ -1435,31 +1456,38 @@ function(input, output, session) {
           )
 
         m
-        
         } else {
-          taxon_data$species_range_value <- NA
           
-          shinyjs::hide(id = "EOO_panel")
+          taxon_data$species_range_value <- NULL
+          
+          leafletProxy("main_map") %>%
+            leaflet::clearGroup("Range Extent")
+          
+          sendSweetAlert(session, type = "warning", title = "Oops!", text = "Range Extent could not be calculated correctly for this taxon", closeOnClickOutside = TRUE)
+
+        }
+        } else {
+          
+          taxon_data$species_range_value <- NULL
+          
           leafletProxy("main_map") %>%
             leaflet::clearGroup("Range Extent")
           
           sendSweetAlert(session, type = "warning", title = "Oops!", text = "Range Extent could not be calculated correctly for this taxon", closeOnClickOutside = TRUE)
           
         }
-        
-        shinybusy::remove_modal_spinner()
-        
-      }
 
     } else {
-
-      taxon_data$species_range_value <- NA
-
+      
+      taxon_data$species_range_value <- NULL
+      
       shinyjs::hide(id = "EOO_panel")
       leafletProxy("main_map") %>%
         leaflet::clearGroup("Range Extent")
     }
 
+    shinybusy::remove_modal_spinner()
+    
   })
   
   observeEvent({
@@ -1480,17 +1508,20 @@ function(input, output, session) {
         as.data.frame()
       taxon_data$filtered_occurrences$longitude[taxon_data$filtered_occurrences$longitude > 180] <- taxon_data$filtered_occurrences$longitude[taxon_data$filtered_occurrences$longitude > 180] - 360
       
+      if (nrow(taxon_data$filtered_occurrences) >= 1){
+        
       taxon_data$AOO_value <- purrr::safely(aoo2)(taxon_data$filtered_occurrences, as.numeric(input$grid_cell_size)*1000)
-      taxon_data$AOO_value <- ifelse(!is.null(taxon_data$AOO_value$result), taxon_data$AOO_value$result/4, NULL)
-      taxon_data$AOO_map <- purrr::safely(get_aoo_polys)(taxon_data$sf_filtered, as.numeric(input$grid_cell_size))      
-      if (!is.null(taxon_data$AOO_map$result)){
-        taxon_data$AOO_map <- taxon_data$AOO_map$result
-      } else {
-        taxon_data$AOO_map <- NULL
+      if (!is.null(taxon_data$AOO_value$result)){
+        taxon_data$AOO_value <- taxon_data$AOO_value$result/4
+        taxon_data$AOO_factor <- purrr::safely(get_aoo_factor)(taxon_data$AOO_value, grid_cell_size = as.numeric(input$grid_cell_size))
+        taxon_data$AOO_factor <- ifelse(!is.null(taxon_data$AOO_factor$result), as.character(taxon_data$AOO_factor$result), NULL)
+        taxon_data$AOO_map <- purrr::safely(get_aoo_polys)(taxon_data$sf_filtered, as.numeric(input$grid_cell_size))      
+        if (!is.null(taxon_data$AOO_map$result)){
+          taxon_data$AOO_map <- taxon_data$AOO_map$result
+        } 
+      } 
       }
-      taxon_data$AOO_factor <- purrr::safely(get_aoo_factor)(taxon_data$AOO_value, grid_cell_size = as.numeric(input$grid_cell_size))
-      taxon_data$AOO_factor <- ifelse(!is.null(taxon_data$AOO_factor$result), as.character(taxon_data$AOO_factor$result), NA)
-
+      
       if (!is.null(taxon_data$AOO_map)){
         
       m <- leafletProxy("main_map") %>%
@@ -1507,7 +1538,7 @@ function(input, output, session) {
       } else {
         m <- leafletProxy("main_map") %>%
           clearShapes()
-        sendSweetAlert(session, type = "warning", title = "Oops!", text = "AOO could not be mapped efficiently", closeOnClickOutside = TRUE)
+        sendSweetAlert(session, type = "warning", title = "Oops!", text = "AOO could not be mapped for this taxon", closeOnClickOutside = TRUE)
       }
       
       m
@@ -1534,17 +1565,20 @@ function(input, output, session) {
       
       shinyjs::show(id = "EOcount_panel")
       
+      if (nrow(taxon_data$sf_filtered) >= 1){
+        
       ##### Calculate numbers of EOs
       number_EOs <- purrr::safely(calculate_number_occurrences)(taxon_data$sf_filtered, separation_distance = input$separation_distance %>% as.numeric(), added_distance = 0)
       if (!is.null(number_EOs$result)){
         number_EOs <- number_EOs$result
-      } else {
-        number_EOs <- NULL
-      }      
-      taxon_data$EOcount_value <- number_EOs$eo_count
-      taxon_data$EOcount_map <- number_EOs$buffered_occurrences
-      taxon_data$EOcount_factor <- number_EOs$factor %>% as.character()
-      
+        taxon_data$EOcount_value <- number_EOs$eo_count
+        taxon_data$EOcount_map <- number_EOs$buffered_occurrences
+        taxon_data$EOcount_factor <- number_EOs$factor %>% as.character()
+      }
+      }
+
+      if (!is.null(taxon_data$EOcount_map)){
+        
       m <- leafletProxy("main_map") %>%
         clearGroup("Occurrences") %>%
         leaflet::addMapPane("eos", zIndex = 200) %>% 
@@ -1556,6 +1590,12 @@ function(input, output, session) {
                     options = pathOptions(pane = "eos"),
                     group = "Occurrences"
         )
+      
+      } else {
+        m <- leafletProxy("main_map") %>%
+          clearShapes()
+        sendSweetAlert(session, type = "warning", title = "Oops!", text = "Occurrences could not be mapped for this taxon", closeOnClickOutside = TRUE)
+      }
       
       m
       
@@ -1599,7 +1639,7 @@ function(input, output, session) {
   
   output$species_range_value <- renderUI({
     
-    if (!is.na(taxon_data$species_range_value)){
+    if (!is.null(taxon_data$species_range_value)){
       
       HTML(
         paste0(
@@ -1609,13 +1649,17 @@ function(input, output, session) {
         )
       )
     } else {
-      HTML(h3("Could not be calculated"))
-    }
+      HTML(paste0(
+        h4("Could not be calculated", style = "padding-top: 0; margin-top: 0; display: inline;")
+      ))
+      }
     
   })
   
   output$AOO_value <- renderUI({
     
+    if (!is.null(taxon_data$AOO_value)){
+      
     if (input$grid_cell_size == 1) out <- base::cut(req(as.numeric(taxon_data$AOO_value)), breaks = c(0, 0.999, 4.999, 10.999, 20.999, 100.999, 500.999, 2000.999, 10000.999, 50000.999, 1000000000), labels = c("Z", LETTERS[1:9]))
     
     if (input$grid_cell_size > 1) out <- base::cut(req(as.numeric(taxon_data$AOO_value)), breaks = c(0, 0.999, 1.999, 2.999, 5.999, 25.999, 125.999, 500.999, 2500.999, 12500.999, 1000000000), labels = c("Z", LETTERS[1:9]))
@@ -1626,19 +1670,30 @@ function(input, output, session) {
         h2(paste0(" cells"), style = "padding-top: 0; margin-top: 0; display: inline;"),
         h1(strong(taxon_data$AOO_factor), style = "padding-top: 0; margin-top: 0; padding-left: 1em; display: inline;")
       )
-    )
+    ) 
+    } else {
+      HTML(paste0(
+        h4("Could not be calculated", style = "padding-top: 0; margin-top: 0; display: inline;")
+        ))
+    }
     
   })
   
   output$EOcount_value <- renderUI({
-    
-    HTML(
-      paste0(
-        h2(format(as.numeric(req(taxon_data$EOcount_value)), big.mark=",", scientific = FALSE), style = "padding-top: 0; margin-top: 0; display: inline;"), 
-        h2("  EOs", style = "padding-top: 0; margin-top: 0; display: inline;"),
-        h1(strong(cut(req(as.numeric(taxon_data$EOcount_value)), breaks = c(0, 0.999, 5.999, 19.999, 79.999, 299.999, 1000000000), labels = c("Z", LETTERS[1:5]))), style = "padding-top: 0; margin-top: 0; padding-left: 1em; display: inline;")
+
+    if (!is.null(taxon_data$EOcount_value)){    
+      HTML(
+        paste0(
+          h2(format(as.numeric(req(taxon_data$EOcount_value)), big.mark=",", scientific = FALSE), style = "padding-top: 0; margin-top: 0; display: inline;"), 
+          h2("  EOs", style = "padding-top: 0; margin-top: 0; display: inline;"),
+          h1(strong(cut(req(as.numeric(taxon_data$EOcount_value)), breaks = c(0, 0.999, 5.999, 19.999, 79.999, 299.999, 1000000000), labels = c("Z", LETTERS[1:5]))), style = "padding-top: 0; margin-top: 0; padding-left: 1em; display: inline;")
+        )
       )
-    )
+    } else {
+      HTML(paste0(
+        h4("Could not be calculated", style = "padding-top: 0; margin-top: 0; display: inline;")
+      ))
+    }
     
   })
   
@@ -1647,7 +1702,7 @@ function(input, output, session) {
     if (!is.null(taxon_data$sf_filtered)){
       sources_count <- taxon_data$sf_filtered %>% dplyr::count(prov)
       sources_filter_labels <- paste0(paste0(sources_count$prov, ": ", sources_count$n), collapse = "; ")
-      records_count_text <- paste0("  records included after filtering (", sources_filter_labels, ")")
+      records_count_text <- ifelse(sum(sources_count$n) > 0, paste0("  records included after filtering (", sources_filter_labels, ")"), "  records included after filtering")
       
       HTML(
         paste0(
@@ -1829,7 +1884,7 @@ function(input, output, session) {
         ) %>% 
         dplyr::select(-scientificName) 
       out <- out %>% 
-        dplyr::select(key, scientificName_Assessment, scientificName_Source, names(out[, -c(1:3)]))
+        dplyr::select(all_of(c("key", "scientificName_Assessment", "scientificName_Source", out %>% dplyr::select(-key, -scientificName_Assessment, -scientificName_Source) %>% names())))
       write.csv(out, file, row.names = FALSE)
     }
   )
@@ -1978,7 +2033,7 @@ function(input, output, session) {
     
     updateCollapse(session = session, id = "batch_parameters", close = "Rank assessment parameters")
 
-    print(Sys.time())
+    time1 <- Sys.time()
       batch_run_output$results <- safe_batch_run(
         taxon_names = batch_run_taxon_list$names$user_supplied_name,
         minimum_fields = c("key", "scientificName", "prov", "longitude", "latitude", "coordinateUncertaintyInMeters", "stateProvince", "countryCode", "year", "month", "datasetName", "institutionCode", "basisOfRecord", "EORANK", "references"),
@@ -1999,18 +2054,18 @@ function(input, output, session) {
         trends_period1 = input$batch_period1,
         trends_period2 = input$batch_period2
         )
-    print(Sys.time())
-      
+    time2 <- Sys.time()
+    
+    print(paste0("batch run took ", difftime(time2, time1, units = "mins")))
+    
     batch_run_output$results <- batch_run_output$results$result
     
     batch_run_output$results <- batch_run_output$results %>%
       set_names(batch_run_taxon_list$names$user_supplied_name)
     
-    print(batch_run_output$results[[1]]$rank_factor_comparison)
-    
     batch_run_output$table <- data.frame(
       taxon = batch_run_taxon_list$names$user_supplied_name,
-      total_observations_used = purrr::map(batch_run_output$results, function(out) ifelse(!is.null(out$sf_filtered), nrow(out$sf_filtered), 0)) %>% unlist(),
+      total_observations_used = purrr::map(batch_run_output$results, function(out) ifelse(!is.null(out$sf_filtered), nrow(out$sf_filtered), nrow(out$all_occurrences))) %>% unlist(),
       range_value = purrr::map(batch_run_output$results, function(out){
         ifelse(!is.null(out$species_range_value), paste0(out$species_range_value, " (", out$species_range_factor, ")"), NA)
         }) %>% unlist(),
@@ -2026,8 +2081,8 @@ function(input, output, session) {
         res
       }) %>% unlist(),
       range_value_trend = purrr::map(batch_run_output$results, function(out){
-        out <- ifelse(!is.na(out$temporal_change$eoo_change[2]), out$temporal_change$eoo_change[2], NA)
-        paste0(out, "%")
+        out <- ifelse(!is.na(out$temporal_change$eoo_change[2]), paste0(out$temporal_change$eoo_change[2], "%"), NA)
+        out
       }) %>% unlist(),
       AOO_value = purrr::map(batch_run_output$results, function(out){
         ifelse(!is.null(out$AOO_value), paste0(out$AOO_value, " (", out$AOO_factor, ")"), NA)
@@ -2044,8 +2099,8 @@ function(input, output, session) {
         res
       }) %>% unlist(),
       AOO_value_trend = purrr::map(batch_run_output$results, function(out){
-        out <- ifelse(!is.na(out$temporal_change$aoo_change[2]), out$temporal_change$aoo_change[2], NA)
-        paste0(out, "%")
+        out <- ifelse(!is.na(out$temporal_change$aoo_change[2]), paste0(out$temporal_change$aoo_change[2], "%"), NA)
+        out
       }) %>% unlist(),
       EOcount_value = purrr::map(batch_run_output$results, function(out){
         # ifelse(!is.null(out$EOcount_value), paste0(ifelse(out$EOcount_value > 300, ">300", out$EOcount_value), " (", out$EOcount_factor, ")"), NA)
@@ -2063,8 +2118,8 @@ function(input, output, session) {
         res
       }) %>% unlist(),
       EOcount_value_trend = purrr::map(batch_run_output$results, function(out){
-        out <- ifelse(!is.na(out$temporal_change$eo_count_change[2]), out$temporal_change$eo_count_change[2], NA)
-        paste0(out, "%")
+        out <- ifelse(!is.na(out$temporal_change$eo_count_change[2]), paste0(out$temporal_change$eo_count_change[2], "%"), NA)
+        out
       }) %>% unlist(),
       Reviewed = FALSE
     )
@@ -2116,19 +2171,28 @@ function(input, output, session) {
       escape = FALSE, 
       rownames = FALSE
       ) 
-
-      range_extent_trend_value <- gsub("%", "", batch_run_table$`Range Extent Change`) %>% as.numeric()
-      aoo_trend_value <- gsub("%", "", batch_run_table$`AOO Change`) %>% as.numeric()
-      eo_count_trend_value <- gsub("%", "", batch_run_table$`Occurrence Count Change`) %>% as.numeric()
-      if (sum(range_extent_trend_value <= -30 & range_extent_trend_value >= -50) > 0) out_tab <- out_tab %>% formatStyle(columns = "Range Extent Change", backgroundColor = styleRow(rows = which(range_extent_trend_value <= -30 & range_extent_trend_value >= -50), values = "#fee08b"))
-      if (sum(range_extent_trend_value <= -51 & range_extent_trend_value >= -70) > 0) out_tab <- out_tab %>%  formatStyle(columns = "Range Extent Change", backgroundColor = styleRow(rows = which(range_extent_trend_value <= -51 & range_extent_trend_value >= -70), values = "#fdae61"))
-      if (sum(range_extent_trend_value <= -71) > 0) out_tab <- out_tab %>% formatStyle(columns = "Range Extent Change", backgroundColor = styleRow(rows = which(range_extent_trend_value <= -71), values = "#f46d43"))
-      if (sum(aoo_trend_value <= -30 & aoo_trend_value >= -50) > 0) out_tab <- out_tab %>% formatStyle(columns = "AOO Change", backgroundColor = styleRow(rows = which(aoo_trend_value <= -30 & aoo_trend_value >= -50), values = "#fee08b"))
-      if (sum(aoo_trend_value <= -51 & aoo_trend_value >= -70) > 0) out_tab <- out_tab %>% formatStyle(columns = "AOO Change", backgroundColor = styleRow(rows = which(aoo_trend_value <= -51 & aoo_trend_value >= -70), values = "#fdae61"))
-      if (sum(aoo_trend_value <= -71) > 0) out_tab <- out_tab %>% formatStyle(columns = "AOO Change", backgroundColor = styleRow(rows = which(aoo_trend_value <= -71), values = "#f46d43"))
-      if (sum(eo_count_trend_value <= -30 & eo_count_trend_value >= -50) > 0) out_tab <- out_tab %>% formatStyle(columns = "Occurrence Count Change", backgroundColor = styleRow(rows = which(eo_count_trend_value <= -30 & eo_count_trend_value >= -50), values = "#fee08b"))
-      if (sum(eo_count_trend_value <= -51 & eo_count_trend_value >= -70) > 0) out_tab <- out_tab %>% formatStyle(columns = "Occurrence Count Change", backgroundColor = styleRow(rows = which(eo_count_trend_value <= -51 & eo_count_trend_value >= -70), values = "#fdae61"))
-      if (sum(eo_count_trend_value <= -71) > 0) out_tab <- out_tab %>% formatStyle(columns = "Occurrence Count Change", backgroundColor = styleRow(rows = which(eo_count_trend_value <= -71), values = "#f46d43"))
+      
+      
+      range_extent_trend_value <- purrr::map(batch_run_table$`Range Extent Change`, function(x){
+        ifelse(!is.na(x), gsub("%", "", x) %>% as.numeric(), NA)
+      }) %>% unlist()
+      if (sum(range_extent_trend_value <= -30 & range_extent_trend_value >= -50, na.rm = TRUE) > 0) out_tab <- out_tab %>% formatStyle(columns = "Range Extent Change", backgroundColor = styleRow(rows = which(range_extent_trend_value <= -30 & range_extent_trend_value >= -50), values = "#fee08b"))
+      if (sum(range_extent_trend_value <= -51 & range_extent_trend_value >= -70, na.rm = TRUE) > 0) out_tab <- out_tab %>%  formatStyle(columns = "Range Extent Change", backgroundColor = styleRow(rows = which(range_extent_trend_value <= -51 & range_extent_trend_value >= -70), values = "#fdae61"))
+      if (sum(range_extent_trend_value <= -71, na.rm = TRUE) > 0) out_tab <- out_tab %>% formatStyle(columns = "Range Extent Change", backgroundColor = styleRow(rows = which(range_extent_trend_value <= -71), values = "#f46d43"))
+      
+      aoo_trend_value <- purrr::map(batch_run_table$`AOO Change`, function(x){
+        ifelse(!is.na(x), gsub("%", "", x) %>% as.numeric(), NA)
+      }) %>% unlist()
+      if (sum(aoo_trend_value <= -30 & aoo_trend_value >= -50, na.rm = TRUE) > 0) out_tab <- out_tab %>% formatStyle(columns = "AOO Change", backgroundColor = styleRow(rows = which(aoo_trend_value <= -30 & aoo_trend_value >= -50), values = "#fee08b"))
+      if (sum(aoo_trend_value <= -51 & aoo_trend_value >= -70, na.rm = TRUE) > 0) out_tab <- out_tab %>% formatStyle(columns = "AOO Change", backgroundColor = styleRow(rows = which(aoo_trend_value <= -51 & aoo_trend_value >= -70), values = "#fdae61"))
+      if (sum(aoo_trend_value <= -71, na.rm = TRUE) > 0) out_tab <- out_tab %>% formatStyle(columns = "AOO Change", backgroundColor = styleRow(rows = which(aoo_trend_value <= -71), values = "#f46d43"))
+      
+      eo_count_trend_value <- purrr::map(batch_run_table$`Occurrence Count Change`, function(x){
+        ifelse(!is.na(x), gsub("%", "", x) %>% as.numeric(), NA)
+      }) %>% unlist()
+      if (sum(eo_count_trend_value <= -30 & eo_count_trend_value >= -50, na.rm = TRUE) > 0) out_tab <- out_tab %>% formatStyle(columns = "Occurrence Count Change", backgroundColor = styleRow(rows = which(eo_count_trend_value <= -30 & eo_count_trend_value >= -50), values = "#fee08b"))
+      if (sum(eo_count_trend_value <= -51 & eo_count_trend_value >= -70, na.rm = TRUE) > 0) out_tab <- out_tab %>% formatStyle(columns = "Occurrence Count Change", backgroundColor = styleRow(rows = which(eo_count_trend_value <= -51 & eo_count_trend_value >= -70), values = "#fdae61"))
+      if (sum(eo_count_trend_value <= -71, na.rm = TRUE) > 0) out_tab <- out_tab %>% formatStyle(columns = "Occurrence Count Change", backgroundColor = styleRow(rows = which(eo_count_trend_value <= -71), values = "#f46d43"))
 
       out_tab
     
@@ -2275,6 +2339,7 @@ function(input, output, session) {
     taxon_data$shifted <- batch_run_output$results[[batch_taxon_focus$taxon]]$shifted
     taxon_data$sf <- batch_run_output$results[[batch_taxon_focus$taxon]]$sf
     taxon_data$sf_filtered <- batch_run_output$results[[batch_taxon_focus$taxon]]$sf_filtered
+    
     # taxon_data$species_range_value <- batch_run_output$results[[batch_taxon_focus$taxon]]$species_range_value
     # taxon_data$species_range_map <- batch_run_output$results[[batch_taxon_focus$taxon]]$species_range_map
     # taxon_data$AOO_value <- batch_run_output$results[[batch_taxon_focus$taxon]]$AOO_value
