@@ -222,6 +222,38 @@ table.dataTable th.dt-center, table.dataTable td.dt-center, table.dataTable td.d
   text-align: left !important;
 }
 
+.tooltip {
+  pointer-events: none;
+}
+.tooltip > .tooltip-inner {
+  pointer-events: none;
+  background-color: #FFFFFF;
+  color: black;
+  border: 1px solid black;
+  box-shadow: 0 .125rem .25rem rgba(0, 0, 0, .075);
+  padding: 4px;
+  font-size: 12px;
+  max-width: 300px;
+}
+
+.tooltip .tooltiptext {
+  visibility: hidden;
+  width: 60px;
+  background-color: black;
+  color: #fff;
+  text-align: left;
+  border-radius: 6px;
+  padding: 5px 0;
+  
+  /* Position the tooltip */
+  position: absolute;
+  z-index: 15000;
+  top: -5px;
+}
+.tooltip > .arrow::before {
+  border-right-color: black;
+}
+
 }
 /*********************************************************************
                             Small screens, phones
@@ -465,4 +497,35 @@ table.dataTable th.dt-center, table.dataTable td.dt-center, table.dataTable td.d
   text-align: left !important;
 }
 
+.tooltip {
+  pointer-events: none;
+}
+.tooltip > .tooltip-inner {
+  pointer-events: none;
+  background-color: #FFFFFF;
+  color: black;
+  border: 1px solid black;
+  box-shadow: 0 .125rem .25rem rgba(0, 0, 0, .075);
+  padding: 4px;
+  font-size: 12px;
+  max-width: 300px;
+}
+
+.tooltip .tooltiptext {
+  visibility: hidden;
+  width: 60px;
+  background-color: black;
+  color: #fff;
+  text-align: left;
+  border-radius: 6px;
+  padding: 5px 0;
+  
+  /* Position the tooltip */
+  position: absolute;
+  z-index: 15000;
+  top: -5px;
+}
+.tooltip > .arrow::before {
+  border-right-color: black;
+}
 }
