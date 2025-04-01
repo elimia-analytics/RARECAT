@@ -224,6 +224,7 @@ table.dataTable th.dt-center, table.dataTable td.dt-center, table.dataTable td.d
 
 .tooltip {
   pointer-events: none;
+  text-align: left;
 }
 .tooltip > .tooltip-inner {
   pointer-events: none;
@@ -234,6 +235,7 @@ table.dataTable th.dt-center, table.dataTable td.dt-center, table.dataTable td.d
   padding: 4px;
   font-size: 12px;
   max-width: 300px;
+  text-align: left;
 }
 
 .tooltip .tooltiptext {
@@ -499,6 +501,7 @@ table.dataTable th.dt-center, table.dataTable td.dt-center, table.dataTable td.d
 
 .tooltip {
   pointer-events: none;
+  text-align: left;
 }
 .tooltip > .tooltip-inner {
   pointer-events: none;
@@ -509,6 +512,7 @@ table.dataTable th.dt-center, table.dataTable td.dt-center, table.dataTable td.d
   padding: 4px;
   font-size: 12px;
   max-width: 300px;
+  text-align: left;
 }
 
 .tooltip .tooltiptext {

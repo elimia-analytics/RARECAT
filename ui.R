@@ -72,7 +72,6 @@ navbarPage(title = HTML("<span style='float: left; display: inline-block; paddin
                         
                         scr,
                         
-                        
                         fluidRow(style = "padding: 0 0 10px 30px;",
                                  column(width = 2, style = "width: 15%; padding-left: 0; padding-right: 2px; z-index: 1005;",
                                         selectizeInput(inputId = "single_assessment_type",
@@ -161,10 +160,13 @@ navbarPage(title = HTML("<span style='float: left; display: inline-block; paddin
                                         tabsetPanel(type = "tabs",
                                                     tabPanel("Occurrences", style = "padding: 10px; background-color: rgba(230, 239, 240, 0.5); border-color: transparent;",
                                                              fluidRow(
-                                                               column(width = 3, style = "padding-top: 1em;",
+                                                               column(width = 2, style = "padding-top: 1em;",
                                                                       checkboxInput("select_all_occ", label = "Include all datasets", value = FALSE)
                                                                ),
-                                                               column(width = 5, offset = 4,
+                                                               column(width = 3, style = "padding-top: 1em;",
+                                                                      checkboxInput("deselect_all_occ", label = "Exclude all datasets", value = FALSE)
+                                                               ),
+                                                               column(width = 5, offset = 2,
                                                                       p("Maximum records to include per dataset: ", style = "padding-top: 1em; padding-left: 30px; color: black; display: inline-block !important;"),
                                                                       span(style = "float: right; padding: 0; margin-right: 5px;",
                                                                            `data-toggle` = "tooltip", `data-html`="true", `data-placement` = "bottom",  `data-animation` = "true", 
@@ -178,10 +180,13 @@ navbarPage(title = HTML("<span style='float: left; display: inline-block; paddin
                                                     ),
                                                     tabPanel("Human Observations", style = "padding: 10px; background-color: rgba(230, 239, 240, 0.5); border-color: transparent;",
                                                              fluidRow(
-                                                               column(width = 3, style = "padding-top: 1em;",
+                                                               column(width = 2, style = "padding-top: 1em;",
                                                                       checkboxInput("select_all_humobs", label = "Include all datasets", value = FALSE)
                                                                ),
-                                                               column(width = 5, offset = 4,
+                                                               column(width = 3, style = "padding-top: 1em;",
+                                                                      checkboxInput("deselect_all_humobs", label = "Exclude all datasets", value = FALSE)
+                                                               ),
+                                                               column(width = 5, offset = 2,
                                                                       p("Maximum records to include per dataset: ", style = "padding-top: 1em; padding-left: 30px; color: black; display: inline-block !important;"),
                                                                       span(textInput(inputId = "number_humobs", label = "", value = 1000, width = "100%"), style = "display: inline-block !important; float:right; margin-left: 0;")
                                                                )
@@ -191,7 +196,10 @@ navbarPage(title = HTML("<span style='float: left; display: inline-block; paddin
                                         )
                           )
                         ),
-                        shinycssloaders::withSpinner(leafletOutput("main_map", height="60vh", width = "101vw"), type = 7),
+                        
+                        leafletOutput("main_map", height="60vh", width = "101vw"),
+                        
+                        add_busy_spinner(spin = "circle", color = "#1F417D", margins = c("40vh", "50vw"), height = "75px", width = "75px"),
                         
                         div(id = "analysis_panel",
                             absolutePanel(id = "cond_inputs_panel2", 
@@ -271,7 +279,7 @@ navbarPage(title = HTML("<span style='float: left; display: inline-block; paddin
                                                                     shinyBS::bsCollapsePanel(title = "Rank factor calculations", style = "primary", 
                                                                                              fluidRow(style = "padding-left: 5px;",
                                                                                                       column(width = 12, style = "padding-top: 0;",
-                                                                                                             div(shinycssloaders::withSpinner(htmlOutput("number_occurrences"), type = 7, proxy.height = "0px"), style = "padding-right: 2px; display: inline !important; float: left;"),
+                                                                                                             column(width = 10, style = "padding-left: 0;", shinycssloaders::withSpinner(htmlOutput("number_occurrences"), type = 7, proxy.height = "0px"), style = "display: inline !important; float: left;"),
                                                                                                              span(style = "float: right; padding: 0; margin-right: 5px;",
                                                                                                                   `data-toggle` = "tooltip", `data-html`="true", `data-placement` = "bottom",  `data-animation` = "true", 
                                                                                                                   title = "- Slide each toggle to calculate the corresponding rarity metric using the records added to the map <br/> - Where applicable, change parameters for the calculations using the corresponding dropdown menu/text box <br/> - Use buttons at the bottom of this panel to download outputs and feed data back to multispecies mode",
@@ -518,7 +526,7 @@ navbarPage(title = HTML("<span style='float: left; display: inline-block; paddin
                                             )
                                    ),
                                    fluidRow(style = "padding-right: 15px; overflow-x: scroll; overflow-y: hidden; scrollbar-color: #C7C7C7 rgba(255, 255, 255, 1) !important;",
-                                            DT::dataTableOutput("occurrences_table", height="75vh")
+                                            shinycssloaders::withSpinner(DT::dataTableOutput("occurrences_table", height="75vh"), type = 7, proxy.height = "0px")
                                    )
                             ),
                             column(width = 4, style = "padding-top: 5px; width: 34vw; height: 80vh !important;",
@@ -526,7 +534,7 @@ navbarPage(title = HTML("<span style='float: left; display: inline-block; paddin
                                                tabPanel("Change over time", style = "height: 75vh !important; width: 34vw; background-color: rgba(230, 239, 240, 0.5);",
                                                         fluidRow(style = "padding: 5px 35px 2px 35px;",
                                                                  h3("Records per year"),
-                                                                 dygraphs::dygraphOutput("occurrences_barchart_full", height = "16vh", width = "100%")
+                                                                 shinycssloaders::withSpinner(dygraphs::dygraphOutput("occurrences_barchart_full", height = "16vh", width = "100%"), type = 7, proxy.height = "0px")
                                                         ),
                                                         br(),
                                                         fluidRow(style = "padding: 0px 35px 20px 35px;",
@@ -552,16 +560,16 @@ navbarPage(title = HTML("<span style='float: left; display: inline-block; paddin
                                                                  ),
                                                                  column(width = 8,
                                                                         selectInput("barchart_metric", label = "Select metric:", choices = c(list("Number of Records" = "rec_count", "Range Extent" = "eoo", "Area of Occupancy" = "aoo", "Number of Occurrences" = "eo_count")), multiple = FALSE, width = "70%"),
-                                                                        plotly::plotlyOutput("metric_barchart_period", height = "30vh", width = "105%")
+                                                                        shinycssloaders::withSpinner(plotly::plotlyOutput("metric_barchart_period", height = "30vh", width = "105%"), type = 7)
                                                                  )
                                                         )
                                                ),
-                                               tabPanel("Temporal analysis", style = "height: 75vh !important; width: 34vw; background-color: rgba(230, 239, 240, 0.5);",
-                                                        fluidRow(style = "padding-left: 5px; padding-bottom: 10px;",
-                                                                 column(width = 4,
-                                                                        p("Select reference taxon ", style = "padding-top: 19px; float: right;")
+                                               tabPanel("Temporal analysis", style = "height: 75vh !important; width: 40vw; background-color: rgba(230, 239, 240, 0.5);",
+                                                        fluidRow(style = "padding-left: 0; padding-bottom: 10px;",
+                                                                 column(width = 3, style = "width: 18%;",
+                                                                        p("Reference taxon", style = "padding-top: 19px; float: right;")
                                                                  ),
-                                                                 column(width = 3, style = "padding-top: 5px; padding-left: 0;",
+                                                                 column(width = 2, style = "padding-top: 5px; padding-left: 0;",
                                                                         selectizeInput(inputId = "select_reference_taxon",
                                                                                        label = "",
                                                                                        choices = c("genus", "family", "order", "class", "phylum", "kingdom"),
@@ -570,13 +578,25 @@ navbarPage(title = HTML("<span style='float: left; display: inline-block; paddin
                                                                                        width = "120%"
                                                                         )
                                                                  ),
-                                                                 column(width = 5, style = "padding: 12px 50px 5px 0px; margin-left: 0;",
+                                                                 column(width = 2, style = "width: 11%;",
+                                                                        p("Start year ", style = "padding-top: 19px; padding-left: 0; padding-right: 0;")
+                                                                 ),
+                                                                 column(width = 2, style = "padding-top: 5px; padding-left: 0; padding-right: 5px; width: 14%;",
+                                                                        selectizeInput(inputId = "select_start_year",
+                                                                                       label = "",
+                                                                                       choices = 1900:2000,
+                                                                                       selected = 1980,
+                                                                                       multiple = FALSE, 
+                                                                                       width = "100%"
+                                                                        )
+                                                                 ),
+                                                                 column(width = 2, style = "width: 26%; padding: 12px 5px 5px 5px;",
                                                                         span(style = "float: right; display: inline !important; padding-left: 2px; margin-right: 5px;",
                                                                              `data-toggle` = "tooltip", `data-html`="true", `data-placement` = "bottom",  `data-animation` = "true", 
                                                                              title = "- Select the taxonomic scale against which assessment taxon records will be compared over time <br/> - Click the 'Calculate temporal change' button to estimate bias-corrected changes in the number of records and the probability of observing the assessment taxon across years <br/> - See Documentation for additional details on the methods used to run this analysis",
                                                                              icon("info-circle", style = "color: #1F417D;")
                                                                         ),
-                                                                        div(actionButton(inputId = "temporal_trend", label = "Calculate temporal change", block = TRUE, class = "btn-primary btn-sm", width = "100%"), style = "padding-right: 2px; display: inline !important; float: right;")
+                                                                        div(actionButton(inputId = "temporal_trend", label = "Calculate temporal change", block = TRUE, class = "btn-primary btn-sm", width = "100%"), style = "padding-right: 0; display: inline !important; float:right;")
                                                                  ),
                                                                  hidden(
                                                                    fluidRow(id = "temporal_trend_plots", style = "padding: 35px;",
@@ -606,6 +626,8 @@ navbarPage(title = HTML("<span style='float: left; display: inline-block; paddin
                     div(class="outer",
                         
                         useShinyjs(),     ## Call to use shinyJS
+                        
+                        add_busy_spinner(spin = "circle", color = "#1F417D", margins = c("40vh", "50vw"), height = "75px", width = "75px"),
                         
                         scr,
                         shinyBS::bsCollapse(id = "batch_parameters", open = "Rank assessment parameters", 
@@ -796,18 +818,25 @@ navbarPage(title = HTML("<span style='float: left; display: inline-block; paddin
            ),
            
            tabPanel("DOCUMENTATION", height = "100%",
-                    fluidRow(style = "padding: 20px 50px 20px 50px; background-color: rgba(249, 249, 249, 1);",
-                             h2(paste0("You are using RARECAT version 1.1.1 (2024-10-01). For more information: "),
-                                strong(a(
-                                  "NatureServe RARECAT Documentation.",
-                                  target = "_blank",
-                                  href = "https://natureserve01.sharepoint.com/:w:/g/teamsites/element_ranking/ETf6mA-3TvtMpo6iYO45JQ4BEhhuQFRKYfbUEbnlm_u7xA"
-                                ))),
-                             br(),
-                             h2("Suggested citation:"),
-                             h2(paste0("NatureServe (", substr(Sys.Date(), 1, 4), "). ", "RARECAT version 1.1.1. ",
-                                       "Available from https://natureserve.shinyapps.io/RARECAT. Accessed [Date].")
-                             )
+                    fluidRow(style = "padding: 20px 50px 20px 50px; background-color: rgba(230, 239, 240, 0.5);",
+                             # h2(paste0("You are using RARECAT version 2.1.1 (2025-03-31). For more information: view/download "),
+                             #    strong(a(
+                             #      "NatureServe RARECAT Documentation",
+                             #      target = "_blank",
+                             #      href = "https://natureserve01.sharepoint.com/:w:/g/teamsites/element_ranking/ETf6mA-3TvtMpo6iYO45JQ4BEhhuQFRKYfbUEbnlm_u7xA"
+                             #    )), " or navigate pdf below."),
+                             # br(),
+                             # h2(paste0("To report issues or provide feedback, please submit tickets by either by logging into the"), 
+                             #           strong(a("RARECAT Help Desk", 
+                             #                    target = "_blank",
+                             #                    href = "https://rarecatsupport.natureserve.org/"
+                             #           )), paste0("or by emailing "), strong(a("rarecatsupport@natureserve.org", target = "_blank", href = "rarecatsupport@natureserve.org")), paste0("which will automatically create a ticket.")),
+                             # br(),
+                             # h2("Suggested citation:"),
+                             # h2(paste0("NatureServe (", substr(Sys.Date(), 1, 4), "). ", "RARECAT version 1.1.1. ",
+                             #           "Available from https://natureserve.shinyapps.io/RARECAT. Accessed [Date].")
+                             # ),
+                             tags$iframe(style='height:1000px; width:100%; scrolling=yes', src="NatureServe RARECAT v2.1.1 - Documentation.pdf")
                     )
            )
 )
