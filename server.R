@@ -1093,7 +1093,6 @@ function(input, output, session) {
           #    updateSelectizeInput(session = session, inputId = "sources_filter", selected = unique(taxon_data$sf$datasetName) %>% sort())
           # }
           
-          # print(taxon_data$datasets_selected)
           # 
           # if (!is.null(taxon_data$datasets_selected)){
           # if ("gbif" %in% taxon_data$datasets$datasetKey){
@@ -1114,9 +1113,7 @@ function(input, output, session) {
             }
           }
           
-          # print(taxon_data$datasets_selected$datasetName)
           #   source_exclusions <- setdiff(taxon_data$datasets_selected$datasetName, input$sources_filter)
-          #   print(source_exclusions)
           #   if (length(source_exclusions) > 0){
           #     source_exclusions <- taxon_data$datasets_selected %>%
           #       dplyr::filter(datasetName %in% source_exclusions) %>%
@@ -1584,7 +1581,6 @@ function(input, output, session) {
         taxon_data$AOO_factor <- purrr::safely(get_aoo_factor)(taxon_data$AOO_value, grid_cell_size = as.numeric(input$grid_cell_size))
         taxon_data$AOO_factor <- ifelse(!is.null(taxon_data$AOO_factor$result), as.character(taxon_data$AOO_factor$result), NULL)
         taxon_data$AOO_map <- purrr::safely(get_aoo_polys)(taxon_data$sf_filtered, as.numeric(input$grid_cell_size))      
-        print(taxon_data$AOO_map)
         if (!is.null(taxon_data$AOO_map$result)){
           taxon_data$AOO_map <- taxon_data$AOO_map$result
         } 
@@ -2119,7 +2115,6 @@ function(input, output, session) {
     if (!is.null(input$batch_filedata_rank$datapath)){
       batch_rank_factor_file <- read.csv(input$batch_filedata_rank$datapath, header = TRUE) 
       rank_names <- batch_rank_factor_file[, 3] %>% as.character()
-      print(rank_names)
     } else {
       rank_names <- NULL
     }
@@ -2273,18 +2268,18 @@ function(input, output, session) {
                     "Range Extent (Previous)" = current_range_value,
                     "AOO (New)" = AOO_value,
                     "AOO (Previous)" = current_AOO_value,
-                    "Occurrence Count (New)" = EOcount_value,
-                    "Occurrence Count (Previous)" = current_EOcount_value,
+                    "Number of Occurrences (New)" = EOcount_value,
+                    "Number of Occurrences (Previous)" = current_EOcount_value,
                     "Range Extent Change" = range_value_trend,
                     "AOO Change" = AOO_value_trend,
-                    "Occurrence Count Change" = EOcount_value_trend,
+                    "Number of Occurrences Change" = EOcount_value_trend,
       ) %>% 
       dplyr::mutate(" " = purrr::map(1:nrow(batch_run_output$table), function(i){
         shinyInput(actionButton, 1, paste0(`Scientific Name (Assessment)`[i], "_"), label = "Review assessment", onclick = 'Shiny.onInputChange(\"select_button\",  this.id + "_" + Date.now());')
       }),
       Reviewed = ifelse(Reviewed == FALSE, as.character(icon("xmark", "fa-2x", style = "color: #ef8a62;")), as.character(icon("check", "fa-2x", style = "color: #67a9cf;")))
       ) %>% 
-      dplyr::select("Scientific Name (Assessment)", "Number Of Records Included", "Range Extent (New)", "Range Extent (Previous)", "AOO (New)", "AOO (Previous)", "Occurrence Count (New)", "Occurrence Count (Previous)", "Range Extent Change", "AOO Change", "Occurrence Count Change", "Reviewed", " ")
+      dplyr::select("Scientific Name (Assessment)", "Number Of Records Included", "Range Extent (New)", "Range Extent (Previous)", "AOO (New)", "AOO (Previous)", "Number of Occurrences (New)", "Number of Occurrences (Previous)", "Range Extent Change", "AOO Change", "Number of Occurrences Change", "Reviewed", " ")
       
       out_tab <- batch_run_table %>% 
       DT::datatable(options = list(dom = 'tp',
@@ -2313,12 +2308,12 @@ function(input, output, session) {
       if (sum(aoo_trend_value <= -51 & aoo_trend_value >= -70, na.rm = TRUE) > 0) out_tab <- out_tab %>% formatStyle(columns = "AOO Change", backgroundColor = styleRow(rows = which(aoo_trend_value <= -51 & aoo_trend_value >= -70), values = "#fdae61"))
       if (sum(aoo_trend_value <= -71, na.rm = TRUE) > 0) out_tab <- out_tab %>% formatStyle(columns = "AOO Change", backgroundColor = styleRow(rows = which(aoo_trend_value <= -71), values = "#f46d43"))
       
-      eo_count_trend_value <- purrr::map(batch_run_table$`Occurrence Count Change`, function(x){
+      eo_count_trend_value <- purrr::map(batch_run_table$`Number of Occurrences Change`, function(x){
         ifelse(!is.na(x), gsub("%", "", x) %>% as.numeric(), NA)
       }) %>% unlist()
-      if (sum(eo_count_trend_value <= -30 & eo_count_trend_value >= -50, na.rm = TRUE) > 0) out_tab <- out_tab %>% formatStyle(columns = "Occurrence Count Change", backgroundColor = styleRow(rows = which(eo_count_trend_value <= -30 & eo_count_trend_value >= -50), values = "#fee08b"))
-      if (sum(eo_count_trend_value <= -51 & eo_count_trend_value >= -70, na.rm = TRUE) > 0) out_tab <- out_tab %>% formatStyle(columns = "Occurrence Count Change", backgroundColor = styleRow(rows = which(eo_count_trend_value <= -51 & eo_count_trend_value >= -70), values = "#fdae61"))
-      if (sum(eo_count_trend_value <= -71, na.rm = TRUE) > 0) out_tab <- out_tab %>% formatStyle(columns = "Occurrence Count Change", backgroundColor = styleRow(rows = which(eo_count_trend_value <= -71), values = "#f46d43"))
+      if (sum(eo_count_trend_value <= -30 & eo_count_trend_value >= -50, na.rm = TRUE) > 0) out_tab <- out_tab %>% formatStyle(columns = "Number of Occurrences Change", backgroundColor = styleRow(rows = which(eo_count_trend_value <= -30 & eo_count_trend_value >= -50), values = "#fee08b"))
+      if (sum(eo_count_trend_value <= -51 & eo_count_trend_value >= -70, na.rm = TRUE) > 0) out_tab <- out_tab %>% formatStyle(columns = "Number of Occurrences Change", backgroundColor = styleRow(rows = which(eo_count_trend_value <= -51 & eo_count_trend_value >= -70), values = "#fdae61"))
+      if (sum(eo_count_trend_value <= -71, na.rm = TRUE) > 0) out_tab <- out_tab %>% formatStyle(columns = "Number of Occurrences Change", backgroundColor = styleRow(rows = which(eo_count_trend_value <= -71), values = "#f46d43"))
 
       out_tab
     
@@ -2525,8 +2520,7 @@ function(input, output, session) {
         )
     if (!is.null(batch_rank_factor_file)){
       batch_rank_factor_sp <- batch_rank_factor_file %>% 
-        dplyr::filter(Species.or.Community.Scientific.Name. == taxon_data$info$scientificName)
-      print(batch_rank_factor_sp)
+        dplyr::filter(Species.or.Community.Scientific.Name. == names(batch_run_output$results)[i])
       if (nrow(batch_rank_factor_sp) > 0){
         out <- batch_rank_factor_sp
         names(out)[c(1:3, 6:9, 11, 13, 15, 16:17, 19:20, 22:28, 30, 32:42)] <- c("Calc Rank", "Assigned Rank", "Species or Community Scientific Name*", "Element ID",
@@ -2619,8 +2613,6 @@ function(input, output, session) {
       out
     }) %>% bind_rows()
       
-      print("tab 1 done")
-      
     batch_out_tab2 <- purrr::map(1:length(batch_run_output$results), function(i){
         taxon_data <- batch_run_output$results[[i]]
         out2_names <- c("NatureServe accepted name", "NatureServe synonyms", "GBIF taxonomic concepts with GBIF IDs", "EGT ID", "EGT UID", "ELCODE", 
@@ -2679,7 +2671,7 @@ function(input, output, session) {
         
         if (!is.null(batch_rank_factor_file)){
           batch_rank_factor_sp <- batch_rank_factor_file %>% 
-            dplyr::filter(Species.or.Community.Scientific.Name. == taxon_data$info$scientificName)
+            dplyr::filter(Species.or.Community.Scientific.Name. == names(batch_run_output$results)[i])
           if (nrow(batch_rank_factor_sp) > 0){
             taxon_data$rank_factor_comparison <- compare_rank_factors(taxon_data, rank_factor_upload = batch_rank_factor_sp)
           } else {
@@ -2715,7 +2707,8 @@ function(input, output, session) {
     # updateTabsetPanel(inputId = "nav", selected = "MULTISPECIES MODE")
     reset('batch_filedata_rank')
     reset('batch_filedata_obs')
-    updateTextInput(inputId = "typed_list", value = "")
+    updateSelectizeInput(session = session, inputId = 'batch_assessment_type', selected = "global")
+    updateTextInput(session = session, inputId = "typed_list", value = "")
     shinyjs::hide("batch_output")
     batch_run_output <- reactiveValues(
       results = NULL,

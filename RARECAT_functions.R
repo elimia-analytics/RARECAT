@@ -1243,11 +1243,11 @@ get_temporal_trends <- function(taxon_data = taxon_data, referenceTaxon = "kingd
                     nchar("Modeled probability of detection")
                     )
   num_chars_missing <- purrr::map(num_chars, function(n) max(unlist(num_chars)) - n)
-  
+
   # Number of focal observations
   p1 <- ggplot(data = temporal_trend_data, aes(x = year, y = focal_species_count)) + 
     geom_col(col = "#2c7bb680", alpha = 0.5) + 
-    ylab(paste0("Observations of \n", taxon_data$info$scientificName)) +
+    ylab(paste0("Records of \n", taxon_data$info$scientificName)) +
     xlab("") +
     # annotate("text", x = quantile(temporal_trend_data$year, .26), y = max(temporal_trend_data$focal_species_count)+(0.08 *max(temporal_trend_data$focal_species_count)), label = paste0("Observations of ", taxon_data$info$scientificName, rep(" ", num_chars_missing[[1]])), hjust = 1) +
     theme_linedraw() +
@@ -1262,7 +1262,7 @@ get_temporal_trends <- function(taxon_data = taxon_data, referenceTaxon = "kingd
   # Total number of observations of reference taxon
   p2 <- ggplot(data = temporal_trend_data, aes(x = year, y = total_number_observations)) + 
     geom_col(col = "#2c7bb680", alpha = 0.5) + 
-    ylab(paste0("Observations of \n ", referenceTaxon, " ", reference_taxon_name)) +
+    ylab(paste0("Records of \n ", referenceTaxon, " ", reference_taxon_name)) +
     xlab("") +
     # annotate("text", x = quantile(temporal_trend_data$year, .24), y = max(temporal_trend_data$total_number_observations)+(0.08 *max(temporal_trend_data$total_number_observations)), label = paste0("Observations of ", referenceTaxon, " ", reference_taxon_name, rep(" ", num_chars_missing[[2]])), hjust = 1) +
     theme_linedraw() +
@@ -1277,7 +1277,7 @@ get_temporal_trends <- function(taxon_data = taxon_data, referenceTaxon = "kingd
   p3 <- ggplot(data = temporal_trend_data, aes(x = year, y = proportion_observations)) +
     geom_col(col = "#2c7bb680", alpha = 0.5) +
     geom_smooth(size = 1, se = FALSE, col = "black") +
-    ylab(paste0("Proportion of \n observations")) +
+    ylab(paste0("Proportion of \n records")) +
     xlab("") +
     # annotate("text", x = quantile(temporal_trend_data$year, .21), y = max(temporal_trend_data$proportion_observations)+(0.08 *max(temporal_trend_data$proportion_observations)), label = paste0("Proportion of Observations"), hjust = 1) +
     theme_linedraw() +

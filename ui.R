@@ -110,7 +110,7 @@ navbarPage(title = HTML("<span style='float: left; display: inline-block; paddin
                                  ),
                                  span(style = "float: left; padding: 0; margin-right: 5px;",
                                       `data-toggle` = "tooltip", `data-placement` = "right",  `data-animation` = "true",
-                                      title = "Select the taxon to be assessed from the NatureServe or GBIF taxonomic backbones, as well as the Global Biodiversity Information Facility (GBIF) data to be included in the assessment.",
+                                      title = "Select the taxon to be assessed from the NatureServe or Global Biodiversity Information Facility (GBIF) taxonomic backbones, as well as the GBIF data to be included in the assessment.",
                                       icon("info-circle", style = "color: #1F417D;")
                                  ),
                                  column(id = "single_clear", width = 2, style = "padding-top: 5px; padding-left: 10px; font-size: 13px !important;",
@@ -760,7 +760,7 @@ navbarPage(title = HTML("<span style='float: left; display: inline-block; paddin
                                                                                      )
                                                                               ),
                                                                               column(width = 2, style = "width: 16%",
-                                                                                     h3("Select months included"),
+                                                                                     h3("Select time of year"),
                                                                                      selectizeInput(
                                                                                        inputId = "batch_seasonality",
                                                                                        label = "",
@@ -836,7 +836,7 @@ navbarPage(title = HTML("<span style='float: left; display: inline-block; paddin
                              # h2(paste0("NatureServe (", substr(Sys.Date(), 1, 4), "). ", "RARECAT version 1.1.1. ",
                              #           "Available from https://natureserve.shinyapps.io/RARECAT. Accessed [Date].")
                              # ),
-                             tags$iframe(style='height:1000px; width:100%; scrolling=yes', src="NatureServe RARECAT v2.1.1 - Documentation.pdf")
+                             tags$iframe(style='height:1000px; width:100%; scrolling=yes;', src="NatureServe RARECAT v2.1.1 - Documentation.pdf#zoom=125")
                     )
            )
 )
