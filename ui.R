@@ -226,7 +226,7 @@ navbarPage(title = HTML("<span style='float: left; display: inline-block; paddin
                                                                                                          ),
                                                                                                          column(width = 8, style = "text-align: left; padding-top: 5px;",
                                                                                                                 h4("Add records from CSV", style = "display: inline !important; float: left; padding-right: 2px;"),
-                                                                                                                span(style = "float: right; padding: 0; margin-right: 5px;",
+                                                                                                                span(style = "float: right; padding: 0; margin-right: 1px;",
                                                                                                                      `data-toggle` = "tooltip", `data-html`="true", `data-placement` = "bottom",  `data-animation` = "true", 
                                                                                                                      title = "- Select records from a formatted CSV file by browsing your local folders <br/> - Slide switch to the right to add records to the map <br/> - See Documentation for addictional details on how CSV files should be formatted",
                                                                                                                      icon("info-circle", style = "color: #1F417D;")
@@ -254,7 +254,7 @@ navbarPage(title = HTML("<span style='float: left; display: inline-block; paddin
                                                                                                                ),
                                                                                                                column(width = 8, style = "text-align: left; padding-top: 5px;",
                                                                                                                       h4("Add records from GBIF", style = "display: inline !important; float: left; padding-right: 2px;"),
-                                                                                                                      span(style = "float: right; padding: 0; margin-right: 5px;",
+                                                                                                                      span(style = "float: right; padding: 0; margin-right: 1px;",
                                                                                                                            `data-toggle` = "tooltip", `data-html`="true", `data-placement` = "bottom",  `data-animation` = "true", 
                                                                                                                            title = "Add selected GBIF records to map by sliding switch to the right",
                                                                                                                            icon("info-circle", style = "color: #1F417D;")
@@ -800,7 +800,7 @@ navbarPage(title = HTML("<span style='float: left; display: inline-block; paddin
                                  column(width = 2,
                                         div(style = "padding: 0px 0px 10px 0px; position: relative; text-align:center; display:block;", actionButton(inputId = "batch_assessment", label = "Start assessment", block = TRUE, class = "btn-primary btn-lg", width = "100%")),
                                  ),
-                                 column(width = 1,
+                                 column(width = 2,
                                         div(style = "padding: 0px 10px 10px 0px; position: relative; text-align:center; display:block;", actionButton(inputId = "batch_clear", label = "Clear data", block = TRUE, class = "btn-primary btn-lg", width = "100%")),
                                  )
                         ),
@@ -816,9 +816,17 @@ navbarPage(title = HTML("<span style='float: left; display: inline-block; paddin
                         )
                     )
            ),
-           
+           tabPanel("TUTORIALS", height = "100%",
+                    fluidRow(style = "padding: 20px 10px 20px 10px;",
+                      column(width = 6, style = "padding-right: 0;",
+                             tags$iframe(style='height:500px; width:95%;', src="https://www.youtube.com/embed/NTRjjfIb_wM?si=YLGXGqmwa61rcEgT#frameborder=0")
+                      ),
+                      column(width = 6, style = "padding-left: 0;",
+                             tags$iframe(style='height:500px; width:95%;', src="https://www.youtube.com/embed/9eG5T_tWeME?si=-rZePIyEr5JrvQMZ#frameborder=0")
+                      )
+                    )
+                    ),
            tabPanel("DOCUMENTATION", height = "100%",
-                    fluidRow(style = "padding: 20px 50px 20px 50px; background-color: rgba(230, 239, 240, 0.5);",
                              # h2(paste0("You are using RARECAT version 2.1.1 (2025-03-31). For more information: view/download "),
                              #    strong(a(
                              #      "NatureServe RARECAT Documentation",
@@ -837,6 +845,5 @@ navbarPage(title = HTML("<span style='float: left; display: inline-block; paddin
                              #           "Available from https://natureserve.shinyapps.io/RARECAT. Accessed [Date].")
                              # ),
                              tags$iframe(style='height:1000px; width:100%; scrolling=yes;', src="NatureServe RARECAT v2.1.1 - Documentation.pdf#zoom=125")
-                    )
            )
 )
