@@ -90,7 +90,7 @@ navbarPage(title = HTML("<span style='float: left; display: inline-block; paddin
                                  column(id = "single_nation", width = 2, style = "width: 14%; padding-left: 5px; padding-right: 2px;",
                                         selectizeInput(inputId = "single_assessment_nation",
                                                        label = "",
-                                                       choices = list("Canada" = "CA", "United States" = "US"),
+                                                       choices = "", 
                                                        multiple = FALSE,
                                                        width = "100%",
                                                        options = list(placeholder = "Select assessment nation")
@@ -99,7 +99,7 @@ navbarPage(title = HTML("<span style='float: left; display: inline-block; paddin
                                  column(id = "single_subnation", width = 2, style = "width: 14%; padding-left: 5px; padding-right: 2px;",
                                         selectizeInput(inputId = "single_assessment_subnation",
                                                        label = "",
-                                                       choices = (network_polys$Admin_abbr %>% na.omit() %>% as.character()) %>% set_names(network_polys$ADMIN_NAME%>% na.omit() %>% as.character()) %>% sort(),
+                                                       choices = "",
                                                        multiple = TRUE,
                                                        width = "100%",
                                                        options = list(placeholder = "Select assessment subnation(s)")
