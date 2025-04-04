@@ -1347,7 +1347,7 @@ get_temporal_trends <- function(taxon_data = taxon_data, referenceTaxon = "kingd
   
   gg <- plotly_build(p) %>%
     config(displayModeBar = FALSE) %>%
-    layout(plot_bgcolor  = "rgba(0, 0, 0, 0)",
+    layout(# plot_bgcolor  = "rgba(0, 0, 0, 0)",
            paper_bgcolor = "rgba(0, 0, 0, 0)",
            font = list(family = "Helvetica", size = 14), 
            xaxis = list(titlefont = list(size = 13),

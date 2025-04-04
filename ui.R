@@ -72,7 +72,7 @@ navbarPage(title = HTML("<span style='float: left; display: inline-block; paddin
                         
                         scr,
                         
-                        fluidRow(style = "padding: 0 0 10px 30px;",
+                        fluidRow(style = "padding: 0 0 10px 30px; margin-right: 0;",
                                  column(width = 2, style = "width: 15%; padding-left: 0; padding-right: 2px; z-index: 1005;",
                                         selectizeInput(inputId = "single_assessment_type",
                                                        label = "",
@@ -197,7 +197,7 @@ navbarPage(title = HTML("<span style='float: left; display: inline-block; paddin
                           )
                         ),
                         
-                        leafletOutput("main_map", height="60vh", width = "101vw"),
+                        leafletOutput("main_map", height="60vh", width = "100vw"),
                         
                         add_busy_spinner(spin = "circle", color = "#1F417D", margins = c("40vh", "50vw"), height = "75px", width = "75px"),
                         
@@ -398,9 +398,9 @@ navbarPage(title = HTML("<span style='float: left; display: inline-block; paddin
                       div(id = "species_occurrences_table", style = "padding-right: 20px; padding-left: 20px; height: 80vh;",
                           
                           fluidRow(
-                            column(width = 2, style = "height: 80vh; margin-top: 5px; padding-bottom: 20px; margin-left: 0; background-color: rgba(230, 239, 240, 0.5);",
+                            column(width = 2, style = "height: 80vh; margin-top: 5px; padding-top: 10px; padding-bottom: 20px; margin-left: 0; background-color: rgba(230, 239, 240, 0.5);",
                                    fluidRow(
-                                     h3("Filters", style = "padding: auto 2px 12px 10px; display: inline !important;"),
+                                     h3("Filters", style = "padding: 10px 2px 12px 10px; display: inline !important;"),
                                      span(style = "float: right; padding: 5px; margin-right: 5px;",
                                           `data-toggle` = "tooltip", `data-html`="true", `data-placement` = "bottom",  `data-animation` = "true", 
                                           title = "Use dropdown menus and text boxes below to apply filters to the data mapped and used to calculate rarity metrics and estimate temporal change",
@@ -529,9 +529,9 @@ navbarPage(title = HTML("<span style='float: left; display: inline-block; paddin
                                             shinycssloaders::withSpinner(DT::dataTableOutput("occurrences_table", height="75vh"), type = 7, proxy.height = "0px")
                                    )
                             ),
-                            column(width = 4, style = "padding-top: 5px; width: 34vw; height: 80vh !important;",
+                            column(width = 4, style = "padding-top: 5px; padding-right: 0; margin-right: 0; width: 34vw; height: 80vh !important;",
                                    tabsetPanel(type = "tabs",
-                                               tabPanel("Change over time", style = "height: 75vh !important; width: 34vw; background-color: rgba(230, 239, 240, 0.5);",
+                                               tabPanel("Change over time", style = "height: 76vh !important; width: 34vw; background-color: rgba(230, 239, 240, 0.5);",
                                                         fluidRow(style = "padding: 5px 35px 2px 35px;",
                                                                  h3("Records per year"),
                                                                  shinycssloaders::withSpinner(dygraphs::dygraphOutput("occurrences_barchart_full", height = "16vh", width = "100%"), type = 7, proxy.height = "0px")
@@ -564,43 +564,45 @@ navbarPage(title = HTML("<span style='float: left; display: inline-block; paddin
                                                                  )
                                                         )
                                                ),
-                                               tabPanel("Temporal analysis", style = "height: 75vh !important; width: 40vw; background-color: rgba(230, 239, 240, 0.5);",
-                                                        fluidRow(style = "padding-left: 0; padding-bottom: 10px;",
-                                                                 column(width = 3, style = "width: 18%;",
-                                                                        p("Reference taxon", style = "padding-top: 19px; float: right;")
-                                                                 ),
-                                                                 column(width = 2, style = "padding-top: 5px; padding-left: 0;",
+                                               tabPanel("Temporal analysis", style = "height: 76vh !important; width: 34vw; background-color: rgba(230, 239, 240, 0.5);",
+                                                        fluidRow(style = "padding: 10px 10px 0px 10px;",
+                                                          span(style = "float: right; display: inline !important; padding-right: 30px; margin-right: 5px;",
+                                                               `data-toggle` = "tooltip", `data-html`="true", `data-placement` = "bottom",  `data-animation` = "true", 
+                                                               title = "- Select the taxonomic scale against which assessment taxon records will be compared over time <br/> - Click the 'Calculate temporal change' button to estimate bias-corrected changes in the number of records and the probability of observing the assessment taxon across years <br/> - See Documentation for additional details on the methods used to run this analysis",
+                                                               icon("info-circle", style = "color: #1F417D;")
+                                                          )
+                                                        ),
+                                                        fluidRow(style = "padding: 0 20px 20px 20px;",
+                                                                 # column(width = 3, style = "width: 20%;",
+                                                                 #        p("Reference taxon", style = "padding-top: 19px; float: right;")
+                                                                 # ),
+                                                                 column(width = 4, style = "padding-top: 10px; padding-left: 10px;",
                                                                         selectizeInput(inputId = "select_reference_taxon",
-                                                                                       label = "",
+                                                                                       label = "Reference taxon: ",
                                                                                        choices = c("genus", "family", "order", "class", "phylum", "kingdom"),
                                                                                        selected = "genus",
                                                                                        multiple = FALSE, 
                                                                                        width = "120%"
                                                                         )
                                                                  ),
-                                                                 column(width = 2, style = "width: 11%;",
-                                                                        p("Start year ", style = "padding-top: 19px; padding-left: 0; padding-right: 0;")
-                                                                 ),
-                                                                 column(width = 2, style = "padding-top: 5px; padding-left: 0; padding-right: 5px; width: 14%;",
+                                                                 # column(width = 2, style = "width: 14%;",
+                                                                 #        p("Start year ", style = "padding-top: 19px; padding-left: 0; padding-right: 2px; float:right;")
+                                                                 # ),
+                                                                 column(width = 3, style = "padding-top: 10px; padding-left: 10px; padding-right: 5px;",
                                                                         selectizeInput(inputId = "select_start_year",
-                                                                                       label = "",
+                                                                                       label = "Start year:",
                                                                                        choices = 1900:2000,
                                                                                        selected = 1980,
                                                                                        multiple = FALSE, 
                                                                                        width = "100%"
                                                                         )
                                                                  ),
-                                                                 column(width = 2, style = "width: 26%; padding: 12px 5px 5px 5px;",
-                                                                        span(style = "float: right; display: inline !important; padding-left: 2px; margin-right: 5px;",
-                                                                             `data-toggle` = "tooltip", `data-html`="true", `data-placement` = "bottom",  `data-animation` = "true", 
-                                                                             title = "- Select the taxonomic scale against which assessment taxon records will be compared over time <br/> - Click the 'Calculate temporal change' button to estimate bias-corrected changes in the number of records and the probability of observing the assessment taxon across years <br/> - See Documentation for additional details on the methods used to run this analysis",
-                                                                             icon("info-circle", style = "color: #1F417D;")
-                                                                        ),
-                                                                        div(actionButton(inputId = "temporal_trend", label = "Calculate temporal change", block = TRUE, class = "btn-primary btn-sm", width = "100%"), style = "padding-right: 0; display: inline !important; float:right;")
+                                                                 column(width = 4, style = "width: 35%; padding: 12px 0 10px 5px;",
+                                                                        div(actionButton(inputId = "temporal_trend", label = "Calculate temporal change", block = TRUE, class = "btn-primary btn-sm", width = "100%"), style = "padding: 10px 0px 5px 5px; display: inline !important; float:right;")
                                                                  ),
                                                                  hidden(
-                                                                   fluidRow(id = "temporal_trend_plots", style = "padding: 35px;",
-                                                                            plotlyOutput("temporal_trends_output", height = "70vh")
+                                                                   fluidRow(id = "temporal_trend_plots", style = "padding: 50px 35px 10px 35px;",
+                                                                            plotlyOutput("temporal_trends_output", height = "63vh")
                                                                    )
                                                                  )
                                                         )
