@@ -7,6 +7,8 @@ get_gbif_data <- function(taxa_metadata,
                           shift_occurrences = FALSE
                           ){
 
+  print(query_polygon)
+  
   gbif_occurrences <- gbif_occurrences_occ <- gbif_occurrences_humobs <- NULL
 
   if ("gbif" %in% datasets_metadata$datasetKey){
@@ -22,7 +24,7 @@ get_gbif_data <- function(taxa_metadata,
     gbif_occurrences <- spocc::occ(from = "gbif",
                                    gbifopts = list(
                                      taxonKey = taxa_metadata$key,
-                                     geometry = query_polygon
+                                     gadmGid = query_polygon
                                    ),
                                    limit = max(as.numeric(occ_counts)), 
                                    has_coords = TRUE
@@ -42,7 +44,7 @@ get_gbif_data <- function(taxa_metadata,
         out <- spocc::occ(from = "gbif",
                                      gbifopts = list(
                                        taxonKey = taxa_metadata$key,
-                                       geometry = query_polygon
+                                       gadmGid = query_polygon
                                      ),
                                      limit = y, date = x,
                                      has_coords = TRUE
@@ -72,7 +74,7 @@ get_gbif_data <- function(taxa_metadata,
                           gbifopts = list(
                             taxonKey = k,
                             basisOfRecord = c("OCCURRENCE", "PRESERVED_SPECIMEN", "OBSERVATION", "MACHINE_OBSERVATION"),
-                            geometry = query_polygon
+                            gadmGid = query_polygon
                           ),
                           limit = ifelse(all_humobs_data, 2500, 5000),
                           has_coords = TRUE
@@ -104,7 +106,7 @@ get_gbif_data <- function(taxa_metadata,
                                  taxonKey = k,
                                  datasetKey = occ_data$datasetKey,
                                  basisOfRecord = d,
-                                 geometry = query_polygon
+                                 gadmGid = query_polygon
                                ),
                                limit = max(occ_data$recordsMax) %>% as.numeric(),
                                has_coords = TRUE
@@ -169,7 +171,7 @@ get_gbif_data <- function(taxa_metadata,
                               taxonKey = k,
                               datasetKey = humobs_data$datasetKey,
                               basisOfRecord = "HUMAN_OBSERVATION",
-                              geometry = query_polygon
+                              gadmGid = query_polygon
                             ),
                             limit = max(humobs_data$recordsMax) %>% as.numeric(),
                             has_coords = TRUE
@@ -209,7 +211,7 @@ get_gbif_data <- function(taxa_metadata,
     dplyr::mutate(references = paste0("https://www.gbif.org/occurrence/", key)) # Clean up references field
 
   sp_occurrences <- gbif_occurrences
-  
+
   shifted <- FALSE
   
   if (shift_occurrences){
@@ -228,7 +230,7 @@ get_gbif_data <- function(taxa_metadata,
       shifted <- TRUE
     }
   }
-  
+
   out <- list(sp_occurrences = sp_occurrences, shifted = shifted)
   
   return(out)

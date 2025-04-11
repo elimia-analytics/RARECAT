@@ -35,7 +35,8 @@ library(lme4)
 library(writexl)
 #'
 #' ## Load NatureServe Network subnation polygons for subnation overlay
-network_polys <- readRDS("data/subnation_polys.rds")
+network_polys <- readRDS("data/network_polys.rds")
+gadm_df <- readRDS("data/gadm_df.rds")
 #'
 #' ## Load Rank Calculator Domain Table Lookup
 rank_factor_definitions <- read.csv("data/rank_factor_definitions.csv", header = TRUE)
@@ -295,7 +296,7 @@ function(input, output, session) {
       gbif_counts <- purrr::map_dbl(taxon_data$synonyms$key, 
                                     function(x) rgbif::occ_count(
                                       taxonKey = x,
-                                      geometry = taxon_data$assessment_polygon,
+                                      gadmGid = taxon_data$assessment_polygon,
                                       hasCoordinate = TRUE)
                                     )
 
@@ -428,12 +429,12 @@ function(input, output, session) {
       out <- rgbif::occ_count(
         taxonKey = k, 
         basisOfRecord = "OCCURRENCE;PRESERVED_SPECIMEN;OBSERVATION;MACHINE_OBSERVATION", 
-        geometry = taxon_data$assessment_polygon, 
+        gadmGid = taxon_data$assessment_polygon, 
         hasCoordinate = TRUE, facet = "datasetKey", facetLimit = 100)
       out
     }) %>% bind_rows()
       
-      # rgbif::occ_count(taxonKey = taxon_keys, basisOfRecord = c("OCCURRENCE", "PRESERVED_SPECIMEN", "OBSERVATION", "MACHINE_OBSERVATION"), geometry = taxon_data$assessment_polygon, hasCoordinate = TRUE, facet = "datasetKey", facetLimit = 100)
+      # rgbif::occ_count(taxonKey = taxon_keys, basisOfRecord = c("OCCURRENCE", "PRESERVED_SPECIMEN", "OBSERVATION", "MACHINE_OBSERVATION"), gadmGid = taxon_data$assessment_polygon, hasCoordinate = TRUE, facet = "datasetKey", facetLimit = 100)
     
     if (length(taxon_data$synonyms_selected$key) == 1){
       taxon_keys <- taxon_data$synonyms_selected$key
@@ -444,11 +445,11 @@ function(input, output, session) {
     gbif_counts_humobs <- rgbif::occ_count(
         taxonKey = taxon_keys, 
         basisOfRecord = "HUMAN_OBSERVATION", 
-        geometry = taxon_data$assessment_polygon, 
+        gadmGid = taxon_data$assessment_polygon, 
         hasCoordinate = TRUE, facet = "datasetKey", facetLimit = 100
         )
     
-    gbif_counts_humobs <- rgbif::occ_count(taxonKey = taxon_keys, basisOfRecord = c("HUMAN_OBSERVATION"), geometry = taxon_data$assessment_polygon, hasCoordinate = TRUE, facet = "datasetKey", facetLimit = 100)
+    gbif_counts_humobs <- rgbif::occ_count(taxonKey = taxon_keys, basisOfRecord = c("HUMAN_OBSERVATION"), gadmGid = taxon_data$assessment_polygon, hasCoordinate = TRUE, facet = "datasetKey", facetLimit = 100)
     
     gbif_counts <- rbind(
       gbif_counts_occ %>% dplyr::mutate(basisOfRecord = "OCCURRENCE"),
@@ -626,7 +627,8 @@ function(input, output, session) {
     
     updateSelectizeInput(session = session,
                          inputId = "single_assessment_subnation",
-                         choices = (nation_subset$Admin_abbr %>% na.omit() %>% as.character()) %>% set_names(nation_subset$ADMIN_NAME%>% na.omit() %>% as.character()) %>% sort(),
+                         # choices = (nation_subset$Admin_abbr %>% na.omit() %>% as.character()) %>% set_names(nation_subset$ADMIN_NAME%>% na.omit() %>% as.character()) %>% sort(),
+                         choices = nation_subset$ADMIN_NAME %>% na.omit() %>% as.character() %>% sort(),
                          selected = subnations_already_selected
     )
     
@@ -639,19 +641,19 @@ function(input, output, session) {
                          selected = input$single_assessment_nation
     )
         
-      query_poly <- network_polys %>% dplyr::filter(
-        FIPS_CNTRY %in% input$single_assessment_nation
-      )
+      # query_poly <- network_polys %>% dplyr::filter(
+      #   FIPS_CNTRY %in% input$single_assessment_nation
+      # )
       
-      query_poly_bbox <- sf::st_bbox(query_poly) %>% sf::st_as_sfc()
-      p <- terra::vect(query_poly_bbox)
-      pcc <- terra::forceCCW(p)
-      query_poly_bbox_wkt <- query_poly_bbox %>%
-        terra::vect() %>%
-        terra::forceCCW() %>%
-        geom(wkt = TRUE)
+      # query_poly_bbox <- sf::st_bbox(query_poly) %>% sf::st_as_sfc()
+      # p <- terra::vect(query_poly_bbox)
+      # pcc <- terra::forceCCW(p)
+      # query_poly_bbox_wkt <- query_poly_bbox %>%
+      #   terra::vect() %>%
+      #   terra::forceCCW() %>%
+      #   geom(wkt = TRUE)
       
-      taxon_data$assessment_polygon <- query_poly_bbox_wkt
+      taxon_data$assessment_polygon <- ifelse(input$single_assessment_nation == "US", "USA", ifelse(input$single_assessment_nation == "CA", "CAN", NULL))
       
       } 
     
@@ -660,7 +662,7 @@ function(input, output, session) {
   
   observeEvent(input$single_assessment_subnation, {
     
-    relevant_nation <- network_polys %>% dplyr::filter(Admin_abbr %in% input$single_assessment_subnation) %>% dplyr::pull(FIPS_CNTRY)
+    relevant_nation <- network_polys %>% dplyr::filter(ADMIN_NAME %in% input$single_assessment_subnation) %>% dplyr::pull(FIPS_CNTRY)
     
     updateSelectizeInput(session = session,
                          inputId = "single_assessment_nation", 
@@ -671,9 +673,15 @@ function(input, output, session) {
     
     subnations_already_selected <- input$single_assessment_subnation
     
+    # updateSelectizeInput(session = session,
+    #                      inputId = "single_assessment_subnation",
+    #                      choices = (nation_subset$Admin_abbr %>% na.omit() %>% as.character()) %>% set_names(nation_subset$ADMIN_NAME%>% na.omit() %>% as.character()) %>% sort(),
+    #                      selected = subnations_already_selected
+    # )
+    
     updateSelectizeInput(session = session,
                          inputId = "single_assessment_subnation",
-                         choices = (nation_subset$Admin_abbr %>% na.omit() %>% as.character()) %>% set_names(nation_subset$ADMIN_NAME%>% na.omit() %>% as.character()) %>% sort(),
+                         choices = nation_subset$ADMIN_NAME %>% na.omit() %>% as.character() %>% sort(),
                          selected = subnations_already_selected
     )
     
@@ -684,20 +692,23 @@ function(input, output, session) {
     
     if (!is.null(input$single_assessment_subnation)){
       
-    query_poly <- network_polys %>% dplyr::filter(
-      FIPS_CNTRY %in% input$single_assessment_nation,
-      Admin_abbr %in% input$single_assessment_subnation
-    )
+    # query_poly <- network_polys %>% dplyr::filter(
+    #   FIPS_CNTRY %in% input$single_assessment_nation,
+    #   Admin_abbr %in% input$single_assessment_subnation
+    # )
+    # 
+    # query_poly_bbox <- sf::st_bbox(query_poly) %>% sf::st_as_sfc()
+    # p <- terra::vect(query_poly_bbox)
+    # pcc <- terra::forceCCW(p)
+    # query_poly_bbox_wkt <- query_poly_bbox %>%
+    #   terra::vect() %>%
+    #   terra::forceCCW() %>%
+    #   geom(wkt = TRUE)
     
-    query_poly_bbox <- sf::st_bbox(query_poly) %>% sf::st_as_sfc()
-    p <- terra::vect(query_poly_bbox)
-    pcc <- terra::forceCCW(p)
-    query_poly_bbox_wkt <- query_poly_bbox %>%
-      terra::vect() %>%
-      terra::forceCCW() %>%
-      geom(wkt = TRUE)
-    
-    taxon_data$assessment_polygon <- query_poly_bbox_wkt
+    taxon_data$assessment_polygon <- gadm_df %>% 
+      dplyr::filter(NAME_1 %in% gsub(" ", "", input$single_assessment_subnation)) %>% 
+      dplyr::pull(GID_1) %>% 
+      unique()
     
     } else {
       taxon_data$assessment_polygon <- NULL
@@ -771,6 +782,8 @@ function(input, output, session) {
         
         taxon_data$gbif_occurrences_raw <- gbif_download$sp_occurrences
         taxon_data$shifted <- gbif_download$shifted
+        
+        print(taxon_data$gbif_occurrences_raw)
         
       }
 
@@ -888,7 +901,7 @@ function(input, output, session) {
   })
   
   observe({
-    
+
     ### Combine all occurrences
     taxon_data$all_occurrences <- rbind(
       taxon_data$gbif_occurrences,
@@ -896,7 +909,6 @@ function(input, output, session) {
       taxon_data$drawn_occurrences
     )
 
-    
     if (!is.null(taxon_data$all_occurrences)){
 
       ### Create simple features object for geospatial calculations
@@ -910,10 +922,10 @@ function(input, output, session) {
         )
       
       selected_taxon$NS <- c(selected_taxon$NS, unique(taxon_data$sf$scientificName)) %>% unique()
-
+      
       taxon_data$nations <- network_polys[which(purrr::map_int(st_intersects(network_polys, taxon_data$sf), length) > 0), ]$FIPS_CNTRY %>% na.omit() %>% as.character()
       taxon_data$states <- network_polys[which(purrr::map_int(st_intersects(network_polys, taxon_data$sf), length) > 0), ]$Admin_abbr %>% na.omit() %>% as.character()
-      
+
       shinyjs::show("species_occurrences_table")
       updateCollapse(session = session, id = "inputs_single", close = "Add assessment data")
       
@@ -950,8 +962,11 @@ function(input, output, session) {
       updateMaterialSwitch(session = session, inputId = "range_extent", value = FALSE)
       updateMaterialSwitch(session = session, inputId = "area_of_occupancy", value = FALSE)
       updateMaterialSwitch(session = session, inputId = "number_EOs", value = FALSE)
+      # updateSelectizeInput(session = session, inputId = "nation_filter", choices = ifelse(is.null(input$single_assessment_nation), taxon_data$nations, input$single_assessment_nation), selected = ifelse(is.null(input$single_assessment_nation), NULL, input$single_assessment_nation))
+      # updateSelectizeInput(session = session, inputId = "states_filter", choices = ifelse(is.null(input$single_assessment_subnation), taxon_data$states, input$single_assessment_subnation), selected = ifelse(is.null(input$single_assessment_subnation), NULL, input$single_assessment_subnation)) # , taxon_data$states)
       updateSelectizeInput(session = session, inputId = "nation_filter", choices = taxon_data$nations, selected = NULL)
       updateSelectizeInput(session = session, inputId = "states_filter", choices = taxon_data$states, selected = NULL) # , taxon_data$states)
+      
       updateSelectizeInput(session = session, inputId = "synonyms_filter", choices = unique(taxon_data$sf$scientificName), selected = unique(taxon_data$sf$scientificName))
       
       if (!identical(NA, unique(taxon_data$sf$basisOfRecord))){
