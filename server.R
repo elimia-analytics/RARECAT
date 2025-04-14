@@ -1387,7 +1387,9 @@ function(input, output, session) {
 
     dat <- dat %>%
       dplyr::select(all_of(minimum_fields)) %>%
-      dplyr::mutate(references = paste0("<a href='", references, "' target='_blank'>", references, "</a>"),
+      dplyr::mutate(
+        key = paste0("<a href='", references, "' target='_blank'>", key, "</a>"),
+        references = paste0("<a href='", references, "' target='_blank'>", references, "</a>"),
         latitude = round(latitude, 4),
         longitude = round(longitude, 4)
         ) %>%

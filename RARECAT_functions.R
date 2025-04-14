@@ -759,7 +759,7 @@ run_rank_assessment <- function(taxon_names,
     ns_table_full <- natserv::ns_search_spp(text_adv = list(searchToken = taxon_name, matchAgainst = "allScientificNames", operator="contains"))$results
     gbif_table <- rgbif::name_suggest(q = taxon_name, rank = c("species", "subspecies"), limit = 10)$data
 
-    if (!is.null(is.null(ns_table_full)) & !is.null(gbif_table)){
+    if (!is.null(ns_table_full) & !is.null(gbif_table)){
       if (nrow(ns_table_full) == 0 & nrow(gbif_table) > 0){
         ns_table_full <- natserv::ns_search_spp(text_adv = list(searchToken = gbif_table$canonicalName[1], matchAgainst = "allScientificNames", operator="contains"))$results
       }
@@ -782,8 +782,10 @@ run_rank_assessment <- function(taxon_names,
     taxon_data_list[[taxon_name]]$info <- taxon_info
     
     if (!is.null(taxon_data_list[[taxon_name]]$info)){
+      if (sum(!is.na(taxon_data_list[[taxon_name]]$info$uniqueId)) > 0){
       taxon_data_list[[taxon_name]]$info_extended <- natserv::ns_id(uid = taxon_data_list[[taxon_name]]$info$uniqueId %>% unique() %>% na.omit() %>% as.character() %>% head(1)) 
       taxon_data_list[[taxon_name]]$family <- ns_table_full$speciesGlobal$family
+      }
     }
     
     selected_taxon <- c(taxon_info$scientificName, unlist(taxon_info$synonyms)) %>% na.omit() %>% unique()
