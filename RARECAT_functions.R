@@ -7,8 +7,6 @@ get_gbif_data <- function(taxa_metadata,
                           shift_occurrences = FALSE
                           ){
 
-  print(query_polygon)
-  
   gbif_occurrences <- gbif_occurrences_occ <- gbif_occurrences_humobs <- NULL
 
   if ("gbif" %in% datasets_metadata$datasetKey){
@@ -668,6 +666,7 @@ run_rank_assessment <- function(taxon_names,
                                 date_end = "2025-01-01",
                                 months = substr(month.name, 1, 3),
                                 uncertainty_filter = "",
+                                query_polygon = NULL,
                                 nations_filter = NULL,
                                 states_filter = NULL,
                                 network_polys = network_polys,
@@ -813,29 +812,11 @@ run_rank_assessment <- function(taxon_names,
     taxon_data_list[[taxon_name]]$synonyms <- taxon_data_list[[taxon_name]]$synonyms %>% 
       dplyr::distinct(., .keep_all = TRUE)
 
-    query_poly_bbox_wkt <- NULL
-    
-    if (!is.null(nations_filter) | !is.null(states_filter)){
-
-      query_poly <- network_polys %>% dplyr::filter(
-        FIPS_CNTRY %in% nations_filter,
-        Admin_abbr %in% states_filter
-      )
-
-      query_poly_bbox <- sf::st_bbox(query_poly) %>% sf::st_as_sfc()
-      p <- terra::vect(query_poly_bbox)
-      pcc <- terra::forceCCW(p)
-      query_poly_bbox_wkt <- query_poly_bbox %>%
-        terra::vect() %>%
-        terra::forceCCW() %>%
-        geom(wkt = TRUE)
-    }
-  
     if (!is.null(taxon_data_list[[taxon_name]]$synonyms)){
       
     gbif_counts <- purrr::map_dbl(taxon_data_list[[taxon_name]]$synonyms$key,
                                     function(x) rgbif::occ_count(taxonKey = x,
-                                                                 geometry = query_poly_bbox_wkt,
+                                                                 gadmGid = query_polygon,
                                                                  hasCoordinate = TRUE
                                                                  )
                                     )
@@ -846,7 +827,6 @@ run_rank_assessment <- function(taxon_names,
 
     total_count <- sum(taxon_data_list[[taxon_name]]$synonyms$occurrence_count)
     
-    print(("OCCURRENCE" %in% sources_filter) & ("HUMAN_OBSERVATION" %in% sources_filter))
     if (("OCCURRENCE" %in% sources_filter) & ("HUMAN_OBSERVATION" %in% sources_filter)){
       taxon_data_list[[taxon_name]]$datasets <- taxon_data_list[[taxon_name]]$datasets_selected <- data.frame(datasetKey = "gbif", count = total_count)
     } else {
@@ -872,14 +852,11 @@ run_rank_assessment <- function(taxon_names,
   # Increment the progress bar, and update the detail text.
   progress$inc(0.33, detail = paste0("Downloading and processing data..."))
 
-  print(purrr::map(taxon_data_list, "synonyms") %>% bind_rows() %>% as.data.frame())
-  print(taxon_data_list[[1]]$datasets_selected)
-  
   if ((length(sources_filter) > 0) & (length(taxon_data_list) >= 1)){
     gbif_occurrences_raw <- get_gbif_data(
       taxa_metadata = purrr::map(taxon_data_list, "synonyms") %>% bind_rows(), 
       datasets_metadata = taxon_data_list[[1]]$datasets_selected,
-      query_polygon = query_poly_bbox_wkt,
+      query_polygon = query_polygon,
       all_occ_data = "OCCURRENCE" %in% sources_filter,
       all_humobs_data = "HUMAN_OBSERVATION" %in% sources_filter
     )$sp_occurrences
@@ -961,15 +938,15 @@ run_rank_assessment <- function(taxon_names,
       dplyr::filter(coordinateUncertaintyInMeters <= as.numeric(uncertainty_filter) | is.na(coordinateUncertaintyInMeters))
   }
   
-  if (!is.null(nations_filter)){
-    taxon_data$sf_filtered <- taxon_data$sf_filtered %>%
-      dplyr::filter(purrr::map_int(st_intersects(taxon_data$sf_filtered, network_polys %>% dplyr::filter(FIPS_CNTRY %in% nations_filter)), length) > 0)
-  }
-  
-  if (!is.null(states_filter)){
-    taxon_data$sf_filtered <- taxon_data$sf_filtered %>%
-      dplyr::filter(purrr::map_int(st_intersects(taxon_data$sf_filtered, network_polys %>% dplyr::filter(Admin_abbr %in% states_filter)), length) > 0)
-  }
+  # if (!is.null(nations_filter)){
+  #   taxon_data$sf_filtered <- taxon_data$sf_filtered %>%
+  #     dplyr::filter(purrr::map_int(st_intersects(taxon_data$sf_filtered, network_polys %>% dplyr::filter(FIPS_CNTRY %in% nations_filter)), length) > 0)
+  # }
+  # 
+  # if (!is.null(states_filter)){
+  #   taxon_data$sf_filtered <- taxon_data$sf_filtered %>%
+  #     dplyr::filter(purrr::map_int(st_intersects(taxon_data$sf_filtered, network_polys %>% dplyr::filter(Admin_abbr %in% states_filter)), length) > 0)
+  # }
   
   if (nrow(taxon_data$sf_filtered) >= 3){
    

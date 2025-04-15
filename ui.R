@@ -653,7 +653,7 @@ navbarPage(title = HTML("<span style='float: left; display: inline-block; paddin
                                                                                        selectizeInput(inputId = "batch_nation_filter",
                                                                                                       label = "",
                                                                                                       choices = c(list("Canada" = "CA", "United States" = "US")),
-                                                                                                      multiple = TRUE, 
+                                                                                                      multiple = FALSE, 
                                                                                                       width = "100%"
                                                                                        )
                                                                                 )
@@ -664,7 +664,7 @@ navbarPage(title = HTML("<span style='float: left; display: inline-block; paddin
                                                                                        selectizeInput(inputId = "batch_states_filter",
                                                                                                       label = "",
                                                                                                       choices = (network_polys$Admin_abbr %>% na.omit() %>% as.character()) %>% set_names(network_polys$ADMIN_NAME%>% na.omit() %>% as.character()) %>% sort(),
-                                                                                                      multiple = TRUE, 
+                                                                                                      multiple = FALSE, 
                                                                                                       width = "100%"
                                                                                        )
                                                                                 )

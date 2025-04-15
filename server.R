@@ -783,8 +783,6 @@ function(input, output, session) {
         taxon_data$gbif_occurrences_raw <- gbif_download$sp_occurrences
         taxon_data$shifted <- gbif_download$shifted
         
-        print(taxon_data$gbif_occurrences_raw)
-        
       }
 
       taxon_data$gbif_occurrences <- taxon_data$gbif_occurrences_raw %>% 
@@ -2052,12 +2050,13 @@ function(input, output, session) {
     }
   })
   
+  batch_assessment_polygon <- reactiveValues(gadmGid = NULL)
   batch_run_taxon_list <- reactiveValues(names = NULL)
-  
   batch_run_output <- reactiveValues(
     results = NULL,
     table = NULL
   )
+  
   
   #' ### Load user-uploaded data
   uploaded_obs_data_batch <- reactive({
@@ -2077,6 +2076,7 @@ function(input, output, session) {
     
     if (input$batch_assessment_type == "national"){
       shinyjs::show(id = "batch_nation")
+      
     }
     
     if (input$batch_assessment_type == "subnational"){
@@ -2094,21 +2094,31 @@ function(input, output, session) {
       
       updateSelectizeInput(session = session,
                            inputId = "batch_states_filter",
-                           choices = (nation_subset$Admin_abbr %>% na.omit() %>% as.character()) %>% set_names(nation_subset$ADMIN_NAME%>% na.omit() %>% as.character()) %>% sort(),
+                           choices = nation_subset$ADMIN_NAME %>% na.omit() %>% as.character() %>% sort(),
                            selected = subnations_already_selected
       )
-    
+      
+      if (input$batch_assessment_type == "national"){
+        batch_assessment_polygon$gadmGid <- ifelse(input$batch_nation_filter == "US", "USA", ifelse(input$batch_nation_filter == "CA", "CAN", NULL))
+      }
+      
   })
   
   observeEvent(input$batch_states_filter, {
 
-    relevant_nation <- network_polys %>% dplyr::filter(Admin_abbr %in% input$batch_states_filter) %>% dplyr::pull(FIPS_CNTRY)
+    relevant_nation <- network_polys %>% dplyr::filter(ADMIN_NAME %in% input$batch_states_filter) %>% dplyr::pull(FIPS_CNTRY)
     
     updateSelectizeInput(session = session,
                          inputId = "batch_nation_filter", 
                          selected = relevant_nation %>% set_names(relevant_nation)
     )
     
+    if (input$batch_assessment_type == "subnational"){
+    batch_assessment_polygon$gadmGid <- gadm_df %>% 
+      dplyr::filter(NAME_1 %in% gsub(" ", "", input$batch_states_filter)) %>% 
+      dplyr::pull(GID_1) %>% 
+      unique()
+    }
   })
   
   observeEvent(input$batch_assessment, {
@@ -2149,6 +2159,8 @@ function(input, output, session) {
     
     updateCollapse(session = session, id = "batch_parameters", close = "Rank assessment parameters")
 
+    print(batch_assessment_polygon$gadmGid)
+    
     time1 <- Sys.time()
       batch_run_output$results <- safe_batch_run(
         taxon_names = batch_run_taxon_list$names$user_supplied_name,
@@ -2162,9 +2174,9 @@ function(input, output, session) {
         date_end = input$batch_year_filter[2],
         months = input$batch_seasonality,
         uncertainty_filter = input$batch_uncertainty_filter,
+        query_polygon = batch_assessment_polygon$gadmGid,
         nations_filter = input$batch_nation_filter,
         states_filter = input$batch_states_filter,
-        network_polys = network_polys,
         sources_filter = input$batch_sources_filter,
         grid_cell_size = input$batch_grid_cell_size,
         sep_distance = input$batch_separation_distance,
