@@ -1139,6 +1139,10 @@ get_temporal_trends <- function(taxon_data = taxon_data, referenceTaxon = "kingd
     taxon_data$AOO_map <- get_aoo_polys(taxon_data$sf_filtered, 2)
   }
   
+  if (nrow(taxon_data$AOO_map) >= 100){
+    taxon_data$AOO_map <- taxon_data$AOO_map[which(st_intersects(taxon_data$sf_filtered, taxon_data$AOO_map) %>% unlist() %>% table() > 1), ]
+  }
+  
   query_poly <- taxon_data$AOO_map %>% 
     sf::st_union() %>% 
     sf::st_make_valid() %>% 
