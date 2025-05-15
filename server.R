@@ -525,7 +525,7 @@ function(input, output, session) {
       
     }
     
-  })
+  }, ignoreInit = TRUE, ignoreNULL = FALSE)
   
   observeEvent(input$select_all_occ, {
     
@@ -557,7 +557,7 @@ function(input, output, session) {
       
     }
     
-  })
+  }, ignoreInit = TRUE, ignoreNULL = FALSE)
   
   observeEvent(input$select_all_humobs, {
     
@@ -1390,7 +1390,8 @@ function(input, output, session) {
         references = paste0("<a href='", references, "' target='_blank'>", references, "</a>"),
         latitude = round(latitude, 4),
         longitude = round(longitude, 4)
-        ) %>%
+        ) %>% 
+      dplyr::select(key, source, scientificName, EORANK, stateProvince,	countryCode, year, month, basisOfRecord, datasetName,	institutionCode, coordinateUncertainty, longitude, latitude, references) %>%
       dplyr::rename("Key" = key,
                     "Scientific name" = scientificName,
                     "Source" = prov,
@@ -1771,7 +1772,7 @@ function(input, output, session) {
         paste0(
           h2(format(as.numeric(req(taxon_data$EOcount_value)), big.mark=",", scientific = FALSE), style = "padding-top: 0; margin-top: 0; display: inline;"), 
           h2("  EOs", style = "padding-top: 0; margin-top: 0; display: inline;"),
-          h1(strong(cut(req(as.numeric(taxon_data$EOcount_value)), breaks = c(0, 0.999, 5.999, 19.999, 79.999, 299.999, 1000000000), labels = c("Z", LETTERS[1:5]))), style = "padding-top: 0; margin-top: 0; padding-left: 1em; display: inline;")
+          h1(strong(taxon_data$EOcount_factor), style = "padding-top: 0; margin-top: 0; padding-left: 1em; display: inline;")
         )
       )
     } else {
@@ -1979,7 +1980,7 @@ function(input, output, session) {
           ) 
       }
       
-      extra_gbif_fields <- c("key", "collectionCode", "recordedBy", "recordNumber", "samplingProtocol", "accessRights", "taxonKey")
+      extra_gbif_fields <- c("key", "collectionCode", "recordedBy", "recordNumber", "samplingProtocol", "accessRights", "taxonKey", "samplingProtocol", "occurrenceID", "bibliographicCitation", "datasetID", "license", "rightsHolder", "eventDate", "occurrenceStatus", "georeferenceProtocol")
       if (!is.null(taxon_data$gbif_occurrences_raw)){
         out <- out %>% 
           dplyr::left_join(taxon_data$gbif_occurrences_raw %>% dplyr::select(any_of(extra_gbif_fields)), by = "key")
@@ -2044,10 +2045,10 @@ function(input, output, session) {
     shinyjs::hide(id = "AOO_panel")
     shinyjs::hide(id = "EOcount_panel")
     
-    if (!is.null(input$filedata)){
+    # if (!is.null(input$filedata)){
     unlink(input$filedata$datapath)
     reset(id = "filedata")
-    }
+    # }
   })
   
   batch_assessment_polygon <- reactiveValues(gadmGid = NULL)
@@ -2309,7 +2310,13 @@ function(input, output, session) {
       Reviewed = ifelse(Reviewed == FALSE, as.character(icon("xmark", "fa-2x", style = "color: #ef8a62;")), as.character(icon("check", "fa-2x", style = "color: #67a9cf;")))
       ) %>% 
       dplyr::select("Scientific Name (Assessment)", "Number Of Records Included", "Range Extent (New)", "Range Extent (Previous)", "AOO (New)", "AOO (Previous)", "Number of Occurrences (New)", "Number of Occurrences (Previous)", "Range Extent Change", "AOO Change", "Number of Occurrences Change", "Reviewed", " ")
-      
+    
+    if (input$batch_assessment_type != "global"){
+      batch_run_table$`Range Extent (Previous)` <- NA
+      batch_run_table$`AOO (Previous)` <- NA
+      batch_run_table$`Number of Occurrences (Previous)` <- NA
+    }  
+    
       out_tab <- batch_run_table %>% 
       DT::datatable(options = list(dom = 'tp',
                                    pageLength = 10,
@@ -2321,8 +2328,7 @@ function(input, output, session) {
       escape = FALSE, 
       rownames = FALSE
       ) 
-      
-      
+
       range_extent_trend_value <- purrr::map(batch_run_table$`Range Extent Change`, function(x){
         ifelse(!is.na(x), gsub("%", "", x) %>% as.numeric(), NA)
       }) %>% unlist()

@@ -510,7 +510,7 @@ navbarPage(title = HTML("<span style='float: left; display: inline-block; paddin
                             
                             
                             
-                            column(width = 6, style = "background-color: transparent; width: 47vw; padding-left: 30px; height: 80vh; ", 
+                            column(width = 6, style = "background-color: transparent; width: 47vw; padding-left: 30px; height: auto; ", 
                                    fluidRow(style = "padding: 10px 10px 10px 10px; margin-right: 0px;",
                                             column(width = 8, style = "padding-left: 5px;",
                                                    materialSwitch(inputId = "remove_selections",
@@ -526,7 +526,7 @@ navbarPage(title = HTML("<span style='float: left; display: inline-block; paddin
                                             )
                                    ),
                                    fluidRow(style = "padding-right: 15px; overflow-x: scroll; overflow-y: hidden; scrollbar-color: #C7C7C7 rgba(255, 255, 255, 1) !important;",
-                                            shinycssloaders::withSpinner(DT::dataTableOutput("occurrences_table", height="75vh"), type = 7, proxy.height = "0px")
+                                            shinycssloaders::withSpinner(DT::dataTableOutput("occurrences_table", height="auto"), type = 7, proxy.height = "0px")
                                    )
                             ),
                             column(width = 4, style = "padding-top: 5px; padding-right: 0; margin-right: 0; width: 34vw; height: 80vh !important;",

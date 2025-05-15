@@ -264,7 +264,8 @@ clean_gbif_data <- function(gbif_occurrences, clean = TRUE, minimum_fields = min
 
     if ("coordinateUncertaintyInMeters" %in% names(gbif_occurrences)) gbif_occurrences <- gbif_occurrences %>% dplyr::filter(!coordinateUncertaintyInMeters %in% c(301, 3036))
     if ("georeferenceRemarks" %in% names(gbif_occurrences)) gbif_occurrences <- gbif_occurrences %>% dplyr::filter(!grepl("centroid|Centroid|CENTROID", georeferenceRemarks))
-
+    if ("georeferenceProtocol" %in% names(gbif_occurrences)) gbif_occurrences <- gbif_occurrences %>% dplyr::filter(!grepl("centroid|Centroid|CENTROID", georeferenceProtocol))
+    
   }
 
   gbif_occurrences <- gbif_occurrences %>%
@@ -377,6 +378,10 @@ process_user_data <- function(user_file, minimum_fields){
                     year = ifelse(!is.na(year), year, NA), #format(Sys.time(), "%Y")),
                     scientificName = ifelse(!is.na(scientificName), scientificName, "user-uploaded")
       )
+    
+    if ("EO_ID" %in% names(user_data)){
+      processed_data$basisOfRecord <- "ELEMENT_OCCURRENCE"
+    }
     
     # processed_data$longitude[processed_data$longitude > 180] <- processed_data$longitude[processed_data$longitude > 180] - 360
     
@@ -545,7 +550,7 @@ calculate_number_occurrences <- function(occ, separation_distance = 1000, added_
   
   eo_count <- connections %>% unique() %>% length()
   
-  eo_factor <- cut(as.numeric(eo_count), breaks = c(0, 0.999, 5.999, 19.999, 79.999, 299.999, 1000000000), labels = c("Z", LETTERS[1:5]))
+  eo_factor <- cut(as.numeric(eo_count), breaks = c(0, 0.999, 5.999, 20.001, 80.001, 300.001, 1000000000), labels = c("Z", LETTERS[1:5]))
 
   out <- list(buffered_occurrences = buffered_occurrences, eo_count = eo_count, factor = eo_factor)
   
@@ -611,7 +616,7 @@ compare_rank_factors <- function(taxon_data, rank_factor_upload = NULL){
     
     if (!is.null(taxon_data$info_extended$rankInfo$numberEos$numberEosDescEn)){
       previous_EOcount_value <- taxon_data$info_extended$rankInfo$numberEos$numberEosDescEn %>% str_split_1("-") %>% head(2) %>% parse_number()
-      out$previous_eocount_letter <- cut(as.numeric(previous_EOcount_value), breaks = c(0, 0.999, 5.999, 19.999, 79.999, 299.999, 1000000000), labels = c("Z", LETTERS[1:5])) %>% as.character() %>% unique() %>% paste0(collapse = "")
+      out$previous_eocount_letter <- cut(as.numeric(previous_EOcount_value), breaks = c(0, 0.999, 5.999, 20.001, 80.001, 300.001, 1000000000), labels = c("Z", LETTERS[1:5])) %>% as.character() %>% unique() %>% paste0(collapse = "")
       previous_letters <- strsplit(out$previous_eocount_letter, "")[[1]]
       if (length(previous_letters) == 1){
         out$new_previous_eocount_comparison <- ifelse(identical(taxon_data$EOcount_factor, previous_letters), "equal", 
@@ -1144,6 +1149,7 @@ get_temporal_trends <- function(taxon_data = taxon_data, referenceTaxon = "kingd
   }
   
   query_poly <- taxon_data$AOO_map %>% 
+    sf::st_make_valid() %>% 
     sf::st_union() %>% 
     sf::st_make_valid() %>% 
     terra::vect() %>%
@@ -1314,7 +1320,7 @@ get_temporal_trends <- function(taxon_data = taxon_data, referenceTaxon = "kingd
   #   )
   ## GLMER (with spatial random effect)
   options(na.action = "na.fail")
-  glmer_result <- lme4::glmer(focal_species_detection ~ splines::bs(year, df = 3) + total_number_observations + species_list_length + (1 | cellID), 
+  glmer_result <- lme4::glmer(focal_species_detection ~ splines::bs(year, df = 3) + scale(total_number_observations) + scale(species_list_length) + (1 | cellID), 
                               data = focal_species_detection_data, family = binomial, control = lme4::glmerControl(tol = 1e-5, optimizer = "bobyqa", optCtrl=list(maxfun=2e5))
   )
   # Modeled probability of detection
