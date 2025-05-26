@@ -461,12 +461,12 @@ calculate_eoo <- function(occurrences_sf, shifted = FALSE){
   st_crs(hull) <- 4326
   
   # safe_area <- purrr::safely(sf::st_area)
-  EOO <- red::eoo(mypointsxy$xy)
-  # if (!is.null(EOO$result)){
-  #   EOO <- EOO$result %>% units::set_units(km^2)
-  # } else {
-  #   EOO <- NA
-  # }
+  EOO <- purrr::safely(red::eoo)(mypointsxy$xy)
+  if (!is.null(EOO$result)){
+    EOO <- EOO$result %>% units::set_units(km^2)
+  } else {
+    EOO <- NA
+  }
   
   # Rescale hull for mapping
   if (isTRUE(shifted)){
@@ -475,7 +475,11 @@ calculate_eoo <- function(occurrences_sf, shifted = FALSE){
     st_crs(hull) <- 4326
   }
   
-  eoo_factor <- cut(as.numeric(EOO), breaks = c(0, 0.999, 99.999, 249.999, 999.999, 4999.999, 19999.999, 199999.999, 2499999.999, 1000000000), labels = c("Z", LETTERS[1:8]))
+  if (!is.na(EOO)){
+    eoo_factor <- cut(as.numeric(EOO), breaks = c(0, 0.999, 99.999, 249.999, 999.999, 4999.999, 19999.999, 199999.999, 2499999.999, 1000000000), labels = c("Z", LETTERS[1:8]))
+  } else {
+    eoo_factor <- NA
+  }
     
   out <- list(hull = hull, EOO = EOO, factor = eoo_factor)
   
@@ -569,29 +573,40 @@ compare_rank_factors <- function(taxon_data, rank_factor_upload = NULL){
   )
   
   if (is.null(rank_factor_upload)){
-    
-  if (!is.null(taxon_data$info_extended$rankInfo$rangeExtent$rangeExtentDescEn)){
-    previous_species_range_value <- taxon_data$info_extended$rankInfo$rangeExtent$rangeExtentDescEn %>% str_split_1(" square") %>% head(1) %>% str_split_1("-") %>% head(2) %>% parse_number()      
-    out$previous_species_range_letter <- cut(previous_species_range_value, breaks = c(0, 0.999, 99.999, 249.999, 999.999, 4999.999, 19999.999, 199999.999, 2499999.999, 1000000000), labels = c("Z", LETTERS[1:8])) %>% as.character() %>% unique() %>% paste0(collapse = "")
-    previous_letters <- strsplit(out$previous_species_range_letter, "")[[1]]
-    if (length(previous_letters) == 1){
-    out$new_previous_species_range_comparison <- ifelse(identical(taxon_data$species_range_factor, previous_letters), "equal", 
-                           ifelse(
-                             which(LETTERS %in% taxon_data$species_range_factor) < which(LETTERS %in% previous_letters),
-                             "lower", "higher"
-                           ))
+  
+    if (!is.na(taxon_data$species_range_factor)){
+      if (!is.null(taxon_data$info_extended$rankInfo$rangeExtent$rangeExtentDescEn)){
+        
+        previous_species_range_value <- taxon_data$info_extended$rankInfo$rangeExtent$rangeExtentDescEn %>% str_split_1(" square") %>% head(1) %>% str_split_1("-") %>% head(2) %>% parse_number()      
+        
+        out$previous_species_range_letter <- cut(previous_species_range_value, breaks = c(0, 0.999, 99.999, 249.999, 999.999, 4999.999, 19999.999, 199999.999, 2499999.999, 1000000000), labels = c("Z", LETTERS[1:8])) %>% as.character() %>% unique() %>% paste0(collapse = "")
+        
+        previous_letters <- strsplit(out$previous_species_range_letter, "")[[1]]
+        
+        if (length(previous_letters) == 1){
+          
+          out$new_previous_species_range_comparison <- ifelse(identical(taxon_data$species_range_factor, previous_letters), "equal", 
+                                                              ifelse(
+                                                                which(LETTERS %in% taxon_data$species_range_factor) < which(LETTERS %in% previous_letters),
+                                                                "lower", "higher"
+                                                              ))
+        } else {
+          
+          out$new_previous_species_range_comparison <- 
+            ifelse(taxon_data$species_range_factor %in% previous_letters, "equal",
+                   ifelse(
+                     (which(LETTERS %in% taxon_data$species_range_factor) < which(LETTERS %in% previous_letters[1])),
+                     "lower",
+                     "higher"
+                   )
+            )
+        }
+      } 
     } else {
-      out$new_previous_species_range_comparison <- 
-        ifelse(taxon_data$species_range_factor %in% previous_letters, "equal",
-               ifelse(
-                 (which(LETTERS %in% taxon_data$species_range_factor) < which(LETTERS %in% previous_letters[1])),
-                 "lower",
-                 "higher"
-               )
-        )
+      taxon_data$species_range_factor <- NA
     }
-  }
-    
+
+    if (!is.na(taxon_data$AOO_factor)){
     if (!is.null(taxon_data$info_extended$rankInfo$areaOfOccupancy$areaOfOccupancyDescEn)){
       previous_aoo_value <- taxon_data$info_extended$rankInfo$areaOfOccupancy$areaOfOccupancyDescEn %>% str_split_1("-") %>% head(2) %>% parse_number()
       out$previous_aoo_letter <- purrr::map(previous_aoo_value, get_aoo_factor) %>% unlist() %>% as.character() %>% unique() %>% paste0(collapse = "")
@@ -613,7 +628,11 @@ compare_rank_factors <- function(taxon_data, rank_factor_upload = NULL){
           )
       }
     }
-    
+    } else {
+      taxon_data$species_range_factor <- NA
+    }
+
+    if (!is.na(taxon_data$EOcount_factor)){
     if (!is.null(taxon_data$info_extended$rankInfo$numberEos$numberEosDescEn)){
       previous_EOcount_value <- taxon_data$info_extended$rankInfo$numberEos$numberEosDescEn %>% str_split_1("-") %>% head(2) %>% parse_number()
       out$previous_eocount_letter <- cut(as.numeric(previous_EOcount_value), breaks = c(0, 0.999, 5.999, 20.001, 80.001, 300.001, 1000000000), labels = c("Z", LETTERS[1:5])) %>% as.character() %>% unique() %>% paste0(collapse = "")
@@ -654,6 +673,9 @@ compare_rank_factors <- function(taxon_data, rank_factor_upload = NULL){
                                                     which(LETTERS %in% taxon_data$EOcount_factor) < which(LETTERS %in% out$previous_eocount_letter),
                                                     "lower", "higher"
                                                   ))
+  }
+  } else {
+    taxon_data$EOcount_factor <- NA
   }
 
   return(out)
@@ -726,15 +748,15 @@ run_rank_assessment <- function(taxon_names,
       nations = NULL,
       states = NULL,
       records_over_time = NULL,
-      species_range_value = NULL,
-      species_range_map = NULL,
-      species_range_factor = NULL,
-      AOO_value = NULL,
-      AOO_map = NULL,
-      AOO_factor = NULL,
-      EOcount_map = NULL,
-      EOcount_value = NULL,
-      EOcount_factor = NULL,
+      species_range_value = NA,
+      species_range_map = NA,
+      species_range_factor = NA,
+      AOO_value = NA,
+      AOO_map = NA,
+      AOO_factor = NA,
+      EOcount_map = NA,
+      EOcount_value = NA,
+      EOcount_factor = NA,
       rank_factor_comparison = data.frame(
         previous_species_range_letter = NA,
         new_previous_species_range_comparison = NA,
@@ -1062,7 +1084,7 @@ run_rank_assessment <- function(taxon_names,
     taxon_data$temporal_change$eo_count_change[2] <- round(((taxon_data$temporal_change$eo_count[2]-taxon_data$temporal_change$eo_count[1])/taxon_data$temporal_change$eo_count[1])*100, 1)
     }
   }
-    } 
+  }  
 
   taxon_data
   

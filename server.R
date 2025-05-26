@@ -1913,13 +1913,13 @@ function(input, output, session) {
       out2[, 7] <- input$single_assessment_type
       out2[, 8] <- ifelse(!is.null(input$nation_filter), paste0(input$nation_filter, collapse = "; "), "")
       out2[, 9] <- ifelse(!is.null(input$states_filter), paste0(input$states_filter, collapse = "; "), "")
-      out2[, 10] <- ifelse(!is.null(taxon_data$species_range_value), taxon_data$species_range_value, "")
+      out2[, 10] <- ifelse(!is.null(taxon_data$species_range_value), taxon_data$species_range_value %>% as.numeric(), "")
       out2[, 11] <- ifelse(!is.null(taxon_data$species_range_factor), taxon_data$species_range_factor %>% as.character(), "")
       out2[, 14] <- input$grid_cell_size %>% as.numeric()
-      out2[, 15] <- ifelse(!is.null(taxon_data$AOO_value), taxon_data$AOO_value, "")
+      out2[, 15] <- ifelse(!is.null(taxon_data$AOO_value), taxon_data$AOO_value %>% as.numeric(), "")
       out2[, 16] <- ifelse(!is.null(taxon_data$AOO_factor), taxon_data$AOO_factor %>% as.character(), "")
       out2[, 19] <- input$separation_distance %>% as.numeric()
-      out2[, 20] <- ifelse(!is.null(taxon_data$EOcount_value), taxon_data$EOcount_value, "")
+      out2[, 20] <- ifelse(!is.null(taxon_data$EOcount_value), taxon_data$EOcount_value %>% as.numeric(), "")
       out2[, 21] <- ifelse(!is.null(taxon_data$EOcount_factor), taxon_data$EOcount_factor %>% as.character(), "")
       out2[, 24] <- paste0(input$period1, collapse = " - ")
       out2[, 25] <- paste0(input$period2, collapse = " - ")
@@ -2197,7 +2197,7 @@ function(input, output, session) {
       taxon = names(batch_run_output$results), # batch_run_taxon_list$names$user_supplied_name,
       total_observations_used = purrr::map(batch_run_output$results, function(out) ifelse(!is.null(out$sf_filtered), nrow(out$sf_filtered), nrow(out$all_occurrences))) %>% unlist(),
       range_value = purrr::map(batch_run_output$results, function(out){
-        ifelse(!is.null(out$species_range_value), paste0(out$species_range_value, " (", out$species_range_factor, ")"), NA)
+        ifelse(!is.null(out$species_range_value)&!is.na(out$species_range_value), paste0(out$species_range_value, " (", out$species_range_factor, ")"), NA)
         }) %>% unlist(),
       current_range_value = purrr::map(batch_run_output$results, function(out){
         if (!is.na(out$rank_factor_comparison$new_previous_species_range_comparison)){
@@ -2215,7 +2215,7 @@ function(input, output, session) {
         out
       }) %>% unlist(),
       AOO_value = purrr::map(batch_run_output$results, function(out){
-        ifelse(!is.null(out$AOO_value), paste0(out$AOO_value, " (", out$AOO_factor, ")"), NA)
+        ifelse(!is.null(out$AOO_value)&!is.na(out$AOO_value), paste0(out$AOO_value, " (", out$AOO_factor, ")"), NA)
         }) %>% unlist(),
       current_AOO_value = purrr::map(batch_run_output$results, function(out){
         if (!is.na(out$rank_factor_comparison$new_previous_aoo_comparison)){
@@ -2233,7 +2233,7 @@ function(input, output, session) {
         out
       }) %>% unlist(),
       EOcount_value = purrr::map(batch_run_output$results, function(out){
-        ifelse(!is.null(out$EOcount_value), paste0(ifelse(out$EOcount_value > 300, ">300", out$EOcount_value), " (", out$EOcount_factor, ")"), NA)
+        ifelse(!is.null(out$EOcount_value)&!is.na(out$EOcount_value), paste0(ifelse(out$EOcount_value > 300, ">300", out$EOcount_value), " (", out$EOcount_factor, ")"), NA)
         # ifelse(!is.null(out$EOcount_value), paste0(out$EOcount_value, " (", out$EOcount_factor, ")"), NA)
         }) %>% unlist(),
       current_EOcount_value = purrr::map(batch_run_output$results, function(out){
@@ -2669,60 +2669,98 @@ function(input, output, session) {
           out2[, 5] <- taxon_data$info_extended$uniqueId
           out2[, 6] <- taxon_data$info_extended$elcode
         }
+        print("4:6")
         out2[, 1] <- ifelse(!is.null(taxon_data$info), taxon_data$info$scientificName, "")
+        print("1")
         out2[, 2] <- ifelse(length(taxon_data$info$synonyms %>% unlist() %>% na.omit() %>% as.character()) > 0, paste0(taxon_data$info$synonyms %>% unlist() %>% na.omit() %>% as.character(), collapse = "; "), "")
+        print("2")
         out2[, 3] <- ifelse(!is.null(taxon_data$synonyms$scientificName), 
                             paste0(taxon_data$synonyms$scientificName %>% na.omit() %>% as.character(), collapse = "; "), 
                             ""
         )
+        print("3")
         out2[, 7] <- input$batch_assessment_type
+        print("7")
         out2[, 8] <- ifelse(!is.null(input$nation_filter), paste0(input$nation_filter, collapse = "; "), "")
+        print("8")
         out2[, 9] <- ifelse(!is.null(input$states_filter), paste0(input$states_filter, collapse = "; "), "")
+        print("9")
         out2[, 10] <- ifelse(!is.null(taxon_data$species_range_value), taxon_data$species_range_value %>% as.character(), "")
+        print("10")
         out2[, 11] <- ifelse(!is.null(taxon_data$species_range_factor), taxon_data$species_range_factor %>% as.character(), "")
+        print("11")
         out2[, 14] <- input$grid_cell_size %>% as.numeric()
+        print("14")
         out2[, 15] <- ifelse(!is.null(taxon_data$AOO_value), taxon_data$AOO_value %>% as.character(), "")
+        print("15")
         out2[, 16] <- ifelse(!is.null(taxon_data$AOO_factor), taxon_data$AOO_factor %>% as.character(), "")
+        print("16")
         out2[, 19] <- input$separation_distance %>% as.numeric()
+        print("19")
         out2[, 20] <- ifelse(!is.null(taxon_data$EOcount_value), taxon_data$EOcount_value %>% as.character(), "")
+        print("20")
         out2[, 21] <- ifelse(!is.null(taxon_data$EOcount_factor), taxon_data$EOcount_factor %>% as.character(), "")
+        print("21")
         out2[, 24] <- paste0(input$period1, collapse = " - ")
+        print("24")
         out2[, 25] <- paste0(input$period2, collapse = " - ")
+        print("25")
         out2[, 26] <- taxon_data$temporal_change$eoo_change[2]
+        print("26")
         out2[, 27] <- taxon_data$temporal_change$aoo_change[2]
+        print("27")
         out2[, 28] <- taxon_data$temporal_change$eo_count_change[2]
+        print("28")
         out2[, 29] <- nrow(taxon_data$sf_filtered)
+        print("29")
         out2[, 30] <- paste0(input$sources_filter, collapse = "; ")
+        print("30")
         out2[, 31] <- paste0(input$year_filter, collapse = "; ")
+        print("31")
         out2[, 32] <- paste0(input$seasonality, collapse = "; ")  
+        print("32")
         out2[, 33] <- input$uncertainty_filter
+        print("33")
         out2[, 34] <- paste0(
           c(ifelse(input$clean_occ, "Basic GBIF data cleanup implemented", ""),
             ifelse(input$clean_occ, "Putative centroids removed", ""),
             paste0("Data types included: ", input$type_filter),
             ifelse(length(taxon_data$sf_filtered$EORANK %>% complete.cases(.)) > 0, paste0("Element occurrence ranks included: ", paste0(unique(taxon_data$sf_filtered$EORANK), collapse = "|")), "")
           ), collapse = "; ")
+        print("34")
         out2[, 35] <- Sys.Date()
-        
+        print("35")
+        taxon_data$rank_factor_comparison <- data.frame(
+          previous_species_range_letter = NA,
+          new_previous_species_range_comparison = NA,
+          previous_aoo_letter = NA,
+          new_previous_aoo_comparison = NA,
+          previous_eocount_letter = NA,
+          new_previous_eocount_comparison = NA
+        )
         if (!is.null(batch_rank_factor_file)){
-          batch_rank_factor_sp <- batch_rank_factor_file %>% 
+          batch_rank_factor_sp <- batch_rank_factor_file %>%
             dplyr::filter(Species.or.Community.Scientific.Name. == names(batch_run_output$results)[i])
           if (nrow(batch_rank_factor_sp) > 0){
             taxon_data$rank_factor_comparison <- compare_rank_factors(taxon_data, rank_factor_upload = batch_rank_factor_sp)
-          } else {
-            taxon_data$rank_factor_comparison <- compare_rank_factors(taxon_data)
           }
-        } else {
+        }
+        if (input$batch_assessment_type == "global" & is.null(batch_rank_factor_file)){
           taxon_data$rank_factor_comparison <- compare_rank_factors(taxon_data)
         }
-        
+        print("35")
         out2[, 12] <- taxon_data$rank_factor_comparison$previous_species_range_letter %>% as.character()
+        print("12")
         out2[, 13] <- taxon_data$rank_factor_comparison$new_previous_species_range_comparison %>% as.character()
+        print("13")
         out2[, 17] <- taxon_data$rank_factor_comparison$previous_aoo_letter %>% as.character()
+        print("17")
         out2[, 18] <- taxon_data$rank_factor_comparison$new_previous_aoo_comparison %>% as.character()
+        print("18")
         out2[, 22] <- taxon_data$rank_factor_comparison$previous_eocount_letter %>% as.character()
+        print("22")
         out2[, 23] <- taxon_data$rank_factor_comparison$new_previous_eocount_comparison %>% as.character()
-        
+        print("23")
       out2
       
     }) %>% bind_rows()
