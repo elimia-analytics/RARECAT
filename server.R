@@ -59,15 +59,21 @@ function(input, output, session) {
                                   updateWhenIdle = TRUE           # map won't load new tiles when panning
                                 )) %>%
       leaflet::addMapPane("basemap2", zIndex = -100) %>% # Add basemap 2
-      leaflet::addProviderTiles(providers$Esri.WorldImagery, group = "Esri World Imagery", options = list(pathOptions(pane = "basemap2"))) %>%
+      leaflet::addProviderTiles(providers$Esri.WorldTopoMap, group = "Esri Topographic Map", options = list(pathOptions(pane = "basemap2")),
+                                providerTileOptions(
+                                  updateWhenZooming = FALSE,      # map won't update tiles until zoom is done
+                                  updateWhenIdle = TRUE           # map won't load new tiles when panning
+                                )) %>%
       leaflet::addMapPane("basemap3", zIndex = -100) %>% # Add basemap 3
-      leaflet::addProviderTiles(providers$OpenStreetMap, group = "Open Street Map", options = list(pathOptions(pane = "basemap3"))) %>%
+      leaflet::addProviderTiles(providers$Esri.WorldImagery, group = "Esri World Imagery", options = list(pathOptions(pane = "basemap3"))) %>%
       leaflet::addMapPane("basemap4", zIndex = -100) %>% # Add basemap 4
-      leaflet::addProviderTiles(providers$Esri.WorldStreetMap, group = "Esri World Street Map", options = list(pathOptions(pane = "basemap4"))) %>%
+      leaflet::addProviderTiles(providers$OpenStreetMap, group = "Open Street Map", options = list(pathOptions(pane = "basemap4"))) %>%
+      leaflet::addMapPane("basemap6", zIndex = -100) %>% # Add basemap 5
+      leaflet::addProviderTiles(providers$Esri.WorldStreetMap, group = "Esri World Street Map", options = list(pathOptions(pane = "basemap5"))) %>%
       leaflet::addScaleBar(position = "bottomleft") %>% # Add scale bar
       leaflet.extras::addResetMapButton() %>% # Add button to reset map bounds
       leaflet.extras::addSearchOSM() %>% # Add functionality to search for specific location using Open Street Map
-      leaflet::addLayersControl(baseGroups = c("Esri World Street Map", "Open Street Map", "Esri World Terrain", "Esri World Imagery"), # Add layers control widget
+      leaflet::addLayersControl(baseGroups = c("Esri World Street Map", "Esri Topographic Map", "Open Street Map", "Esri World Terrain", "Esri World Imagery"), # Add layers control widget
                                 options = layersControlOptions(collapsed = TRUE), position = "topleft") %>% 
       leafpm::addPmToolbar(toolbarOptions = leafpm::pmToolbarOptions(drawCircle = FALSE, drawPolyline = FALSE, editMode = FALSE, cutPolygon = FALSE, removalMode = FALSE), # Add point/polygon drawing tools
                            drawOptions = leafpm::pmDrawOptions(snappable = FALSE, markerStyle = list(draggable = FALSE))
@@ -202,11 +208,16 @@ function(input, output, session) {
   uploaded_data <- reactive({
     
     
-    out <- purrr::map(input$filedata$datapath, process_user_data, minimum_fields = minimum_fields) %>% 
+    out <- purrr::map(input$filedata$datapath, process_user_data, minimum_fields = c(minimum_fields, "scientificName_Assessment")) %>% 
       dplyr::bind_rows() 
-    out <- out %>% 
-      dplyr::mutate(key = paste(prov, 1:nrow(out), sep = "_"))
     
+    if (!("key" %in% names(out))){
+      out <- out %>% 
+        dplyr::mutate(key = paste(prov, 1:nrow(out), sep = "_"))
+    } else {
+      
+    }
+
     out
     
   })
@@ -376,7 +387,7 @@ function(input, output, session) {
                     "Key" = key,
                     "Number of GBIF records" = occurrence_count
       ) %>% 
-      DT::datatable(options = list(dom = 't', pageLength = 5, autoWidth = TRUE,
+      DT::datatable(options = list(dom = 't', pageLength = 10, autoWidth = TRUE,
                                    columnDefs = list(list(className = "text-left", width = '400px', targets = c(0)),
                                                      list(className = "text-left", targets = c(1, 2))
                                    )
@@ -783,6 +794,15 @@ function(input, output, session) {
         taxon_data$gbif_occurrences_raw <- gbif_download$sp_occurrences
         taxon_data$shifted <- gbif_download$shifted
         
+        uploaded_long_max <- ifelse(!is.null(taxon_data$uploaded_occurrences), max(taxon_data$uploaded_occurrences$longitude, na.rm = TRUE), NA)
+        uploaded_long_min <- ifelse(!is.null(taxon_data$uploaded_occurrences), min(taxon_data$uploaded_occurrences$longitude, na.rm = TRUE), NA)
+        
+        long_range <- abs(max(c(max(taxon_data$gbif_occurrences_raw$longitude, na.rm = TRUE), uploaded_long_max), na.rm = TRUE)) +
+          abs(min(c(min(taxon_data$gbif_occurrences_raw$longitude, na.rm = TRUE), uploaded_long_min), na.rm = TRUE))
+        
+        if (long_range > 360){
+          taxon_data$gbif_occurrences_raw$longitude[taxon_data$gbif_occurrences_raw$longitude < 0] <- taxon_data$gbif_occurrences_raw$longitude[taxon_data$gbif_occurrences_raw$longitude < 0] + 360
+        }
       }
 
       taxon_data$gbif_occurrences <- taxon_data$gbif_occurrences_raw %>% 
@@ -810,12 +830,38 @@ function(input, output, session) {
         taxon_data$uploaded_occurrences <- uploaded_data()
         # taxon_data$uploaded_occurrences <- taxon_data$uploaded_occurrences %>% 
         #   dplyr::mutate(key = paste(prov, 1:nrow(taxon_data$uploaded_occurrences), sep = "_"))
+        
+        # taxon_data$uploaded_occurrences$longitude[taxon_data$uploaded_occurrences$longitude > 180] <- taxon_data$uploaded_occurrences$longitude[taxon_data$uploaded_occurrences$longitude > 180] - 360
+        taxon_data$uploaded_occurrences$longitude[taxon_data$uploaded_occurrences$longitude > 180] <- taxon_data$uploaded_occurrences$longitude[taxon_data$uploaded_occurrences$longitude > 180] - 360
+        #
+        max_long <- max(taxon_data$uploaded_occurrences$longitude, na.rm = TRUE)/2
+        shifted_long <- taxon_data$uploaded_occurrences$longitude
+
+        if (length(taxon_data$uploaded_occurrences$longitude[taxon_data$uploaded_occurrences$longitude > max_long]) > 0){
+          shifted_long[shifted_long > max_long] <- shifted_long[shifted_long > max_long] - 360
+          shifted_long <- shifted_long + 360
+        }
+
+        if ((max(shifted_long)-min(shifted_long)) < (max(taxon_data$uploaded_occurrences$longitude) - min(taxon_data$uploaded_occurrences$longitude))){
+          taxon_data$uploaded_occurrences$longitude <- shifted_long
+          taxon_data$shifted <- TRUE
+        }
+        
+        gbif_long_max <- ifelse(!is.null(taxon_data$gbif_occurrences), max(taxon_data$gbif_occurrences$longitude, na.rm = TRUE), NA)
+        gbif_long_min <- ifelse(!is.null(taxon_data$gbif_occurrences), min(taxon_data$gbif_occurrences$longitude, na.rm = TRUE), NA)
+        
+        long_range <- abs(max(c(max(taxon_data$uploaded_occurrences$longitude, na.rm = TRUE), gbif_long_max), na.rm = TRUE)) +
+                      abs(min(c(min(taxon_data$uploaded_occurrences$longitude, na.rm = TRUE), gbif_long_min), na.rm = TRUE))
+        
+        if (long_range > 360){
+          taxon_data$uploaded_occurrences$longitude[taxon_data$uploaded_occurrences$longitude < 0] <- taxon_data$uploaded_occurrences$longitude[taxon_data$uploaded_occurrences$longitude < 0] + 360
+        }
 
         selected_taxon$NS <- c(selected_taxon$NS, unique(taxon_data$uploaded_occurrences$scientificName)) %>% unique()
         
         if (taxon_data$info$scientificName == "New taxon"){
           taxon_data$info <- data.frame(
-            scientificName = taxon_data$uploaded_occurrences$scientificName[1],
+            scientificName = ifelse(("scientificName_Assessment" %in% names(taxon_data$uploaded_occurrences)), taxon_data$uploaded_occurrences$scientificName_Assessment[1], taxon_data$uploaded_occurrences$scientificName[1]),
             elementGlobalId = NA, Source = "Uploaded", primaryCommonName = NA, roundedGRank = NA, elcode = NA, synonyms = NA, uniqueId = NA
           )
         }
@@ -906,7 +952,7 @@ function(input, output, session) {
       taxon_data$uploaded_occurrences,
       taxon_data$drawn_occurrences
     )
-
+    
     if (!is.null(taxon_data$all_occurrences)){
 
       ### Create simple features object for geospatial calculations
@@ -1049,7 +1095,33 @@ function(input, output, session) {
         if (!is.null(taxon_data$sf)){
           
           taxon_data$sf_filtered <- taxon_data$sf
-
+          
+          long_range <- abs(max(taxon_data$sf_filtered$longitude, na.rm = TRUE))+abs(min(taxon_data$sf_filtered$longitude, na.rm = TRUE))
+          
+          if (long_range > 360){
+            taxon_data$sf_filtered$longitude[taxon_data$sf_filtered$longitude < 0] <- taxon_data$sf_filtered$longitude[taxon_data$sf_filtered$longitude < 0] + 360
+          }
+          
+          # if (length(taxon_data$sf_filtered$longitude > 180) > 0){
+            
+          # taxon_data$sf_filtered$longitude[taxon_data$sf_filtered$longitude > 180] <- taxon_data$sf_filtered$longitude[taxon_data$sf_filtered$longitude > 180] - 360
+          # 
+          # max_long <- max(taxon_data$sf_filtered$longitude, na.rm = TRUE)/2
+          # shifted_long <- taxon_data$sf_filtered$longitude
+          # 
+          # if (length(taxon_data$sf_filtered$longitude[taxon_data$sf_filtered$longitude > max_long]) > 0){
+          #   shifted_long[shifted_long > max_long] <- shifted_long[shifted_long > max_long] - 360
+          #   shifted_long <- shifted_long + 360
+          # }
+          # 
+          # if ((max(shifted_long)-min(shifted_long)) < (max(taxon_data$sf_filtered$longitude) - min(taxon_data$sf_filtered$longitude))){
+          #   taxon_data$sf_filtered$longitude <- shifted_long
+          #   taxon_data$shifted <- TRUE
+          # }
+          # 
+          
+          # }
+          
           months <- purrr::map_dbl(1:12, function(x) x) %>% purrr::set_names(substr(month.name, 1, 3))
           season <- which(names(months) %in% input$seasonality)
           # season <- ifelse(nchar(season) == 1, paste0("0", season), season)
@@ -1391,7 +1463,7 @@ function(input, output, session) {
         latitude = round(latitude, 4),
         longitude = round(longitude, 4)
         ) %>% 
-      dplyr::select(key, source, scientificName, EORANK, stateProvince,	countryCode, year, month, basisOfRecord, datasetName,	institutionCode, coordinateUncertainty, longitude, latitude, references) %>%
+      dplyr::select(key, prov, scientificName, EORANK, stateProvince,	countryCode, year, month, basisOfRecord, datasetName,	institutionCode, coordinateUncertaintyInMeters, longitude, latitude, references) %>%
       dplyr::rename("Key" = key,
                     "Scientific name" = scientificName,
                     "Source" = prov,
@@ -2044,6 +2116,7 @@ function(input, output, session) {
     shinyjs::hide(id = "EOO_panel")
     shinyjs::hide(id = "AOO_panel")
     shinyjs::hide(id = "EOcount_panel")
+    updateCollapse(session = session, id = "inputs_single", open = "Add assessment data")
     
     # if (!is.null(input$filedata)){
     unlink(input$filedata$datapath)
@@ -2062,7 +2135,7 @@ function(input, output, session) {
   #' ### Load user-uploaded data
   uploaded_obs_data_batch <- reactive({
 
-    out <- purrr::map(input$batch_filedata_obs$datapath, process_user_data, minimum_fields = c(minimum_fields, "scientificName_Source")) %>% 
+    out <- purrr::map(input$batch_filedata_obs$datapath, process_user_data, minimum_fields = c(minimum_fields, "scientificName_Source", "scientificName_Assessment")) %>% 
       dplyr::bind_rows() 
     
     out 
@@ -2128,13 +2201,20 @@ function(input, output, session) {
     
     if (!is.null(input$batch_filedata_obs$datapath)){
       batch_uploaded_occurrences <- uploaded_obs_data_batch()
-      batch_uploaded_occurrences <- batch_uploaded_occurrences %>% 
-        dplyr::mutate(key = paste(prov, 1:nrow(batch_uploaded_occurrences), sep = "_"))
+      # batch_uploaded_occurrences <- batch_uploaded_occurrences %>% 
+      #   dplyr::mutate(key = paste(prov, 1:nrow(batch_uploaded_occurrences), sep = "_"))
       # uploaded_names <- purrr::map(batch_uploaded_occurrences$scientificName %>% unique(), function(sp){
       #   out <- rgbif::name_suggest(q = sp, rank = c("species", "subspecies", "variety", "infraspecific_name"), limit = 10)$data
       #   out$uploaded_name <- sp
       #   out
-      uploaded_names <- c(batch_uploaded_occurrences$scientificName) %>% unique()
+      if ("scientificName_Assessment" %in% names(batch_uploaded_occurrences)){
+        if (length(complete.cases(batch_uploaded_occurrences$scientificName_Assessment)) > 0){
+          uploaded_names <- c(batch_uploaded_occurrences$scientificName_Assessment) %>% unique()
+        }
+      } else {
+        uploaded_names <- c(batch_uploaded_occurrences$scientificName_Assessment) %>% unique()
+      }
+
     } else {
       batch_uploaded_occurrences <- NULL
       uploaded_names <- NULL
@@ -2160,8 +2240,6 @@ function(input, output, session) {
     
     updateCollapse(session = session, id = "batch_parameters", close = "Rank assessment parameters")
 
-    print(batch_assessment_polygon$gadmGid)
-    
     time1 <- Sys.time()
       batch_run_output$results <- safe_batch_run(
         taxon_names = batch_run_taxon_list$names$user_supplied_name,
@@ -2669,67 +2747,40 @@ function(input, output, session) {
           out2[, 5] <- taxon_data$info_extended$uniqueId
           out2[, 6] <- taxon_data$info_extended$elcode
         }
-        print("4:6")
         out2[, 1] <- ifelse(!is.null(taxon_data$info), taxon_data$info$scientificName, "")
-        print("1")
         out2[, 2] <- ifelse(length(taxon_data$info$synonyms %>% unlist() %>% na.omit() %>% as.character()) > 0, paste0(taxon_data$info$synonyms %>% unlist() %>% na.omit() %>% as.character(), collapse = "; "), "")
-        print("2")
         out2[, 3] <- ifelse(!is.null(taxon_data$synonyms$scientificName), 
                             paste0(taxon_data$synonyms$scientificName %>% na.omit() %>% as.character(), collapse = "; "), 
                             ""
         )
-        print("3")
         out2[, 7] <- input$batch_assessment_type
-        print("7")
         out2[, 8] <- ifelse(!is.null(input$nation_filter), paste0(input$nation_filter, collapse = "; "), "")
-        print("8")
         out2[, 9] <- ifelse(!is.null(input$states_filter), paste0(input$states_filter, collapse = "; "), "")
-        print("9")
         out2[, 10] <- ifelse(!is.null(taxon_data$species_range_value), taxon_data$species_range_value %>% as.character(), "")
-        print("10")
         out2[, 11] <- ifelse(!is.null(taxon_data$species_range_factor), taxon_data$species_range_factor %>% as.character(), "")
-        print("11")
         out2[, 14] <- input$grid_cell_size %>% as.numeric()
-        print("14")
         out2[, 15] <- ifelse(!is.null(taxon_data$AOO_value), taxon_data$AOO_value %>% as.character(), "")
-        print("15")
         out2[, 16] <- ifelse(!is.null(taxon_data$AOO_factor), taxon_data$AOO_factor %>% as.character(), "")
-        print("16")
         out2[, 19] <- input$separation_distance %>% as.numeric()
-        print("19")
         out2[, 20] <- ifelse(!is.null(taxon_data$EOcount_value), taxon_data$EOcount_value %>% as.character(), "")
-        print("20")
         out2[, 21] <- ifelse(!is.null(taxon_data$EOcount_factor), taxon_data$EOcount_factor %>% as.character(), "")
-        print("21")
         out2[, 24] <- paste0(input$period1, collapse = " - ")
-        print("24")
         out2[, 25] <- paste0(input$period2, collapse = " - ")
-        print("25")
         out2[, 26] <- taxon_data$temporal_change$eoo_change[2]
-        print("26")
         out2[, 27] <- taxon_data$temporal_change$aoo_change[2]
-        print("27")
         out2[, 28] <- taxon_data$temporal_change$eo_count_change[2]
-        print("28")
         out2[, 29] <- nrow(taxon_data$sf_filtered)
-        print("29")
         out2[, 30] <- paste0(input$sources_filter, collapse = "; ")
-        print("30")
         out2[, 31] <- paste0(input$year_filter, collapse = "; ")
-        print("31")
         out2[, 32] <- paste0(input$seasonality, collapse = "; ")  
-        print("32")
         out2[, 33] <- input$uncertainty_filter
-        print("33")
         out2[, 34] <- paste0(
           c(ifelse(input$clean_occ, "Basic GBIF data cleanup implemented", ""),
             ifelse(input$clean_occ, "Putative centroids removed", ""),
             paste0("Data types included: ", input$type_filter),
             ifelse(length(taxon_data$sf_filtered$EORANK %>% complete.cases(.)) > 0, paste0("Element occurrence ranks included: ", paste0(unique(taxon_data$sf_filtered$EORANK), collapse = "|")), "")
           ), collapse = "; ")
-        print("34")
         out2[, 35] <- Sys.Date()
-        print("35")
         taxon_data$rank_factor_comparison <- data.frame(
           previous_species_range_letter = NA,
           new_previous_species_range_comparison = NA,
@@ -2748,19 +2799,12 @@ function(input, output, session) {
         if (input$batch_assessment_type == "global" & is.null(batch_rank_factor_file)){
           taxon_data$rank_factor_comparison <- compare_rank_factors(taxon_data)
         }
-        print("35")
         out2[, 12] <- taxon_data$rank_factor_comparison$previous_species_range_letter %>% as.character()
-        print("12")
         out2[, 13] <- taxon_data$rank_factor_comparison$new_previous_species_range_comparison %>% as.character()
-        print("13")
         out2[, 17] <- taxon_data$rank_factor_comparison$previous_aoo_letter %>% as.character()
-        print("17")
         out2[, 18] <- taxon_data$rank_factor_comparison$new_previous_aoo_comparison %>% as.character()
-        print("18")
         out2[, 22] <- taxon_data$rank_factor_comparison$previous_eocount_letter %>% as.character()
-        print("22")
         out2[, 23] <- taxon_data$rank_factor_comparison$new_previous_eocount_comparison %>% as.character()
-        print("23")
       out2
       
     }) %>% bind_rows()

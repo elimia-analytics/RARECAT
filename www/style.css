@@ -9,6 +9,17 @@
   zoom: 100%;
 }
 
+::-webkit-scrollbar {
+  -webkit-appearance: none;
+  width: 7px;
+}
+
+::-webkit-scrollbar-thumb {
+  border-radius: 4px;
+  background-color: rgba(0, 0, 0, .5);
+  box-shadow: 0 0 1px rgba(255, 255, 255, .5);
+}
+
 .container-fluid {
 padding-left: 0;
 padding-right: 0;
@@ -531,5 +542,16 @@ table.dataTable th.dt-center, table.dataTable td.dt-center, table.dataTable td.d
 }
 .tooltip > .arrow::before {
   border-right-color: black;
+}
+
+::-webkit-scrollbar {
+  -webkit-appearance: none;
+  width: 7px;
+}
+
+::-webkit-scrollbar-thumb {
+  border-radius: 4px;
+  background-color: rgba(0, 0, 0, .5);
+  box-shadow: 0 0 1px rgba(255, 255, 255, .5);
 }
 }

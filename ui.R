@@ -522,7 +522,7 @@ navbarPage(title = HTML("<span style='float: left; display: inline-block; paddin
                                                    h4("Remove selected records from dataset", style = "display: inline-block;")
                                             ),
                                             column(width = 4, style = "padding-right: 0; padding-left: 0;",
-                                                   div(style = "float: right !important;", actionButton(inputId = "clear_selected_records", label = "Unselect records", block = TRUE, class = "btn-primary btn-sm", width = "12em"))
+                                                   div(style = "float: right !important;", actionButton(inputId = "clear_selected_records", label = "Unselect records", block = TRUE, class = "btn-primary btn-sm", width = "100%"))
                                             )
                                    ),
                                    fluidRow(style = "padding-right: 15px; overflow-x: scroll; overflow-y: hidden; scrollbar-color: #C7C7C7 rgba(255, 255, 255, 1) !important;",

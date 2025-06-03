@@ -213,21 +213,24 @@ get_gbif_data <- function(taxa_metadata,
   shifted <- FALSE
   
   if (shift_occurrences){
-    
+
     sp_occurrences$longitude[sp_occurrences$longitude > 180] <- sp_occurrences$longitude[sp_occurrences$longitude > 180] - 360
+    # sp_occurrences$longitude[sp_occurrences$longitude < -180] <- sp_occurrences$longitude[sp_occurrences$longitude < -180] + 360
+    #
     max_long <- max(sp_occurrences$longitude, na.rm = TRUE)/2
     shifted_long <- sp_occurrences$longitude
-    
+
     if (length(sp_occurrences$longitude[sp_occurrences$longitude > max_long]) > 0){
       shifted_long[shifted_long > max_long] <- shifted_long[shifted_long > max_long] - 360
       shifted_long <- shifted_long + 360
     }
-    
+
     if ((max(shifted_long)-min(shifted_long)) < (max(sp_occurrences$longitude) - min(sp_occurrences$longitude))){
       sp_occurrences$longitude <- shifted_long
       shifted <- TRUE
     }
-  }
+
+}
 
   out <- list(sp_occurrences = sp_occurrences, shifted = shifted)
   
@@ -293,8 +296,10 @@ process_user_data <- function(user_file, minimum_fields){
   
   if (sum(grepl(paste0(longitude_names, collapse = "|"), names(user_data))) > 0 & sum(grepl(paste0(latitude_names, collapse = "|"), names(user_data))) > 0){
     
-    scientificName_names <- c("scientificName_Assessment", "scientificName", "Scientific name", "GNAME", "scientific_name", "SciName", "scientific name", "Scientific Name")
-    scientificName_names <- scientificName_names %>% set_names(rep("scientificName", length(scientificName_names)))
+    scientificName_Source_names <- c("scientificName_Source", "scientificName", "Scientific name", "GNAME", "scientific_name", "SciName", "scientific name", "Scientific Name")
+    scientificName_Source_names <- scientificName_Source_names %>% set_names(rep("scientificName", length(scientificName_Source_names)))
+    scientificName_Assessment_names <- c("scientificName_Assessment")
+    scientificName_Assessment_names <- scientificName_Assessment_names %>% set_names(rep("scientificName_Assessment", length(scientificName_Assessment_names)))
     stateProvince_names <- c("stateProvince", "STATE", "GNAME", "place_state_name", "State", "State or Province", "state", "Province", "province", "PROVINCE", "place_guess")
     stateProvince_names <- stateProvince_names %>% set_names(rep("stateProvince", length(stateProvince_names)))
     countryCode_names <- c("countryCode", "NATN", "country", "place_country_name", "Country", "COUNTRY", "Nation", "NATION")
@@ -305,7 +310,7 @@ process_user_data <- function(user_file, minimum_fields){
     coordinateUncertaintyInMeters_names <- coordinateUncertaintyInMeters_names %>% set_names(rep("coordinateUncertaintyInMeters", length(coordinateUncertaintyInMeters_names)))
     EORANK_names <- c("EO RANK", "EORANK", "EORANK_CD", "EO_RANK")
     EORANK_names <- EORANK_names %>% set_names(rep("EORANK", length(EORANK_names)))
-    lookup <- c(longitude_names, latitude_names, scientificName_names, stateProvince_names, countryCode_names, year_names, EORANK_names)
+    lookup <- c(longitude_names, latitude_names, scientificName_Source_names, scientificName_Assessment_names, stateProvince_names, countryCode_names, year_names, EORANK_names)
     
     if (("coordinates_obscured" %in% names(user_data)) & ("private_latitude" %in% names(user_data))){
       
@@ -340,7 +345,8 @@ process_user_data <- function(user_file, minimum_fields){
     target_columns <- user_data %>% 
       dplyr::select(matches(paste0(longitude_names, collapse = "|")), 
                     matches(paste0(latitude_names, collapse = "|")), 
-                    matches(paste0(scientificName_names, collapse = "|")),
+                    matches(paste0(scientificName_Source_names, collapse = "|")),
+                    matches(paste0(scientificName_Assessment_names, collapse = "|")),
                     matches(paste0(stateProvince_names, collapse = "|")),
                     matches(paste0(countryCode_names, collapse = "|")),
                     matches(paste0(year_names, collapse = "|")),
@@ -363,7 +369,17 @@ process_user_data <- function(user_file, minimum_fields){
     }
     
     processed_data <- processed_data %>% 
-      dplyr::select(intersect(names(processed_data), minimum_fields)) %>%
+      dplyr::select(intersect(names(processed_data), minimum_fields)) 
+    
+    user_columns_to_keep <- user_data %>% 
+      dplyr::select(setdiff(intersect(names(user_data), minimum_fields), names(processed_data))) 
+    
+    if (ncol(user_columns_to_keep) > 0){
+      processed_data <- processed_data %>% 
+        cbind(user_columns_to_keep)
+    }
+    
+    processed_data <- processed_data %>%
       cbind(matrix(NA, nrow = nrow(processed_data), ncol = length(setdiff(minimum_fields, names(processed_data)))) %>%
               as.data.frame() %>%
               set_names(setdiff(minimum_fields, names(processed_data)))
@@ -374,17 +390,18 @@ process_user_data <- function(user_file, minimum_fields){
     
     processed_data <- processed_data %>% 
       dplyr::mutate(prov = "uploaded",
-                    key = paste(prov, 1:nrow(processed_data), sep = "_"),
                     year = ifelse(!is.na(year), year, NA), #format(Sys.time(), "%Y")),
                     scientificName = ifelse(!is.na(scientificName), scientificName, "user-uploaded")
       )
     
+    if (length(is.na(processed_data$key)) > 0){
+      processed_data$key[is.na(processed_data$key)] <- paste(processed_data$prov, 1:length(processed_data$key[is.na(processed_data$key)]), sep = "_")
+    }
+    
     if ("EO_ID" %in% names(user_data)){
       processed_data$basisOfRecord <- "ELEMENT_OCCURRENCE"
     }
-    
-    # processed_data$longitude[processed_data$longitude > 180] <- processed_data$longitude[processed_data$longitude > 180] - 360
-    
+  
   }
   return(processed_data)
 }
@@ -440,16 +457,19 @@ aoo2 <- function (spData, cell_size)
 calculate_eoo <- function(occurrences_sf, shifted = FALSE){
   
   # Rescale hull for calculation
-  if (isTRUE(shifted)){
-    scaling_factor <- max(occurrences_sf$longitude)-min(occurrences_sf$longitude)
-    # occurrences_sf$geometry <- (sf::st_geometry(occurrences_sf) + c(360,90)) %% c(360) - c(0,90)
-    occurrences_sf$geometry <- (sf::st_geometry(occurrences_sf)-c(scaling_factor, 0))
-    st_crs(occurrences_sf) <- 4326
-  }
+  # if (isTRUE(shifted)){
+  #   scaling_factor <- max(occurrences_sf$longitude)-min(occurrences_sf$longitude)
+  #   # occurrences_sf$geometry <- (sf::st_geometry(occurrences_sf) + c(360,90)) %% c(360) - c(0,90)
+  #   occurrences_sf$geometry <- (sf::st_geometry(occurrences_sf)-c(scaling_factor, 0))
+  #   st_crs(occurrences_sf) <- 4326
+  # }
+  
+  #print(summary(st_coordinates(occurrences_sf)[, 1]))
+
   centreofpoints <- trueCOGll(st_coordinates(occurrences_sf) %>% as.data.frame() %>% set_names("longitude", "latitude"))
   mypointsxy <- simProjWiz(st_coordinates(occurrences_sf) %>% as.data.frame() %>% set_names(c("long", "lat")), centreofpoints)
   # vertices <- chull(mypointsxy$xy)
-  # mypointsxy_sf <- mypointsxy$xy %>% 
+  # mypointsxy_sf <- mypointsxy$xy %>%
   #   sf::st_as_sf(
   #     coords = c("x", "y"),
   #     crs = mypointsxy$crs_new
@@ -469,11 +489,11 @@ calculate_eoo <- function(occurrences_sf, shifted = FALSE){
   }
   
   # Rescale hull for mapping
-  if (isTRUE(shifted)){
-    # occurrences_sf$geometry <- (sf::st_geometry(occurrences_sf) + c(360,90)) %% c(360) - c(0,90)
-    hull$geometry <- (sf::st_geometry(hull)+c(scaling_factor, 0))
-    st_crs(hull) <- 4326
-  }
+  # if (isTRUE(shifted)){
+  #   # occurrences_sf$geometry <- (sf::st_geometry(occurrences_sf) + c(360,90)) %% c(360) - c(0,90)
+  #   hull$geometry <- (sf::st_geometry(hull)+c(scaling_factor, 0))
+  #   st_crs(hull) <- 4326
+  # }
   
   if (!is.na(EOO)){
     eoo_factor <- cut(as.numeric(EOO), breaks = c(0, 0.999, 99.999, 249.999, 999.999, 4999.999, 19999.999, 199999.999, 2499999.999, 1000000000), labels = c("Z", LETTERS[1:8]))
@@ -904,13 +924,38 @@ run_rank_assessment <- function(taxon_names,
       taxon_data$gbif_occurrences_raw <- gbif_occurrences_raw %>% 
         dplyr::filter(taxonKey %in% taxon_data$synonyms$key)
       taxon_data$gbif_occurrences <- taxon_data$gbif_occurrences_raw %>% 
-        clean_gbif_data(clean = clean_occ, remove_centroids = centroid_filter, minimum_fields = minimum_fields)
+        clean_gbif_data(clean = clean_occ, remove_centroids = centroid_filter, minimum_fields = minimum_fields) %>% 
+        dplyr::mutate(scientificName_Assessment = taxon_name)
     }
     
    if (!is.null(uploaded_data)){
-      taxon_data$uploaded_occurrences <- uploaded_data %>%
-      dplyr::filter(scientificName %in% taxon_name) %>% 
-        dplyr::select(-scientificName_Source)
+
+     # if ("scientificName_Assessment" %in% names(taxon_data$uploaded_occurrences)){
+     #   if (length(complete.cases(taxon_data$uploaded_occurrences$scientificName_Assessment)) > 0){
+     #     taxon_data$uploaded_occurrences <- uploaded_data %>%
+     #       dplyr::filter(scientificName_Assessment == taxon_name) %>%
+     #       dplyr::select(-scientificName_Source, -scientificName_Assessment)
+     #   }
+     # } else {
+     #   taxon_data$uploaded_occurrences <- uploaded_data %>%
+     #     dplyr::filter(scientificName == taxon_name) %>%
+     #     dplyr::select(-scientificName_Source, -scientificName_Assessment)
+     # }
+     
+     if ("scientificName_Assessment" %in% names(uploaded_data)){
+       if (length(complete.cases(uploaded_data$scientificName_Assessment)) > 0){
+       taxon_data$uploaded_occurrences <- uploaded_data %>%
+         dplyr::filter(scientificName_Assessment == taxon_name) %>%
+         dplyr::select(-scientificName_Source)
+       }
+     } else {
+       taxon_data$uploaded_occurrences <- uploaded_data %>%
+         dplyr::filter(scientificName == taxon_name) %>%
+         dplyr::select(-scientificName_Source)
+     }
+     
+     print(str(taxon_data$uploaded_occurrences))
+     
     }
 
   taxon_data$all_occurrences <- rbind(
@@ -975,7 +1020,7 @@ run_rank_assessment <- function(taxon_names,
   #     dplyr::filter(purrr::map_int(st_intersects(taxon_data$sf_filtered, network_polys %>% dplyr::filter(Admin_abbr %in% states_filter)), length) > 0)
   # }
   
-  if (nrow(taxon_data$sf_filtered) >= 3){
+  if (nrow(taxon_data$sf_filtered) >= 1){
    
   # if (!is.null(sources_filter)){
   #   source_exclusions <- setdiff(taxon_data$sf_filtered$prov, sources_filter)
