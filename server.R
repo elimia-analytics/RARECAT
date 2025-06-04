@@ -2658,12 +2658,7 @@ function(input, output, session) {
       }
     } else {
       batch_rank_factor_sp <- NULL
-      out[, 2] <-  ifelse(!is.null(taxon_data$info), taxon_data$info$roundedGRank, "")
       out[, 3] <-  ifelse(!is.null(taxon_data$info), taxon_data$info$scientificName, "")
-      out[, 6] <-  ifelse(!is.null(taxon_data$info), taxon_data$info$elementGlobalId, "")
-      out[, 7] <-  ifelse(!is.null(taxon_data$info), taxon_data$info$elcode, "")
-      out[, 8] <-  ifelse(!is.null(taxon_data$info), taxon_data$info$primaryCommonName, "")
-      out[, 9] <-  ifelse(!is.null(taxon_data$info_extended), taxon_data$info_extended$classificationStatus$classificationStatusDescEn, "")
       if (!is.null(taxon_data$species_range_value)){
         # out[, 11] <- cut(as.numeric(taxon_data$species_range_value), breaks = c(0, 0.999, 99.999, 249.999, 999.999, 4999.999, 19999.999, 199999.999, 2499999.999, 1000000000), labels = c("Z", LETTERS[1:8]))
         out[, 11] <- taxon_data$species_range_factor
@@ -2675,6 +2670,13 @@ function(input, output, session) {
         # out[, 15] <- cut(as.numeric(taxon_data$EOcount_value), breaks = c(0, 0.999, 5.999, 19.999, 79.999, 299.999, 1000000000), labels = c("Z", LETTERS[1:5]))
         out[, 15] <- taxon_data$EOcount_factor
       }
+      if (input$batch_assessment_type == "global"){
+      out[, 2] <-  ifelse(!is.null(taxon_data$info), taxon_data$info$roundedGRank, "")
+      out[, 6] <-  ifelse(!is.null(taxon_data$info), taxon_data$info$elementGlobalId, "")
+      out[, 7] <-  ifelse(!is.null(taxon_data$info), taxon_data$info$elcode, "")
+      out[, 8] <-  ifelse(!is.null(taxon_data$info), taxon_data$info$primaryCommonName, "")
+      out[, 9] <-  ifelse(!is.null(taxon_data$info_extended), taxon_data$info_extended$classificationStatus$classificationStatusDescEn, "")
+
       if (!is.null(taxon_data$info_extended$rankInfo$popSize)){
         rank_def <- rank_factor_definitions$population_size_description[grep(taxon_data$info_extended$rankInfo$popSize$popSizeDescEn, rank_factor_definitions$population_size_description, fixed = TRUE)]
         out[, 16] <- rank_factor_definitions$population_size_value[rank_factor_definitions$population_size_description == rank_def]
@@ -2722,6 +2724,7 @@ function(input, output, session) {
       out[, 40] <- ifelse(!is.null(taxon_data$info_extended$rankInfo$intrinsicVulnerabilityComments), taxon_data$info_extended$rankInfo$intrinsicVulnerabilityComments, "")
       out[, 41] <- ifelse(!is.null(taxon_data$info_extended$rankInfo$shortTermTrendComments), taxon_data$info_extended$rankInfo$shortTermTrendComments, "")
       out[, 42] <- ifelse(!is.null(taxon_data$info_extended$rankInfo$longTermTrendComments), taxon_data$info_extended$rankInfo$longTermTrendComments, "")
+      }
     }
       out
     }) %>% bind_rows()
