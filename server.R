@@ -806,8 +806,11 @@ function(input, output, session) {
       }
 
       taxon_data$gbif_occurrences <- taxon_data$gbif_occurrences_raw %>% 
-        clean_gbif_data(clean = input$clean_occ, remove_centroids = input$centroid_filter, minimum_fields = minimum_fields)
+        clean_gbif_data(clean = input$clean_occ, remove_centroids = input$centroid_filter, minimum_fields = minimum_fields) %>% 
+        dplyr::mutate(scientificName_Assessment = taxon_data$info$scientificName)
 
+      print(names(taxon_data$gbif_occurrences))
+      
       shinyjs::show(id = "data_panel")
       
       # shinybusy::remove_modal_spinner()
@@ -945,7 +948,7 @@ function(input, output, session) {
   })
   
   observe({
-
+    
     ### Combine all occurrences
     taxon_data$all_occurrences <- rbind(
       taxon_data$gbif_occurrences,
