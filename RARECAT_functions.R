@@ -394,10 +394,6 @@ process_user_data <- function(user_file, minimum_fields){
                     scientificName = ifelse(!is.na(scientificName), scientificName, "user-uploaded")
       )
     
-    if (length(is.na(processed_data$key)) > 0){
-      processed_data$key[is.na(processed_data$key)] <- paste(processed_data$prov, 1:length(processed_data$key[is.na(processed_data$key)]), sep = "_")
-    }
-    
     if ("EO_ID" %in% names(user_data)){
       processed_data$basisOfRecord <- "ELEMENT_OCCURRENCE"
     }

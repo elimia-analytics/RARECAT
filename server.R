@@ -210,13 +210,6 @@ function(input, output, session) {
     
     out <- purrr::map(input$filedata$datapath, process_user_data, minimum_fields = c(minimum_fields, "scientificName_Assessment")) %>% 
       dplyr::bind_rows() 
-    
-    if (!("key" %in% names(out))){
-      out <- out %>% 
-        dplyr::mutate(key = paste(prov, 1:nrow(out), sep = "_"))
-    } else {
-      
-    }
 
     out
     
@@ -833,6 +826,10 @@ function(input, output, session) {
         taxon_data$uploaded_occurrences <- uploaded_data()
         # taxon_data$uploaded_occurrences <- taxon_data$uploaded_occurrences %>% 
         #   dplyr::mutate(key = paste(prov, 1:nrow(taxon_data$uploaded_occurrences), sep = "_"))
+        
+        if (length(is.na(taxon_data$uploaded_occurrences$key)) > 0){
+          taxon_data$uploaded_occurrences$key[is.na(taxon_data$uploaded_occurrences$key)] <- paste(taxon_data$uploaded_occurrences$prov, 1:length(taxon_data$uploaded_occurrences$key[is.na(taxon_data$uploaded_occurrences$key)]), sep = "_")
+        }
         
         # taxon_data$uploaded_occurrences$longitude[taxon_data$uploaded_occurrences$longitude > 180] <- taxon_data$uploaded_occurrences$longitude[taxon_data$uploaded_occurrences$longitude > 180] - 360
         taxon_data$uploaded_occurrences$longitude[taxon_data$uploaded_occurrences$longitude > 180] <- taxon_data$uploaded_occurrences$longitude[taxon_data$uploaded_occurrences$longitude > 180] - 360
