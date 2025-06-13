@@ -821,10 +821,10 @@ navbarPage(title = HTML("<span style='float: left; display: inline-block; paddin
            tabPanel("TUTORIALS", height = "100%",
                     fluidRow(style = "padding: 20px 10px 20px 10px;",
                       column(width = 6, style = "padding-right: 0;",
-                             tags$iframe(style='height:500px; width:95%;', src="https://www.youtube.com/embed/NTRjjfIb_wM?si=YLGXGqmwa61rcEgT#frameborder=0")
+                             tags$iframe(style='height:500px; width:95%;', src="https://www.youtube.com/embed/nfryT6xjVLA?si=7L6pVsADfmiQXQAP")
                       ),
                       column(width = 6, style = "padding-left: 0;",
-                             tags$iframe(style='height:500px; width:95%;', src="https://www.youtube.com/embed/9eG5T_tWeME?si=-rZePIyEr5JrvQMZ#frameborder=0")
+                             tags$iframe(style='height:500px; width:95%;', src="https://www.youtube.com/embed/gD1rSK5pWGg?si=feAqp8NfIhcEp3af")
                       )
                     )
                     ),
@@ -847,5 +847,9 @@ navbarPage(title = HTML("<span style='float: left; display: inline-block; paddin
                              #           "Available from https://natureserve.shinyapps.io/RARECAT. Accessed [Date].")
                              # ),
                              tags$iframe(style='height:1000px; width:100%; scrolling=yes;', src="NatureServe RARECAT v2.1.1 - Documentation.pdf#zoom=125")
+           ),
+           tabPanel("FORUM", height = "100%",
+                    # h3(paste0("Find additional help and learn about special topics by visiting the "), strong(a("RARECAT Discussion Forum", target = "_blank", href = "https://rarecatsupport.natureserve.org/support/discussions"), "."))
+                    tags$iframe(style='height:1000px; width:100%; scrolling=yes;', src="https://rarecatsupport.natureserve.org/support/discussions")
            )
 )

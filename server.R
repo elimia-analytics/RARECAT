@@ -2838,4 +2838,11 @@ function(input, output, session) {
     
   })
   
+  # observeEvent(input$nav, {
+  #   if (input$nav == "FORUM"){
+  #     # browseURL("https://rarecatsupport.natureserve.org/support/discussions")
+  #     url("https://rarecatsupport.natureserve.org/support/discussions", open = "r")
+  #   }
+  # }, ignoreInit = TRUE)
+  
 }
