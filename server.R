@@ -789,21 +789,19 @@ function(input, output, session) {
         
         uploaded_long_max <- ifelse(!is.null(taxon_data$uploaded_occurrences), max(taxon_data$uploaded_occurrences$longitude, na.rm = TRUE), NA)
         uploaded_long_min <- ifelse(!is.null(taxon_data$uploaded_occurrences), min(taxon_data$uploaded_occurrences$longitude, na.rm = TRUE), NA)
-        
+
         long_range <- abs(max(c(max(taxon_data$gbif_occurrences_raw$longitude, na.rm = TRUE), uploaded_long_max), na.rm = TRUE)) +
           abs(min(c(min(taxon_data$gbif_occurrences_raw$longitude, na.rm = TRUE), uploaded_long_min), na.rm = TRUE))
-        
+
         if (long_range > 360){
           taxon_data$gbif_occurrences_raw$longitude[taxon_data$gbif_occurrences_raw$longitude < 0] <- taxon_data$gbif_occurrences_raw$longitude[taxon_data$gbif_occurrences_raw$longitude < 0] + 360
         }
+        
+        taxon_data$gbif_occurrences <- taxon_data$gbif_occurrences_raw %>% 
+          clean_gbif_data(clean = input$clean_occ, remove_centroids = input$centroid_filter, minimum_fields = minimum_fields) %>% 
+          dplyr::mutate(scientificName_Assessment = taxon_data$info$scientificName)
       }
 
-      taxon_data$gbif_occurrences <- taxon_data$gbif_occurrences_raw %>% 
-        clean_gbif_data(clean = input$clean_occ, remove_centroids = input$centroid_filter, minimum_fields = minimum_fields) %>% 
-        dplyr::mutate(scientificName_Assessment = taxon_data$info$scientificName)
-
-      print(names(taxon_data$gbif_occurrences))
-      
       shinyjs::show(id = "data_panel")
       
       # shinybusy::remove_modal_spinner()
@@ -932,9 +930,10 @@ function(input, output, session) {
                   set_names(setdiff(minimum_fields, names(taxon_data$drawn_occurrences)))
           ) %>%
           dplyr::mutate(prov = "drawn",
-                        key = paste("user_created", 1:nrow(taxon_data$drawn_occurrences), sep = "_")
+                        key = paste("user_created", 1:nrow(taxon_data$drawn_occurrences), sep = "_"),
+                        scientificName_Assessment = taxon_data$info$scientificName
           ) %>%
-          dplyr::select(all_of(minimum_fields))
+          dplyr::select(all_of(minimum_fields), scientificName_Assessment)
 
         shinyjs::show(id = "data_panel")
         
@@ -1096,11 +1095,11 @@ function(input, output, session) {
           
           taxon_data$sf_filtered <- taxon_data$sf
           
-          long_range <- abs(max(taxon_data$sf_filtered$longitude, na.rm = TRUE))+abs(min(taxon_data$sf_filtered$longitude, na.rm = TRUE))
-          
-          if (long_range > 360){
-            taxon_data$sf_filtered$longitude[taxon_data$sf_filtered$longitude < 0] <- taxon_data$sf_filtered$longitude[taxon_data$sf_filtered$longitude < 0] + 360
-          }
+          # long_range <- abs(max(taxon_data$sf_filtered$longitude, na.rm = TRUE))+abs(min(taxon_data$sf_filtered$longitude, na.rm = TRUE))
+          # 
+          # if (long_range > 360){
+          #   taxon_data$sf_filtered$longitude[taxon_data$sf_filtered$longitude < 0] <- taxon_data$sf_filtered$longitude[taxon_data$sf_filtered$longitude < 0] + 360
+          # }
           
           # if (length(taxon_data$sf_filtered$longitude > 180) > 0){
             
@@ -2837,12 +2836,5 @@ function(input, output, session) {
     updateCollapse(session = session, id = "batch_parameters", open = "Rank assessment parameters")
     
   })
-  
-  # observeEvent(input$nav, {
-  #   if (input$nav == "FORUM"){
-  #     # browseURL("https://rarecatsupport.natureserve.org/support/discussions")
-  #     url("https://rarecatsupport.natureserve.org/support/discussions", open = "r")
-  #   }
-  # }, ignoreInit = TRUE)
   
 }

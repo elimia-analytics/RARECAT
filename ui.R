@@ -850,6 +850,7 @@ navbarPage(title = HTML("<span style='float: left; display: inline-block; paddin
            ),
            tabPanel("FORUM", height = "100%",
                     # h3(paste0("Find additional help and learn about special topics by visiting the "), strong(a("RARECAT Discussion Forum", target = "_blank", href = "https://rarecatsupport.natureserve.org/support/discussions"), "."))
+                    
                     tags$iframe(style='height:1000px; width:100%; scrolling=yes;', src="https://rarecatsupport.natureserve.org/support/discussions")
            )
 )

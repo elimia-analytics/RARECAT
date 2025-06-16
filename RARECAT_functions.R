@@ -453,43 +453,35 @@ aoo2 <- function (spData, cell_size)
 calculate_eoo <- function(occurrences_sf, shifted = FALSE){
   
   # Rescale hull for calculation
-  # if (isTRUE(shifted)){
-  #   scaling_factor <- max(occurrences_sf$longitude)-min(occurrences_sf$longitude)
-  #   # occurrences_sf$geometry <- (sf::st_geometry(occurrences_sf) + c(360,90)) %% c(360) - c(0,90)
-  #   occurrences_sf$geometry <- (sf::st_geometry(occurrences_sf)-c(scaling_factor, 0))
-  #   st_crs(occurrences_sf) <- 4326
-  # }
-  
-  #print(summary(st_coordinates(occurrences_sf)[, 1]))
+  if (shifted){
+    scaling_factor <- max(occurrences_sf$longitude)-min(occurrences_sf$longitude)
+    # occurrences_sf$geometry <- (sf::st_geometry(occurrences_sf) + c(360,90)) %% c(360) - c(0,90)
+    occurrences_sf$geometry <- (sf::st_geometry(occurrences_sf)-c(scaling_factor, 0))
+    st_crs(occurrences_sf) <- 4326
+  }
 
-  centreofpoints <- trueCOGll(st_coordinates(occurrences_sf) %>% as.data.frame() %>% set_names("longitude", "latitude"))
-  mypointsxy <- simProjWiz(st_coordinates(occurrences_sf) %>% as.data.frame() %>% set_names(c("long", "lat")), centreofpoints)
-  # vertices <- chull(mypointsxy$xy)
-  # mypointsxy_sf <- mypointsxy$xy %>%
-  #   sf::st_as_sf(
-  #     coords = c("x", "y"),
-  #     crs = mypointsxy$crs_new
-  #   )
   hull <- occurrences_sf %>%  #[vertices, ] %>% 
     terra::vect() %>% 
     terra::convHull() %>% 
     sf::st_as_sf()
   st_crs(hull) <- 4326
   
-  # safe_area <- purrr::safely(sf::st_area)
-  EOO <- purrr::safely(red::eoo)(mypointsxy$xy)
+  if (shifted){
+    EOO <- purrr::safely(red::eoo)(st_coordinates(occurrences_sf))
+    # Rescale hull for mapping
+    hull$geometry <- (sf::st_geometry(hull)+c(scaling_factor, 0))
+    st_crs(hull) <- 4326
+  } else {
+    centreofpoints <- trueCOGll(st_coordinates(occurrences_sf) %>% as.data.frame() %>% set_names("longitude", "latitude"))
+    mypointsxy <- simProjWiz(st_coordinates(occurrences_sf) %>% as.data.frame() %>% set_names(c("long", "lat")), centreofpoints)
+    EOO <- purrr::safely(red::eoo)(mypointsxy$xy)
+  }
+  
   if (!is.null(EOO$result)){
     EOO <- EOO$result %>% units::set_units(km^2)
   } else {
     EOO <- NA
   }
-  
-  # Rescale hull for mapping
-  # if (isTRUE(shifted)){
-  #   # occurrences_sf$geometry <- (sf::st_geometry(occurrences_sf) + c(360,90)) %% c(360) - c(0,90)
-  #   hull$geometry <- (sf::st_geometry(hull)+c(scaling_factor, 0))
-  #   st_crs(hull) <- 4326
-  # }
   
   if (!is.na(EOO)){
     eoo_factor <- cut(as.numeric(EOO), breaks = c(0, 0.999, 99.999, 249.999, 999.999, 4999.999, 19999.999, 199999.999, 2499999.999, 1000000000), labels = c("Z", LETTERS[1:8]))
@@ -901,7 +893,8 @@ run_rank_assessment <- function(taxon_names,
       datasets_metadata = taxon_data_list[[1]]$datasets_selected,
       query_polygon = query_polygon,
       all_occ_data = "OCCURRENCE" %in% sources_filter,
-      all_humobs_data = "HUMAN_OBSERVATION" %in% sources_filter
+      all_humobs_data = "HUMAN_OBSERVATION" %in% sources_filter, 
+      shift_occurrences = FALSE
     )$sp_occurrences
   } else {
     gbif_occurrences_raw <- NULL
@@ -922,6 +915,25 @@ run_rank_assessment <- function(taxon_names,
       taxon_data$gbif_occurrences <- taxon_data$gbif_occurrences_raw %>% 
         clean_gbif_data(clean = clean_occ, remove_centroids = centroid_filter, minimum_fields = minimum_fields) %>% 
         dplyr::mutate(scientificName_Assessment = taxon_name)
+      
+      shifted <- FALSE
+      
+      taxon_data$gbif_occurrences$longitude[taxon_data$gbif_occurrences$longitude > 180] <- taxon_data$gbif_occurrences$longitude[taxon_data$gbif_occurrences$longitude > 180] - 360
+      max_long <- max(taxon_data$gbif_occurrences$longitude, na.rm = TRUE)/2
+      shifted_long <- taxon_data$gbif_occurrences$longitude
+      if (length(taxon_data$gbif_occurrences$longitude[taxon_data$gbif_occurrences$longitude > max_long]) > 0){
+        shifted_long[shifted_long > max_long] <- shifted_long[shifted_long > max_long] - 360
+        shifted_long <- shifted_long + 360
+        # shifted <- TRUE
+      }
+
+      if ((max(shifted_long)-min(shifted_long)) < (max(taxon_data$gbif_occurrences$longitude) - min(taxon_data$gbif_occurrences$longitude))){
+        taxon_data$gbif_occurrences$longitude <- shifted_long
+        shifted <- TRUE
+      }
+      
+      taxon_data$shifted <- shifted
+
     }
     
    if (!is.null(uploaded_data)){
@@ -950,34 +962,13 @@ run_rank_assessment <- function(taxon_names,
          dplyr::select(-scientificName_Source)
      }
      
-     print(str(taxon_data$uploaded_occurrences))
-     
     }
 
   taxon_data$all_occurrences <- rbind(
     taxon_data$gbif_occurrences,
     taxon_data$uploaded_occurrences 
   )
-  
-  shifted <- FALSE
-  
-  taxon_data$all_occurrences$longitude[taxon_data$all_occurrences$longitude > 180] <- taxon_data$all_occurrences$longitude[taxon_data$gbif_occurrences$longitude > 180] - 360
-  max_long <- max(taxon_data$all_occurrences$longitude, na.rm = TRUE)/2
-  shifted_long <- taxon_data$all_occurrences$longitude
-  
-  if (length(taxon_data$all_occurrences$longitude[taxon_data$all_occurrences$longitude > max_long]) > 0){
-    shifted_long[shifted_long > max_long] <- shifted_long[shifted_long > max_long] - 360
-    shifted_long <- shifted_long + 360
-    # shifted <- TRUE
-  }
-  
-  if ((max(shifted_long)-min(shifted_long)) < (max(taxon_data$all_occurrences$longitude) - min(taxon_data$all_occurrences$longitude))){
-    taxon_data$all_occurrences$longitude <- shifted_long
-    shifted <- TRUE
-  }
-  
-  taxon_data$shifted < - shifted
-  
+
   ### Create simple features object for geospatial calculations
   taxon_data$sf <- taxon_data$all_occurrences %>% 
     dplyr::filter(complete.cases(longitude, latitude)) %>% 
@@ -1127,6 +1118,8 @@ run_rank_assessment <- function(taxon_names,
   }
   }  
 
+  print(taxon_data$shifted)
+  
   taxon_data
   
   }) %>% 
