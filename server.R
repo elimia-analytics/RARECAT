@@ -2010,7 +2010,9 @@ function(input, output, session) {
         ), collapse = "; ")
       out2[, 35] <- Sys.Date()
 
-      taxon_data$rank_factor_comparison <- compare_rank_factors(taxon_data)
+      if (!is.null(taxon_data$species_range_value) & !is.null(taxon_data$AOO_value) & !is.null(taxon_data$EOcount_value)){
+        taxon_data$rank_factor_comparison <- compare_rank_factors(taxon_data)
+      }
       out2[, 12] <- taxon_data$rank_factor_comparison$previous_species_range_letter
       out2[, 13] <- taxon_data$rank_factor_comparison$new_previous_species_range_comparison
       out2[, 17] <- taxon_data$rank_factor_comparison$previous_aoo_letter
