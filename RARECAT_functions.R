@@ -458,6 +458,7 @@ calculate_eoo <- function(occurrences_sf, shifted = FALSE){
     # occurrences_sf$geometry <- (sf::st_geometry(occurrences_sf) + c(360,90)) %% c(360) - c(0,90)
     occurrences_sf$geometry <- (sf::st_geometry(occurrences_sf)-c(scaling_factor, 0))
     st_crs(occurrences_sf) <- 4326
+    print(summary(st_coordinates(occurrences_sf)[, 1]))
   }
 
   hull <- occurrences_sf %>%  #[vertices, ] %>% 
@@ -466,15 +467,24 @@ calculate_eoo <- function(occurrences_sf, shifted = FALSE){
     sf::st_as_sf()
   st_crs(hull) <- 4326
   
-  if (shifted){
+  if (min(st_coordinates(occurrences_sf)[,1]) > 0){
+  long_range <- abs(max(st_coordinates(occurrences_sf)[,1], na.rm = TRUE))-abs(min(st_coordinates(occurrences_sf)[,1], na.rm = TRUE))
+  } else {
+    long_range <- abs(max(st_coordinates(occurrences_sf)[,1], na.rm = TRUE))+abs(min(st_coordinates(occurrences_sf)[,1], na.rm = TRUE))
+  }
+  
+  if (shifted & long_range >= 180){
     EOO <- purrr::safely(red::eoo)(st_coordinates(occurrences_sf))
-    # Rescale hull for mapping
-    hull$geometry <- (sf::st_geometry(hull)+c(scaling_factor, 0))
-    st_crs(hull) <- 4326
   } else {
     centreofpoints <- trueCOGll(st_coordinates(occurrences_sf) %>% as.data.frame() %>% set_names("longitude", "latitude"))
     mypointsxy <- simProjWiz(st_coordinates(occurrences_sf) %>% as.data.frame() %>% set_names(c("long", "lat")), centreofpoints)
     EOO <- purrr::safely(red::eoo)(mypointsxy$xy)
+  }
+  
+  if (shifted){
+  # Rescale hull for mapping
+  hull$geometry <- (sf::st_geometry(hull)+c(scaling_factor, 0))
+  st_crs(hull) <- 4326
   }
   
   if (!is.null(EOO$result)){
@@ -1118,8 +1128,6 @@ run_rank_assessment <- function(taxon_names,
   }
   }  
 
-  print(taxon_data$shifted)
-  
   taxon_data
   
   }) %>% 

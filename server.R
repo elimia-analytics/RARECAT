@@ -1094,33 +1094,7 @@ function(input, output, session) {
         if (!is.null(taxon_data$sf)){
           
           taxon_data$sf_filtered <- taxon_data$sf
-          
-          # long_range <- abs(max(taxon_data$sf_filtered$longitude, na.rm = TRUE))+abs(min(taxon_data$sf_filtered$longitude, na.rm = TRUE))
-          # 
-          # if (long_range > 360){
-          #   taxon_data$sf_filtered$longitude[taxon_data$sf_filtered$longitude < 0] <- taxon_data$sf_filtered$longitude[taxon_data$sf_filtered$longitude < 0] + 360
-          # }
-          
-          # if (length(taxon_data$sf_filtered$longitude > 180) > 0){
-            
-          # taxon_data$sf_filtered$longitude[taxon_data$sf_filtered$longitude > 180] <- taxon_data$sf_filtered$longitude[taxon_data$sf_filtered$longitude > 180] - 360
-          # 
-          # max_long <- max(taxon_data$sf_filtered$longitude, na.rm = TRUE)/2
-          # shifted_long <- taxon_data$sf_filtered$longitude
-          # 
-          # if (length(taxon_data$sf_filtered$longitude[taxon_data$sf_filtered$longitude > max_long]) > 0){
-          #   shifted_long[shifted_long > max_long] <- shifted_long[shifted_long > max_long] - 360
-          #   shifted_long <- shifted_long + 360
-          # }
-          # 
-          # if ((max(shifted_long)-min(shifted_long)) < (max(taxon_data$sf_filtered$longitude) - min(taxon_data$sf_filtered$longitude))){
-          #   taxon_data$sf_filtered$longitude <- shifted_long
-          #   taxon_data$shifted <- TRUE
-          # }
-          # 
-          
-          # }
-          
+
           months <- purrr::map_dbl(1:12, function(x) x) %>% purrr::set_names(substr(month.name, 1, 3))
           season <- which(names(months) %in% input$seasonality)
           # season <- ifelse(nchar(season) == 1, paste0("0", season), season)
@@ -1210,7 +1184,31 @@ function(input, output, session) {
           #   }
           # }
           # }
-
+          # 
+          #   long_range <- abs(max(taxon_data$sf_filtered$longitude, na.rm = TRUE))-abs(min(taxon_data$sf_filtered$longitude, na.rm = TRUE))
+          # 
+          #   print(long_range)
+          #   
+          #   if (long_range < 180){
+          #     
+          # max_long <- max(taxon_data$sf_filtered$longitude, na.rm = TRUE)/2
+          # shifted_long <- taxon_data$sf_filtered$longitude
+          # #
+          # if (length(taxon_data$sf_filtered$longitude[taxon_data$sf_filtered$longitude > max_long]) > 0){
+          #   shifted_long[shifted_long > max_long] <- shifted_long[shifted_long > max_long] - 360
+          #   shifted_long <- shifted_long + 360
+          # }
+          # 
+          # if ((max(shifted_long)-min(shifted_long)) < (max(taxon_data$sf_filtered$longitude) - min(taxon_data$sf_filtered$longitude))){
+          #   taxon_data$shifted <- TRUE
+          # } else {
+          #   taxon_data$shifted <- FALSE
+          # }
+          #   }
+          # }
+          # 
+          print(taxon_data$shifted)
+          
           m <- leafletProxy("main_map") %>%
             clearMarkers() %>%
             clearMarkerClusters() %>%
