@@ -713,7 +713,7 @@ function(input, output, session) {
       dplyr::filter(NAME_1 %in% gsub(" ", "", input$single_assessment_subnation)) %>% 
       dplyr::pull(GID_1) %>% 
       unique()
-    
+
     } else {
       taxon_data$assessment_polygon <- NULL
     }
@@ -918,7 +918,7 @@ function(input, output, session) {
         
         drawn_point <- data.frame(longitude = input$main_map_draw_new_feature$geometry$coordinates[[1]],
                                   latitude = input$main_map_draw_new_feature$geometry$coordinates[[2]],
-                                  year = substr(Sys.Date(), 1, 4),
+                                  year = NA, # substr(Sys.Date(), 1, 4),
                                   scientificName = taxon_data$info$scientificName
         )
         
@@ -1285,6 +1285,27 @@ function(input, output, session) {
           
           # shinybusy::remove_modal_spinner() # remove the modal window
           
+          assign("taxon_data", 
+                 list(
+                   info = taxon_data$info,
+                   info_extended = taxon_data$info_extended,
+                   synonyms = taxon_data$synonyms,
+                   synonyms_selected = taxon_data$synonyms_selected,
+                   datasets = taxon_data$datasets,
+                   datasets_selected = taxon_data$datasets_selected,
+                   assessment_polygon = taxon_data$assessment_polygon,
+                   gbif_occurrences_raw = taxon_data$gbif_occurrences_raw,
+                   gbif_occurrences = taxon_data$gbif_occurrences,
+                   uploaded_occurrences = taxon_data$uploaded_occurrences,
+                   drawn_occurrences = taxon_data$drawn_occurrences,
+                   all_occurrences = taxon_data$all_occurrences,
+                   shifted = taxon_data$shifted,
+                   sf = taxon_data$sf,
+                   sf_filtered = taxon_data$sf_filtered,
+                   filtered_occurrences = taxon_data$filtered_occurrences
+                 ),
+                 pos = 1
+          )
         }
         
       }) 
@@ -1296,8 +1317,10 @@ function(input, output, session) {
     
     if (!is.null(input$single_assessment_subnation)){
       
+      print("we got here")
+      
       subnation_bbox <- network_polys %>% 
-        dplyr::filter(Admin_abbr %in% input$single_assessment_subnation) %>% 
+        dplyr::filter(ADMIN_NAME %in% input$single_assessment_subnation) %>% 
         sf::st_bbox()
       
       m <- leafletProxy("main_map") %>%
@@ -1311,7 +1334,7 @@ function(input, output, session) {
       m
       
     }
-    
+  
   })
   
   observeEvent(input$main_map_marker_click, {

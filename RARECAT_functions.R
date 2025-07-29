@@ -1197,6 +1197,13 @@ calculate_rarity_change <- function(taxon_data = taxon_data,
 # Get temporal trends
 get_temporal_trends <- function(taxon_data = taxon_data, referenceTaxon = "kingdom", start_year = 1980){
   
+  # Create a Progress object
+  progress <- shiny::Progress$new()
+  # Make sure it closes when we exit this reactive, even if there's an error
+  on.exit(progress$close())
+  
+  progress$set(message = "Running Temporal Analysis", value = 0)
+  
   min_fields <- c("key", "scientificName", "prov", "longitude", "latitude", "coordinateUncertaintyInMeters", "stateProvince", "countryCode", "year", "month", "datasetName", "institutionCode", "basisOfRecord", "EORANK", "references")
 
   key_value <- taxon_data$synonyms %>% 
@@ -1213,12 +1220,15 @@ get_temporal_trends <- function(taxon_data = taxon_data, referenceTaxon = "kingd
   }
   
   query_poly <- taxon_data$AOO_map %>% 
-    sf::st_make_valid() %>% 
-    sf::st_union() %>% 
-    sf::st_make_valid() %>% 
+    # sf::st_make_valid() %>%
+    # sf::st_union() %>%
+    # sf::st_make_valid() %>%
     terra::vect() %>%
     terra::forceCCW() %>%
     terra::geom(wkt = TRUE)
+  
+  # Increment the progress bar, and update the detail text.
+  progress$inc(0.33/1, detail = paste0("Downloading GBIF data for reference taxon across target area"))
   
   gbif_data <- spocc::occ(from = "gbif", gbifopts = list(
     taxonKey = key_value,
@@ -1227,7 +1237,33 @@ get_temporal_trends <- function(taxon_data = taxon_data, referenceTaxon = "kingd
   ),
   limit = 100000, 
   has_coords = TRUE
-  )$gbif$data$custom_query
+  )
+  
+  if (nrow(gbif_data$gbif$data$custom_query) == 0){
+    
+    query_poly <- taxon_data$AOO_map %>% 
+      # sf::st_make_valid() %>%
+      # sf::st_union() %>%
+      # sf::st_make_valid() %>%
+      terra::vect() %>%
+      terra::forceCCW() %>%
+      terra::geom(wkt = TRUE)
+    
+    gbif_data <- spocc::occ(from = "gbif", gbifopts = list(
+      taxonKey = key_value,
+      geometry = query_poly,
+      year = paste0(start_year, ",", substr(Sys.Date(), 1, 4))
+    ),
+    limit = 100000, 
+    has_coords = TRUE
+    )
+    
+  }
+  
+  # Increment the progress bar, and update the detail text.
+  progress$inc(0.33/1, detail = paste0("Preparing GBIF data for temporal analysis"))
+  
+  gbif_data <- gbif_data$gbif$data$custom_query
   
   reference_taxon_name <- gbif_data[[referenceTaxon]][1]
   
@@ -1281,6 +1317,9 @@ get_temporal_trends <- function(taxon_data = taxon_data, referenceTaxon = "kingd
       proportion_observations = focal_species_count/total_number_observations,
       proportion_species = focal_species_detection/species_list_length,
     )
+  
+  # Increment the progress bar, and update the detail text.
+  progress$inc(0.33/1, detail = paste0("Creating yearly summaries"))
   
   # Mean yearly proportions
   temporal_trend_data <- focal_species_detection_data %>%
@@ -1340,14 +1379,13 @@ get_temporal_trends <- function(taxon_data = taxon_data, referenceTaxon = "kingd
     geom_col(col = "#2c7bb680", alpha = 0.5) +
     geom_smooth(size = 1, se = FALSE, col = "black") +
     ylab(paste0("Proportion of \n records")) +
-    xlab("") +
+    xlab("Year") +
     # annotate("text", x = quantile(temporal_trend_data$year, .21), y = max(temporal_trend_data$proportion_observations)+(0.08 *max(temporal_trend_data$proportion_observations)), label = paste0("Proportion of Observations"), hjust = 1) +
     theme_linedraw() +
     theme(legend.position = "none",
           panel.grid.major = element_blank(),
           panel.grid.minor = element_blank(),
           axis.title = element_text(size = 9),
-          axis.text.x = element_blank(),
           axis.text = element_text(size = 8)
     )
   # # Mean proportion of species
@@ -1383,29 +1421,31 @@ get_temporal_trends <- function(taxon_data = taxon_data, referenceTaxon = "kingd
   #         axis.text = element_text(size = 8)
   #   )
   ## GLMER (with spatial random effect)
-  options(na.action = "na.fail")
-  glmer_result <- lme4::glmer(focal_species_detection ~ splines::bs(year, df = 3) + scale(total_number_observations) + scale(species_list_length) + (1 | cellID), 
-                              data = focal_species_detection_data, family = binomial, control = lme4::glmerControl(tol = 1e-5, optimizer = "bobyqa", optCtrl=list(maxfun=2e5))
-  )
-  # Modeled probability of detection
-  p4 <- data.frame(fitted = fitted(glmer_result), year = focal_species_detection_data$year) %>% 
-    ggplot(aes(x = year, y = fitted)) + 
-    geom_point(col = "#2c7bb680", alpha = 0.5) + 
-    geom_smooth(size = 1, se = FALSE, col = "black") + 
-    # ylim(c(0, 1.2)) +
-    scale_y_continuous(breaks = c(0, 0.2, 0.4, 0.6, 0.8, 1), limits = c(0, 1)) +
-    xlab("Year") +
-    ylab(paste0("Modeled probability \n of detection")) +
-    # annotate("text", x = quantile(temporal_trend_data$year, .20), y = 1.08, label = paste0("Modeled probability of detection", rep(" ", num_chars_missing[[4]])), hjust = 1) +
-    theme_linedraw() +
-    theme(legend.position = "none",
-          panel.grid.major = element_blank(), 
-          panel.grid.minor = element_blank(),
-          axis.title = element_text(size = 9),
-          axis.text = element_text(size = 8)
-    )
-  
-  p <- subplot(p1, p2, p3, p4, nrows = 4, shareX = TRUE, titleX = TRUE, titleY = TRUE, margin = 0.01, which_layout = 1)
+  # options(na.action = "na.fail")
+  # glmer_result <- lme4::glmer(focal_species_detection ~ splines::bs(year, df = 3) + scale(total_number_observations) + scale(species_list_length) + (1 | cellID), 
+  #                             data = focal_species_detection_data, family = binomial, control = lme4::glmerControl(tol = 1e-5, optimizer = "bobyqa", optCtrl=list(maxfun=2e5))
+  # )
+  # # Modeled probability of detection
+  # p4 <- data.frame(fitted = fitted(glmer_result), year = focal_species_detection_data$year) %>% 
+  #   ggplot(aes(x = year, y = fitted)) + 
+  #   geom_point(col = "#2c7bb680", alpha = 0.5) + 
+  #   geom_smooth(size = 1, se = FALSE, col = "black") + 
+  #   # ylim(c(0, 1.2)) +
+  #   scale_y_continuous(breaks = c(0, 0.2, 0.4, 0.6, 0.8, 1), limits = c(0, 1)) +
+  #   xlab("Year") +
+  #   ylab(paste0("Modeled probability \n of detection")) +
+  #   # annotate("text", x = quantile(temporal_trend_data$year, .20), y = 1.08, label = paste0("Modeled probability of detection", rep(" ", num_chars_missing[[4]])), hjust = 1) +
+  #   theme_linedraw() +
+  #   theme(legend.position = "none",
+  #         panel.grid.major = element_blank(), 
+  #         panel.grid.minor = element_blank(),
+  #         axis.title = element_text(size = 9),
+  #         axis.text = element_text(size = 8)
+  #   )
+  # 
+  # p <- subplot(p1, p2, p3, p4, nrows = 4, shareX = TRUE, titleX = TRUE, titleY = TRUE, margin = 0.01, which_layout = 1)
+
+  p <- subplot(p1, p2, p3, nrows = 3, shareX = TRUE, titleX = TRUE, titleY = TRUE, margin = 0.01, which_layout = 1)
   
   gg <- plotly_build(p) %>%
     config(displayModeBar = FALSE) %>%
