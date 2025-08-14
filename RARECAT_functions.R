@@ -593,6 +593,7 @@ compare_rank_factors <- function(taxon_data, rank_factor_upload = NULL){
   if (is.null(rank_factor_upload)){
   
     if (!is.na(taxon_data$species_range_factor)){
+      
       if (!is.null(taxon_data$info_extended$rankInfo$rangeExtent$rangeExtentDescEn)){
         
         previous_species_range_value <- taxon_data$info_extended$rankInfo$rangeExtent$rangeExtentDescEn %>% str_split_1(" square") %>% head(1) %>% str_split_1("-") %>% head(2) %>% parse_number()      
@@ -672,7 +673,10 @@ compare_rank_factors <- function(taxon_data, rank_factor_upload = NULL){
           )
       }
     }
-  } else {
+    }  else {
+      taxon_data$EOcount_factor <- NA
+    }
+    } else {
     out$previous_species_range_letter <- rank_factor_upload$Range.Extent
     out$new_previous_species_range_comparison <- ifelse(identical(taxon_data$species_range_factor, out$previous_species_range_letter), "equal",
                                                         ifelse(
@@ -691,9 +695,6 @@ compare_rank_factors <- function(taxon_data, rank_factor_upload = NULL){
                                                     which(LETTERS %in% taxon_data$EOcount_factor) < which(LETTERS %in% out$previous_eocount_letter),
                                                     "lower", "higher"
                                                   ))
-  }
-  } else {
-    taxon_data$EOcount_factor <- NA
   }
 
   return(out)
