@@ -210,13 +210,20 @@ get_gbif_data <- function(taxa_metadata,
 
   sp_occurrences <- gbif_occurrences
 
+  assign("sp_occurrences", sp_occurrences, pos = 1)
+  
   shifted <- FALSE
   
   if (shift_occurrences){
-
+    
+    sp_occurrences$longitude[sp_occurrences$longitude > 360] <- sp_occurrences$longitude[sp_occurrences$longitude > 360] - 360
     sp_occurrences$longitude[sp_occurrences$longitude > 180] <- sp_occurrences$longitude[sp_occurrences$longitude > 180] - 360
+    sp_occurrences$longitude[sp_occurrences$longitude < -360] <- sp_occurrences$longitude[sp_occurrences$longitude < -360] + 360
+    sp_occurrences$longitude[sp_occurrences$longitude < -180] <- sp_occurrences$longitude[sp_occurrences$longitude < -180] + 360
+
+    # sp_occurrences$longitude[sp_occurrences$longitude > 180] <- sp_occurrences$longitude[sp_occurrences$longitude > 180] - 360
     # sp_occurrences$longitude[sp_occurrences$longitude < -180] <- sp_occurrences$longitude[sp_occurrences$longitude < -180] + 360
-    #
+
     max_long <- max(sp_occurrences$longitude, na.rm = TRUE)/2
     shifted_long <- sp_occurrences$longitude
 
@@ -450,6 +457,56 @@ aoo2 <- function (spData, cell_size)
 }
 
 # Function to calculate extent of occurrence (i.e. range)
+# calculate_eoo <- function(occurrences_sf, shifted = FALSE){
+# 
+#   hull <- occurrences_sf %>%  #[vertices, ] %>% 
+#     terra::vect() %>% 
+#     terra::convHull() %>% 
+#     sf::st_as_sf()
+#   st_crs(hull) <- 4326
+#   
+#   assign("hull", hull, pos = 1)
+#   
+#   hull_latlong <- st_coordinates(hull)[, 1:2] %>% 
+#     as.data.frame() %>% 
+#     dplyr::rename(longitude = X, latitude = Y)
+#   hull_latlong$longitude[hull_latlong$longitude > 360] <- hull_latlong$longitude[hull_latlong$longitude > 360] - 360
+#   hull_latlong$longitude[hull_latlong$longitude > 180] <- hull_latlong$longitude[hull_latlong$longitude > 180] - 360
+#   hull_latlong$longitude[hull_latlong$longitude < -360] <- hull_latlong$longitude[hull_latlong$longitude < -360] + 360
+#   hull_latlong$longitude[hull_latlong$longitude < -180] <- hull_latlong$longitude[hull_latlong$longitude < -180] + 360
+# 
+#   hull_rescaled <- hull_latlong %>% dplyr::mutate(lon = longitude,
+#                                                   lat = latitude) %>% 
+#     sf::st_as_sf(
+#       coords = c("lon", "lat"),
+#       crs = 4326
+#     )
+#   
+# EOO <- purrr::safely((function(hull_rescaled){ hull_rescaled %>% 
+#     sf::st_union() %>% 
+#     sf::st_convex_hull() %>% 
+#     sf::st_area() %>% 
+#     units::set_units(km^2)}))(hull_rescaled)
+#   
+#   if (!is.null(EOO$result)){
+#     EOO <- EOO$result %>% units::set_units(km^2)
+#   } else {
+#     EOO <- NA
+#   }
+#   
+#   if (!is.na(EOO)){
+#     eoo_factor <- cut(as.numeric(EOO), breaks = c(0, 0.999, 99.999, 249.999, 999.999, 4999.999, 19999.999, 199999.999, 2499999.999, 1000000000), labels = c("Z", LETTERS[1:8]))
+#   } else {
+#     eoo_factor <- NA
+#   }
+#     
+#   out <- list(hull = hull, EOO = EOO, factor = eoo_factor)
+#   
+#   return(out)
+# }
+
+# Calculate EOO
+# Function to calculate extent of occurrence (i.e. range)
 calculate_eoo <- function(occurrences_sf, shifted = FALSE){
   
   # Rescale hull for calculation
@@ -460,7 +517,7 @@ calculate_eoo <- function(occurrences_sf, shifted = FALSE){
     st_crs(occurrences_sf) <- 4326
     print(summary(st_coordinates(occurrences_sf)[, 1]))
   }
-
+  
   hull <- occurrences_sf %>%  #[vertices, ] %>% 
     terra::vect() %>% 
     terra::convHull() %>% 
@@ -468,7 +525,7 @@ calculate_eoo <- function(occurrences_sf, shifted = FALSE){
   st_crs(hull) <- 4326
   
   if (min(st_coordinates(occurrences_sf)[,1]) > 0){
-  long_range <- abs(max(st_coordinates(occurrences_sf)[,1], na.rm = TRUE))-abs(min(st_coordinates(occurrences_sf)[,1], na.rm = TRUE))
+    long_range <- abs(max(st_coordinates(occurrences_sf)[,1], na.rm = TRUE))-abs(min(st_coordinates(occurrences_sf)[,1], na.rm = TRUE))
   } else {
     long_range <- abs(max(st_coordinates(occurrences_sf)[,1], na.rm = TRUE))+abs(min(st_coordinates(occurrences_sf)[,1], na.rm = TRUE))
   }
@@ -482,9 +539,9 @@ calculate_eoo <- function(occurrences_sf, shifted = FALSE){
   }
   
   if (shifted){
-  # Rescale hull for mapping
-  hull$geometry <- (sf::st_geometry(hull)+c(scaling_factor, 0))
-  st_crs(hull) <- 4326
+    # Rescale hull for mapping
+    hull$geometry <- (sf::st_geometry(hull)+c(scaling_factor, 0))
+    st_crs(hull) <- 4326
   }
   
   if (!is.null(EOO$result)){
@@ -498,7 +555,7 @@ calculate_eoo <- function(occurrences_sf, shifted = FALSE){
   } else {
     eoo_factor <- NA
   }
-    
+  
   out <- list(hull = hull, EOO = EOO, factor = eoo_factor)
   
   return(out)
@@ -929,7 +986,11 @@ run_rank_assessment <- function(taxon_names,
       
       shifted <- FALSE
       
+      taxon_data$gbif_occurrences$longitude[taxon_data$gbif_occurrences$longitude > 360] <- taxon_data$gbif_occurrences$longitude[taxon_data$gbif_occurrences$longitude > 360] - 360
       taxon_data$gbif_occurrences$longitude[taxon_data$gbif_occurrences$longitude > 180] <- taxon_data$gbif_occurrences$longitude[taxon_data$gbif_occurrences$longitude > 180] - 360
+      taxon_data$gbif_occurrences$longitude[taxon_data$gbif_occurrences$longitude < -360] <- taxon_data$gbif_occurrences$longitude[taxon_data$gbif_occurrences$longitude < -360] + 360
+      taxon_data$gbif_occurrences$longitude[taxon_data$gbif_occurrences$longitude < -180] <- taxon_data$gbif_occurrences$longitude[taxon_data$gbif_occurrences$longitude < -180] + 360
+      
       max_long <- max(taxon_data$gbif_occurrences$longitude, na.rm = TRUE)/2
       shifted_long <- taxon_data$gbif_occurrences$longitude
       if (length(taxon_data$gbif_occurrences$longitude[taxon_data$gbif_occurrences$longitude > max_long]) > 0){
@@ -942,7 +1003,7 @@ run_rank_assessment <- function(taxon_names,
         taxon_data$gbif_occurrences$longitude <- shifted_long
         shifted <- TRUE
       }
-      
+
       taxon_data$shifted <- shifted
 
     }
@@ -973,6 +1034,37 @@ run_rank_assessment <- function(taxon_names,
          dplyr::select(-scientificName_Source)
      }
      
+     taxon_data$uploaded_occurrences$longitude[taxon_data$uploaded_occurrences$longitude > 360] <- taxon_data$uploaded_occurrences$longitude[taxon_data$uploaded_occurrences$longitude > 360] - 360
+     taxon_data$uploaded_occurrences$longitude[taxon_data$uploaded_occurrences$longitude > 180] <- taxon_data$uploaded_occurrences$longitude[taxon_data$uploaded_occurrences$longitude > 180] - 360
+     taxon_data$uploaded_occurrences$longitude[taxon_data$uploaded_occurrences$longitude < -360] <- taxon_data$uploaded_occurrences$longitude[taxon_data$uploaded_occurrences$longitude < -360] + 360
+     taxon_data$uploaded_occurrences$longitude[taxon_data$uploaded_occurrences$longitude < -180] <- taxon_data$uploaded_occurrences$longitude[taxon_data$uploaded_occurrences$longitude < -180] + 360
+     
+     # Identify if occurrences need to be shifted to be remapped over the smallest possible range extent
+     max_long <- max(taxon_data$uploaded_occurrences$longitude, na.rm = TRUE)/2
+     shifted_long <- taxon_data$uploaded_occurrences$longitude
+     
+     if (length(taxon_data$uploaded_occurrences$longitude[taxon_data$uploaded_occurrences$longitude > max_long]) > 0){
+       shifted_long[shifted_long > max_long] <- shifted_long[shifted_long > max_long] - 360
+       shifted_long <- shifted_long + 360
+     }
+     
+     if ((max(shifted_long)-min(shifted_long)) < (max(taxon_data$uploaded_occurrences$longitude) - min(taxon_data$uploaded_occurrences$longitude))){
+       taxon_data$uploaded_occurrences$longitude <- shifted_long
+       taxon_data$shifted <- TRUE
+     }
+     
+     gbif_long_max <- ifelse(!is.null(taxon_data$gbif_occurrences), max(taxon_data$gbif_occurrences$longitude, na.rm = TRUE), NA)
+     gbif_long_min <- ifelse(!is.null(taxon_data$gbif_occurrences), min(taxon_data$gbif_occurrences$longitude, na.rm = TRUE), NA)
+     
+     long_range <- abs(max(c(max(taxon_data$uploaded_occurrences$longitude, na.rm = TRUE), gbif_long_max), na.rm = TRUE)) +
+       abs(min(c(min(taxon_data$uploaded_occurrences$longitude, na.rm = TRUE), gbif_long_min), na.rm = TRUE))
+     
+     if (long_range > 360){
+       taxon_data$uploaded_occurrences$longitude[taxon_data$uploaded_occurrences$longitude < 0] <- taxon_data$uploaded_occurrences$longitude[taxon_data$uploaded_occurrences$longitude < 0] + 360
+     }
+     
+     taxon_data$uploaded_occurrences$longitude[taxon_data$uploaded_occurrences$longitude > 360] <- taxon_data$uploaded_occurrences$longitude[taxon_data$uploaded_occurrences$longitude > 360] - 360
+     
     }
 
   taxon_data$all_occurrences <- rbind(
@@ -980,6 +1072,19 @@ run_rank_assessment <- function(taxon_names,
     taxon_data$uploaded_occurrences 
   )
 
+  # max_long <- max(taxon_data$all_occurrences$longitude, na.rm = TRUE)/2
+  # shifted_long <- taxon_data$all_occurrences$longitude
+  # 
+  # if (length(taxon_data$all_occurrences$longitude[taxon_data$all_occurrences$longitude > max_long]) > 0){
+  #   shifted_long[shifted_long > max_long] <- shifted_long[shifted_long > max_long] - 360
+  #   shifted_long <- shifted_long + 360
+  # }
+  # 
+  # if ((max(shifted_long)-min(shifted_long)) < (max(taxon_data$all_occurrences$longitude) - min(taxon_data$all_occurrences$longitude))){
+  #   taxon_data$all_occurrences$longitude <- shifted_long
+  #   taxon_data$shifted <- TRUE
+  # }
+  
   ### Create simple features object for geospatial calculations
   taxon_data$sf <- taxon_data$all_occurrences %>% 
     dplyr::filter(complete.cases(longitude, latitude)) %>% 

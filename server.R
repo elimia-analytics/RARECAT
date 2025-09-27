@@ -142,6 +142,7 @@ function(input, output, session) {
     
     # Query NatureServe Explorer API for text entered in search bar
     ns_table <- natserv::ns_search_spp(text_adv = list(searchToken = input$search_taxon, matchAgainst = "allScientificNames", operator="contains"))$results
+    
     # Query GBIF Taxonomy API for text entered in search bar
     gbif_table <- rgbif::name_suggest(q = input$search_taxon, rank = c("species", "subspecies", "variety", "infraspecific_name"), limit = 10)$data
     
@@ -153,6 +154,8 @@ function(input, output, session) {
         dplyr::mutate(Source = "NatureServe", synonyms = ns_table$speciesGlobal$synonyms, phylum = ns_table$speciesGlobal$phylum, kingdom = ns_table$speciesGlobal$kingdom) %>% 
         dplyr::select(scientificName, Source, elementGlobalId, primaryCommonName, roundedGRank, elcode, uniqueId, synonyms, phylum, kingdom)
       out <- rbind(out, ns_table)
+    } else {
+      sendSweetAlert(session, type = "warning", title = "Oops!", text = "The NatureServe Explorer API did not return any results for your search. There may not be any associated taxa or the service may be temporarily down.", closeOnClickOutside = TRUE)
     } 
     
     # Clean up GBIF API query result
@@ -773,6 +776,11 @@ function(input, output, session) {
           taxon_data$gbif_occurrences_raw$longitude[taxon_data$gbif_occurrences_raw$longitude < 0] <- taxon_data$gbif_occurrences_raw$longitude[taxon_data$gbif_occurrences_raw$longitude < 0] + 360
         }
         
+        taxon_data$gbif_occurrences_raw$longitude[taxon_data$gbif_occurrences_raw$longitude > 360] <- taxon_data$gbif_occurrences_raw$longitude[taxon_data$gbif_occurrences_raw$longitude > 360] - 360
+        # taxon_data$gbif_occurrences_raw$longitude[taxon_data$gbif_occurrences_raw$longitude > 180] <- taxon_data$gbif_occurrences_raw$longitude[taxon_data$gbif_occurrences_raw$longitude > 180] - 360
+        # taxon_data$gbif_occurrences_raw$longitude[taxon_data$gbif_occurrences_raw$longitude < -360] <- taxon_data$gbif_occurrences_raw$longitude[taxon_data$gbif_occurrences_raw$longitude < -360] + 360
+        # taxon_data$gbif_occurrences_raw$longitude[taxon_data$gbif_occurrences_raw$longitude < -180] <- taxon_data$gbif_occurrences_raw$longitude[taxon_data$gbif_occurrences_raw$longitude < -180] + 360
+        
         taxon_data$gbif_occurrences <- taxon_data$gbif_occurrences_raw %>% 
           clean_gbif_data(clean = input$clean_occ, remove_centroids = input$centroid_filter, minimum_fields = minimum_fields) %>% 
           dplyr::mutate(scientificName_Assessment = taxon_data$info$scientificName)
@@ -799,9 +807,16 @@ function(input, output, session) {
         if (length(is.na(taxon_data$uploaded_occurrences$key)) > 0){
           taxon_data$uploaded_occurrences$key[is.na(taxon_data$uploaded_occurrences$key)] <- paste(taxon_data$uploaded_occurrences$prov, 1:length(taxon_data$uploaded_occurrences$key[is.na(taxon_data$uploaded_occurrences$key)]), sep = "_")
         }
-        
+
+        # Rescale uploaded occurrences to -180-180 longitude
+        taxon_data$uploaded_occurrences$longitude[taxon_data$uploaded_occurrences$longitude > 360] <- taxon_data$uploaded_occurrences$longitude[taxon_data$uploaded_occurrences$longitude > 360] - 360
         taxon_data$uploaded_occurrences$longitude[taxon_data$uploaded_occurrences$longitude > 180] <- taxon_data$uploaded_occurrences$longitude[taxon_data$uploaded_occurrences$longitude > 180] - 360
-        
+        taxon_data$uploaded_occurrences$longitude[taxon_data$uploaded_occurrences$longitude < -360] <- taxon_data$uploaded_occurrences$longitude[taxon_data$uploaded_occurrences$longitude < -360] + 360
+        taxon_data$uploaded_occurrences$longitude[taxon_data$uploaded_occurrences$longitude < -180] <- taxon_data$uploaded_occurrences$longitude[taxon_data$uploaded_occurrences$longitude < -180] + 360
+
+        # taxon_data$uploaded_occurrences$longitude[taxon_data$uploaded_occurrences$longitude > 180] <- taxon_data$uploaded_occurrences$longitude[taxon_data$uploaded_occurrences$longitude > 180] - 360
+
+        # Identify if occurrences need to be shifted to be remapped over the smallest possible range extent
         max_long <- max(taxon_data$uploaded_occurrences$longitude, na.rm = TRUE)/2
         shifted_long <- taxon_data$uploaded_occurrences$longitude
 
@@ -817,14 +832,16 @@ function(input, output, session) {
         
         gbif_long_max <- ifelse(!is.null(taxon_data$gbif_occurrences), max(taxon_data$gbif_occurrences$longitude, na.rm = TRUE), NA)
         gbif_long_min <- ifelse(!is.null(taxon_data$gbif_occurrences), min(taxon_data$gbif_occurrences$longitude, na.rm = TRUE), NA)
-        
+
         long_range <- abs(max(c(max(taxon_data$uploaded_occurrences$longitude, na.rm = TRUE), gbif_long_max), na.rm = TRUE)) +
                       abs(min(c(min(taxon_data$uploaded_occurrences$longitude, na.rm = TRUE), gbif_long_min), na.rm = TRUE))
-        
+
         if (long_range > 360){
           taxon_data$uploaded_occurrences$longitude[taxon_data$uploaded_occurrences$longitude < 0] <- taxon_data$uploaded_occurrences$longitude[taxon_data$uploaded_occurrences$longitude < 0] + 360
         }
 
+        taxon_data$uploaded_occurrences$longitude[taxon_data$uploaded_occurrences$longitude > 360] <- taxon_data$uploaded_occurrences$longitude[taxon_data$uploaded_occurrences$longitude > 360] - 360
+        
         selected_taxon$NS <- c(selected_taxon$NS, unique(taxon_data$uploaded_occurrences$scientificName)) %>% unique()
         
         if (taxon_data$info$scientificName == "New taxon"){
@@ -917,6 +934,11 @@ function(input, output, session) {
     )
     
     if (!is.null(taxon_data$all_occurrences)){ # If any of the data sources are not null
+
+      # taxon_data$all_occurrences$longitude[taxon_data$all_occurrences$longitude > 360] <- taxon_data$all_occurrences$longitude[taxon_data$all_occurrences$longitude > 360] - 360
+      # taxon_data$all_occurrences$longitude[taxon_data$all_occurrences$longitude > 180] <- taxon_data$all_occurrences$longitude[taxon_data$all_occurrences$longitude > 180] - 360
+      # taxon_data$all_occurrences$longitude[taxon_data$all_occurrences$longitude < -360] <- taxon_data$all_occurrences$longitude[taxon_data$all_occurrences$longitude < -360] + 360
+      # taxon_data$all_occurrences$longitude[taxon_data$all_occurrences$longitude < -180] <- taxon_data$all_occurrences$longitude[taxon_data$all_occurrences$longitude < -180] + 360
 
       # Create simple features object for geospatial calculations
       taxon_data$sf <- taxon_data$all_occurrences %>% 
@@ -1966,6 +1988,12 @@ function(input, output, session) {
                       scientificName_Source = "New taxon"
         ) 
       
+      # Rescale longitude values to -180/180 range
+      out$longitude[out$longitude > 360] <- out$longitude[out$longitude > 360] - 360
+      out$longitude[out$longitude > 180] <- out$longitude[out$longitude > 180] - 360
+      out$longitude[out$longitude < -360] <- out$longitude[out$longitude < -360] + 360
+      out$longitude[out$longitude < -180] <- out$longitude[out$longitude < -180] + 360
+      
       if (!is.null(taxon_data$info$Source)){
         out <- out %>% 
           dplyr::mutate(egt_uid = ifelse(taxon_data$info$Source == "NatureServe", taxon_data$info$uniqueId, ""),
@@ -1974,6 +2002,10 @@ function(input, output, session) {
                         scientificName_Source = scientificName
           ) 
       }
+      
+      assign("rarecat_download", out, pos = 1)
+      
+      
       
       extra_gbif_fields <- c("key", "collectionCode", "recordedBy", "recordNumber", "samplingProtocol", "accessRights", "taxonKey", "samplingProtocol", "occurrenceID", "bibliographicCitation", "datasetID", "license", "rightsHolder", "eventDate", "occurrenceStatus", "georeferenceProtocol")
       if (!is.null(taxon_data$gbif_occurrences_raw)){
