@@ -51,3 +51,6 @@ rsconnect/
 
 # Versions folder
 versions/
+
+# Test data folder
+test_data/
