@@ -1,0 +1,11 @@
+﻿key,scientificName_Assessment,scientificName_Source,prov,longitude,latitude,coordinateUncertaintyInMeters,stateProvince,countryCode,year,month,datasetName,institutionCode,basisOfRecord,EORANK,references,egt_uid,el_code,collectionCode,recordedBy,recordNumber,accessRights,taxonKey,samplingProtocol,occurrenceID,bibliographicCitation,datasetID,license,rightsHolder,eventDate,occurrenceStatus,georeferenceProtocol,georeferenceRemarks,EO_ID
+5077433694,Hasteola suaveolens,Hasteola suaveolens (L.) Pojark.,gbif,-89.462911,42.874551,569,Wisconsin,US,2001,8,"Wisconsin State Herbarium, Vascular Plants",WIS,PRESERVED_SPECIMEN,,https://www.gbif.org/occurrence/5077433694,ELEMENT_GLOBAL.2.154882,PDASTDX010,,"Henderson, Richard A.",1-Jan,,3151877,,,,,,,,,,,
+2573187214,Hasteola suaveolens,Cacalia suaveolens L.,gbif,-88.28419,42.43715,,Illinois,US,2001,9,"University of Vermont, Pringle Herbarium",VT,PRESERVED_SPECIMEN,,https://www.gbif.org/occurrence/2573187214,ELEMENT_GLOBAL.2.154882,PDASTDX010,,"Hill, S. R.",38785,,7764400,,,,,,,,,,,
+1038971016,Hasteola suaveolens,Cacalia suaveolens L.,gbif,-72.8575,41.2992,7935,Connecticut,US,1998,9,"Botany Division, Yale Peabody Museum",YPM,PRESERVED_SPECIMEN,,https://www.gbif.org/occurrence/1038971016,ELEMENT_GLOBAL.2.154882,PDASTDX010,CBS,John Souther,,"Open Access, http://creativecommons.org/publicdomain/zero/1.0/; see Yale Peabody policies at: http://hdl.handle.net/10079/8931zqj",7764400,,,,,,,,,,,
+,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,
+,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,
+,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,
+,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,
+,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,
+,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,
+,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,
