@@ -54,3 +54,8 @@ versions/
 
 # Test data folder
 test_data/
+
+# documentation folder
+documentation/
+
+
